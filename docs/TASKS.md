@@ -368,7 +368,7 @@
       - **Deliverables:** Refactored world creation code that uses the BlockRegistry.
       - **Implementation Context:** Refactored `initTestWorld()` and `initStressTestWorld()` in `GameLoop.java` to use `blockRegistry.getId("core:block/dirt")`, `blockRegistry.getId("core:block/stone")` and `blockRegistry.getId("core:block/grass")` for block IDs. Updated the renderer to use the block properties from the registry.
 
-- - [ ] **Task ID:** P3-T5
+- - [x] **Task ID:** P3-T5
   - **Name:** Procedural Generation Framework (`engine-world`)
   - **Description:** Integrate FastNoise Lite. Implement a basic terrain generator interface and a simple implementation (e.g., flat world and basic noise heightmap) that populates chunk data.
   - **Phase:** 3 - World Management & Generation
@@ -384,31 +384,31 @@
       - **Description:** Define a `TerrainGenerator` interface with a method to populate a `Chunk` with block data based on its position.
       - **Deliverables:** `TerrainGenerator.java` interface file.
       - **Implementation Context:** Created the `TerrainGenerator` interface in `engine-world/src/main/java/de/heger/voxelengine/world/generation/TerrainGenerator.java`. It defines a single functional method `generateChunkData(Chunk chunk)` for populating chunk data.
-    - [ ] **Subtask ID:** P3-T5.3
+    - [x] **Subtask ID:** P3-T5.3
       - **Name:** Implement FlatTerrainGenerator
       - **Description:** Create a `FlatTerrainGenerator` implementation that generates a simple flat world (e.g., a few layers of stone, then dirt, then grass).
       - **Deliverables:** `FlatTerrainGenerator.java` class file.
-      - **Implementation Context:**
+      - **Implementation Context:** Created `FlatTerrainGenerator.java` in `de.heger.voxelengine.world.generation`. This class implements `TerrainGenerator` to produce a layered flat world. It defines `GRASS_SURFACE_Y` (e.g., 63) and `DIRT_LAYERS` (e.g., 3). In its constructor, it fetches block IDs for "core:block/stone", "core:block/dirt", and "core:block/grass" from `BlockRegistry.getInstance()`. The `generateChunkData(Chunk chunk)` method iterates through local chunk coordinates, calculates the world Y-coordinate for each block, and sets stone below dirt, `DIRT_LAYERS` of dirt, grass at `GRASS_SURFACE_Y`, and air above. This generator will be utilized by the `ChunkGenerator` service (P3-T5.5) to populate chunks.
     - [ ] **Subtask ID:** P3-T5.4
       - **Name:** Implement NoiseTerrainGenerator
       - **Description:** Create a `NoiseTerrainGenerator` that uses FastNoise Lite to generate a simple heightmap. Blocks below the heightmap are stone, one layer of dirt, and one layer of grass on top.
       - **Deliverables:** `NoiseTerrainGenerator.java` class file using FastNoise Lite.
       - **Implementation Context:**
-    - [ ] **Subtask ID:** P3-T5.5
+    - [x] **Subtask ID:** P3-T5.5
       - **Name:** Implement ChunkGenerator Service
       - **Description:** Create a `ChunkGenerator` service class that takes a `TerrainGenerator` and is responsible for creating and populating new `Chunk` instances. It should use the `ChunkManager` to store the generated chunks.
       - **Deliverables:** `ChunkGenerator.java` class file.
-      - **Implementation Context:**
-    - [ ] **Subtask ID:** P3-T5.6
+      - **Implementation Context:** Created `ChunkGenerator.java` in `de.heger.voxelengine.world.generation`. This service class takes a `TerrainGenerator` in its constructor. Its primary method, `generateChunk(ChunkPos chunkPos)`, creates a new `Chunk` instance, populates it using the provided `TerrainGenerator`, sets its state to `GENERATED`, and then adds it to the singleton `ChunkManager.getInstance()`. It checks if a chunk already exists in the `ChunkManager` to avoid redundant generation. **Note:** Currently, neighbor chunk references are not set.
+    - [x] **Subtask ID:** P3-T5.6
       - **Name:** Integrate Chunk Generation into GameLoop
       - **Description:** Modify `GameLoop.java` to initialize the `ChunkGenerator` (with a chosen `TerrainGenerator`). Implement logic to generate an initial 16x16 area of chunks (e.g., from (0,0,0) to (15,0,15) in chunk coordinates) on startup.
       - **Deliverables:** Modified `GameLoop.java` to trigger initial world generation.
-      - **Implementation Context:**
-    - [ ] **Subtask ID:** P3-T5.7
+      - **Implementation Context:** In `GameLoop.java`, a `ChunkGenerator` field was added. In the constructor, after `BlockRegistry` is finalized, a `FlatTerrainGenerator` and then the `ChunkGenerator` are instantiated. A new method `initProceduralWorld(int worldRadiusChunks)` was created. This method iterates from `-worldRadiusChunks` to `worldRadiusChunks` for X and Z chunk coordinates, and from `0` to `MAX_WORLD_HEIGHT_CHUNKS - 1` (currently 16) for the Y chunk coordinate, calling `chunkGenerator.generateChunk()` for each position. This method is called during startup (e.g., `initProceduralWorld(2)` for a 5x5 horizontal area of chunk columns, each 16 chunks high). The previous call to `initTestWorld()` was commented out.
+    - [x] **Subtask ID:** P3-T5.7
       - **Name:** Update Renderer for Generated Chunks
       - **Description:** Ensure the `Renderer` correctly iterates through all chunks managed by `ChunkManager` and renders them. This might involve minor adjustments if the current rendering logic is tied to a specific list of test chunks.
       - **Deliverables:** Modified `Renderer.java` if necessary.
-      - **Implementation Context:**
+      - **Implementation Context:** No direct changes to `Renderer.java` were required for this subtask. It is assumed that the `GameLoop.render()` method (as established in P3-T3.7, though not fully visible in the latest `GameLoop.java` fragment) correctly retrieves all loaded chunks from `ChunkManager.getInstance().getAllLoadedChunks()` and passes them to `renderer.renderChunks()`. This existing pathway should handle the rendering of chunks procedurally generated by the `ChunkGenerator` and stored in the `ChunkManager`.
 
 - - [ ] **Task ID:** P3-T6
   - **Name:** Multithreaded Generation Setup (`engine-world`)

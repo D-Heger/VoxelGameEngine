@@ -10,18 +10,21 @@ import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkPos;
 import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.world.chunk.Direction;
+import de.heger.voxelengine.world.generation.ChunkGenerator;
+import de.heger.voxelengine.world.generation.FlatTerrainGenerator;
+import de.heger.voxelengine.world.generation.TerrainGenerator;
 
 import org.lwjgl.glfw.GLFW;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Set; // Import Set
 
 public class GameLoop {
 
     private static final LoggerFacade LOGGER = LoggerFacade.get(GameLoop.class);
     private static final float TARGET_UPS = 60.0f; // Target updates per second (Increased for smoother input)
     private static final float TARGET_FPS = 60.0f; // Target frames per second (for timing, not limiting)
+    private static final int MAX_WORLD_HEIGHT_CHUNKS = 16; // Max world height in chunks (16 chunks * 16 blocks/chunk = 256 blocks)
 
     private final Window window;
     private final InputManager inputManager;
@@ -29,6 +32,7 @@ public class GameLoop {
     private final Camera camera; // Add Camera instance
     private final ChunkManager chunkManager; // Added for P3-T3.7
     private final BlockRegistry blockRegistry; // Added for P3-T4
+    private final ChunkGenerator chunkGenerator; // Added for P3-T5.6
     private boolean running = false;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen) {
@@ -56,6 +60,11 @@ public class GameLoop {
         blockRegistry.finalizeRegistry();
         LOGGER.info("Block registry finalized with {} block types.", blockRegistry.getRegisteredBlockCount());
 
+        // Initialize ChunkGenerator after BlockRegistry is finalized
+        TerrainGenerator terrainGenerator = new FlatTerrainGenerator();
+        chunkGenerator = new ChunkGenerator(terrainGenerator);
+        LOGGER.info("ChunkGenerator initialized.");
+
         // Initialize Renderer AFTER block registry is finalized, as renderer needs the finalized properties.
         renderer.init();
         LOGGER.info("Renderer initialized.");
@@ -66,8 +75,11 @@ public class GameLoop {
         LOGGER.info("Mouse cursor captured.");
 
         // P3-T2.3: Initialize test chunks
-        initTestWorld(); // Call the original test world
+        //initTestWorld(); // Call the original test world
         //initStressTestWorld(); // Call the stress test world
+
+        // P3-T5.6: Initialize procedural world
+        initProceduralWorld(2); // Generate a 5x5 chunk area (radius 2 from 0,0) horizontally, and full height vertically
 
         LOGGER.info("Game loop initialized.");
     }
@@ -256,6 +268,30 @@ public class GameLoop {
                    chunkManager.getLoadedChunkCount(), durationSeconds);
         
         // Note: Neighbor linking is skipped for this stress test to focus on creation/rendering load.
+    }
+
+    /**
+     * Initializes a procedural world by generating chunks in a square area around the origin (0,Y,0)
+     * and vertically up to {@link #MAX_WORLD_HEIGHT_CHUNKS}.
+     * @param worldRadiusChunks The radius of the world to generate in chunks horizontally (X and Z axes).
+     *                          For example, a radius of 0 generates 1 chunk column (0,Y,0).
+     *                          A radius of 1 generates 9 chunk columns (-1 to 1 for X and Z).
+     *                          A radius of 2 generates 25 chunk columns (-2 to 2 for X and Z).
+     */
+    private void initProceduralWorld(int worldRadiusChunks) {
+        LOGGER.info("Initializing procedural world with radius: {} chunks (Total {}x{} area horizontally, {} chunks high)...",
+                worldRadiusChunks, (worldRadiusChunks * 2) + 1, (worldRadiusChunks * 2) + 1, MAX_WORLD_HEIGHT_CHUNKS);
+        int chunksGenerated = 0;
+        for (int cx = -worldRadiusChunks; cx <= worldRadiusChunks; cx++) {
+            for (int cz = -worldRadiusChunks; cz <= worldRadiusChunks; cz++) {
+                for (int cy = 0; cy < MAX_WORLD_HEIGHT_CHUNKS; cy++) { // Loop for vertical chunks
+                    ChunkPos pos = new ChunkPos(cx, cy, cz);
+                    this.chunkGenerator.generateChunk(pos);
+                    chunksGenerated++;
+                }
+            }
+        }
+        LOGGER.info("Procedural world initialization complete. Generated {} chunks.", chunksGenerated);
     }
 
     public void run() {
