@@ -4,6 +4,13 @@ import de.heger.voxelengine.core.logging.LoggerFacade;
 import org.lwjgl.glfw.*;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.system.MemoryStack;
+import org.lwjgl.stb.STBImage;
+import org.lwjgl.BufferUtils;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -25,8 +32,7 @@ public class Window {
     private float aspectRatio;
     private InputManager inputManager;
 
-    //TODO Add icon later when we have asset loading
-    public Window(int width, int height, String title, boolean vsync, boolean fullscreen) {
+    public Window(int width, int height, String title, boolean vsync, boolean fullscreen, String iconResourcePath) {
         this.width = width;
         this.height = height;
         this.title = title;
@@ -85,6 +91,11 @@ public class Window {
         glViewport(0, 0, width, height);
         this.aspectRatio = (float) width / height;
         this.inputManager = new InputManager(windowHandle);
+
+        // Set window icon
+        if (iconResourcePath != null && !iconResourcePath.isEmpty()) {
+            setWindowIcon(iconResourcePath);
+        }
 
         // Make the window visible
         glfwShowWindow(windowHandle);
@@ -176,6 +187,51 @@ public class Window {
         }
         glfwInitialized = false;
         LOGGER.info("GLFW terminated.");
+    }
+
+    private ByteBuffer loadIconResource(String path) throws IOException {
+        InputStream stream = getClass().getResourceAsStream(path);
+        if (stream == null) {
+            throw new IOException("Icon resource not found: " + path);
+        }
+        byte[] bytes = stream.readAllBytes();
+        stream.close();
+        ByteBuffer buffer = BufferUtils.createByteBuffer(bytes.length);
+        buffer.put(bytes);
+        buffer.flip();
+        return buffer;
+    }
+
+    private void setWindowIcon(String iconResourcePath) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            IntBuffer comp = stack.mallocInt(1);
+
+            ByteBuffer iconByteBuffer = loadIconResource(iconResourcePath);
+            ByteBuffer imageData = STBImage.stbi_load_from_memory(iconByteBuffer, w, h, comp, 4); // Request RGBA
+
+            if (imageData == null) {
+                LOGGER.warn("Failed to load window icon '{}': {}", iconResourcePath, STBImage.stbi_failure_reason());
+                return;
+            }
+
+            GLFWImage.Buffer imageBuffer = GLFWImage.mallocStack(1, stack);
+            GLFWImage glfwImage = imageBuffer.get(0); // Get the GLFWImage struct from the buffer
+            glfwImage.width(w.get(0));
+            glfwImage.height(h.get(0));
+            glfwImage.pixels(imageData);
+
+            glfwSetWindowIcon(windowHandle, imageBuffer);
+
+            STBImage.stbi_image_free(imageData); // GLFW copies the data, so we can free it.
+            LOGGER.info("Window icon set from resource: {}", iconResourcePath);
+
+        } catch (IOException e) {
+            LOGGER.warn("Could not load window icon resource '{}': {}", iconResourcePath, e.getMessage());
+        } catch (Exception e) {
+            LOGGER.error("Error setting window icon from resource '{}':", iconResourcePath, e);
+        }
     }
 
     // --- Getters ---

@@ -34,7 +34,8 @@ public class GameLoop {
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen) {
         LOGGER.info("Initializing game loop...");
         // Window creation also initializes GLFW
-        window = new Window(width, height, windowTitle, vsync, fullscreen);
+        // Pass the icon resource path. Assuming "window.ico" is in src/main/resources
+        window = new Window(width, height, windowTitle, vsync, fullscreen, "/window.png");
         // Get input manager from window AFTER window creation
         inputManager = window.getInputManager();
 

@@ -7,6 +7,7 @@ dependencies {
 
     implementation(platform(libs.lwjgl.bom))
     implementation(libs.bundles.lwjgl.core)
+    implementation(libs.lwjgl.stb)
 
     val lwjglNatives = System.getProperty("os.name")!!.lowercase().let { os ->
         when {
@@ -19,6 +20,7 @@ dependencies {
     runtimeOnly("org.lwjgl:lwjgl::$lwjglNatives")
     runtimeOnly("org.lwjgl:lwjgl-glfw::$lwjglNatives")
     runtimeOnly("org.lwjgl:lwjgl-opengl::$lwjglNatives")
+    runtimeOnly("org.lwjgl:lwjgl-stb::$lwjglNatives")
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)
