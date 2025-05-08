@@ -1,0 +1,14 @@
+{
+  "name": "core:block/dirt",
+  "solid": true,
+  "transparent": false,
+  "luminance": 0,
+  "textures": {
+    "north": "core:block/dirt",
+    "south": "core:block/dirt",
+    "east": "core:block/dirt",
+    "west": "core:block/dirt",
+    "up": "core:block/dirt",
+    "down": "core:block/dirt"
+  }
+}

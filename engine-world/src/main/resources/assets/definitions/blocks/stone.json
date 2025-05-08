@@ -1,0 +1,14 @@
+{
+  "name": "core:block/stone",
+  "solid": true,
+  "transparent": false,
+  "luminance": 0,
+  "textures": {
+    "north": "core:block/stone",
+    "south": "core:block/stone",
+    "east": "core:block/stone",
+    "west": "core:block/stone",
+    "up": "core:block/stone",
+    "down": "core:block/stone"
+  }
+}

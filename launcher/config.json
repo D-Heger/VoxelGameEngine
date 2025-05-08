@@ -1,0 +1,7 @@
+{
+  "windowTitle" : "Voxel Game Engine - Phase 3",
+  "width" : 1280,
+  "height" : 720,
+  "vsync" : true,
+  "fullscreen" : false
+}

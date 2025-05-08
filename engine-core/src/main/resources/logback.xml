@@ -1,0 +1,70 @@
+<configuration>
+
+    <!-- Properties -->
+    <property name="LOG_PATH" value="logs" />
+    <property name="LOG_FILE_NAME" value="voxelengine" />
+    <!-- Base pattern includes Time, Thread, Level, Logger, Message, MDC, Exception, Newline -->
+    <property name="BASE_PATTERN" value="[%thread] %-5level %logger{36} - %msg %X%n%ex" />
+
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <!-- Added milliseconds, MDC (%X), and exception (%ex) -->
+            <!-- Optional: Use %highlight(%-5level) for color if Janino is available -->
+            <pattern>%d{HH:mm:ss.SSS} ${BASE_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Rolling File Appender -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- Path to the current log file -->
+        <file>${LOG_PATH}/${LOG_FILE_NAME}.log</file>
+
+        <encoder>
+            <!-- Added milliseconds, MDC (%X), and exception (%ex) -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} ${BASE_PATTERN}</pattern>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Daily rollover -->
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+
+            <!-- Keep 30 days' worth of history -->
+            <maxHistory>30</maxHistory>
+
+            <!-- Total size cap for all archived logs -->
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+
+    </appender>
+
+    <!-- Optional: Async File Appender for Performance -->
+    <!--
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>256</queueSize>
+        <appender-ref ref="FILE" />
+    </appender>
+    -->
+
+    <!-- Root Logger Configuration -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+        <!-- <appender-ref ref="ASYNC_FILE" /> --> <!-- Use this instead of FILE if enabling Async -->
+    </root>
+
+    <!-- Example: Set specific logger level (e.g., for your application's package) -->
+    <!--
+    <logger name="com.yourcompany.voxelengine" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </logger>
+    -->
+
+    <!-- Example: Quieten noisy libraries -->
+    <!--
+    <logger name="org.some.noisy.library" level="WARN" />
+    -->
+
+</configuration>

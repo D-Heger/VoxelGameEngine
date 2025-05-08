@@ -1,0 +1,14 @@
+{
+  "name": "core:block/grass",
+  "solid": true,
+  "transparent": false,
+  "luminance": 0,
+  "textures": {
+    "north": "core:block/grass_side",
+    "south": "core:block/grass_side",
+    "east": "core:block/grass_side",
+    "west": "core:block/grass_side",
+    "up": "core:block/grass_top",
+    "down": "core:block/dirt"
+  }
+}

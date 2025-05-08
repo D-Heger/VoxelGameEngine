@@ -1,0 +1,506 @@
+# Voxel Game Engine - Task Tracker
+
+## How to Use the Task Tracker
+
+- Each task has a unique Task ID, Name, Description, Phase, Dependencies, and optional Subtasks.
+- To mark a task complete, change `[ ]` to `[x]`.
+- To add a new task, copy an existing entry under the relevant phase, update details, and assign the next Task ID.
+- Place subtasks under the **Subtasks:** section using their own Subtask IDs (e.g., P1-T2.1). Subtasks can have Notes attached if during the implementation you find something that needs to be done later or is not implemented yet.
+- Use the **Dependencies:** section to track which tasks need to be completed before starting a new task. This helps in understanding the order of implementation. Specific pieces of code or project implementations can also be listed here as dependencies.
+- The **Phase:** section indicates the current phase of the project. This helps in organizing tasks into logical groups.
+- The **Implementation Context:** property provides a brief summary of how the task was implemented, including key classes or libraries used. Logically, this can only be filled out after the task or subtask is completed.
+
+## Phase 1: Core Engine Setup (Foundation)
+
+- [x] **Task ID:** P1-T1
+  - **Name:** Setup Gradle Multi-Project Structure
+  - **Description:** Initialize the Gradle build with the wrapper and define the subprojects (`engine-core`, `engine-platform`, `engine-renderer`, `engine-world`, `engine-physics`, `engine-assets`, `game`, `launcher`) in `settings.gradle.kts`. Configure basic Java compilation and dependencies between modules in respective `build.gradle.kts` files.
+  - **Phase:** 1 - Core Engine Setup
+  - **Dependencies:** None
+  - **Subtasks:** (none)
+  - **Implementation Context:** The project utilizes a Gradle multi-project structure defined in `settings.gradle.kts`, including modules like `engine-core`, `engine-platform`, and `launcher`. Common configurations (Java 21, JUnit 5) are set in the root `build.gradle.kts`, while specific dependencies (LWJGL, JOML, FastUtil, SLF4j/Logback, Jackson) are managed within each subproject's build script.
+
+- [x] **Task ID:** P1-T2
+  - **Name:** Implement Core Utilities (`engine-core`)
+  - **Description:** Create foundational classes and interfaces. Set up JOML wrappers/utils if needed. Set up FastUtil wrappers/utils if needed. Define core data structures (e.g., Vec3i for coordinates).
+  - **Phase:** 1 - Core Engine Setup
+  - **Dependencies:** P1-T1, `engine-core` module
+  - **Subtasks:**
+    - [x] **Subtask ID:** P1-T2.1
+      - **Name:** Define Vec3i and Vec3f data structures
+    - [x] **Subtask ID:** P1-T2.2
+      - **Name:** Implement JOML wrapper utilities
+    - [x] **Subtask ID:** P1-T2.3
+      - **Name:** Implement FastUtil collection wrappers
+  - **Implementation Context:** Foundational utilities reside in the `engine-core` module. This includes vector math classes (`Vec3i`, `Vec3f`) and JOML helpers in the `de.heger.voxelengine.core.math` package, along with FastUtil collection wrappers (`FastUtilCollections`) in the `de.heger.voxelengine.core.collections` package.
+
+- [x] **Task ID:** P1-T3
+  - **Name:** Setup Logging (`engine-core`)
+  - **Description:** Integrate SLF4j API and Logback backend. Configure basic logging patterns and output (console, file). Provide a simple logging facade/utility class.
+  - **Phase:** 1 - Core Engine Setup
+  - **Dependencies:** P1-T1, P1-T2, `engine-core` module
+  - **Subtasks:**
+    - [x] **Subtask ID:** P1-T3.1
+      - **Name:** Add SLF4j and Logback dependencies to Gradle
+    - [x] **Subtask ID:** P1-T3.2
+      - **Name:** Create `logback.xml` configuration file
+    - [x] **Subtask ID:** P1-T3.3
+      - **Name:** Implement LoggerFacade utility class
+  - **Implementation Context:** Logging is handled within `engine-core` using the SLF4j API with a Logback backend. Configuration is provided via `engine-core/src/main/resources/logback.xml`, and a `LoggerFacade` class in the `de.heger.voxelengine.core.logging` package offers a simplified interface.
+
+- [x] **Task ID:** P1-T4
+  - **Name:** Implement Window Creation (`engine-platform`)
+  - **Description:** Use LWJGL 3 GLFW bindings to create and manage the application window. Handle window closing events.
+  - **Phase:** 1 - Core Engine Setup
+  - **Dependencies:** P1-T1, LWJGL (GLFW), `engine-platform` module
+  - **Subtasks:**
+    - [x] **Subtask ID:** P1-T4.1
+      - **Name:** Add GLFW bindings to Gradle build
+    - [x] **Subtask ID:** P1-T4.2
+      - **Name:** Implement Window class with GLFW window creation
+    - [x] **Subtask ID:** P1-T4.3
+      - **Name:** Handle window close events and cleanup
+    - [x] **Subtask ID:** P1-T4.4
+      - **Name:** Implement window resizing and aspect ratio handling
+    - [ ] **Subtask ID:** P1-T4.5
+      - **Name:** Implement window icon and title setting
+      - **Note:** The title setting is implemented, icon setting needs to be added later when we have asset loading.
+    - [x] **Subtask ID:** P1-T4.6
+      - **Name:** Add logging for window creation and events
+  - **Implementation Context:** Window management is implemented in the `engine-platform` module using the `Window` class (`de.heger.voxelengine.platform.Window.java`). This class leverages LWJGL's GLFW bindings to create the application window and handle related events like closing and resizing.
+
+- [x] **Task ID:** P1-T5
+  - **Name:** Implement Input Handling (`engine-platform`)
+  - **Description:** Use LWJGL 3 GLFW bindings to capture keyboard and mouse input (presses, releases, movement). Create a basic input manager service.
+  - **Phase:** 1 - Core Engine Setup
+  - **Dependencies:** P1-T1, P1-T4, LWJGL (GLFW), `engine-platform` module
+  - **Subtasks:** (none)
+  - **Implementation Context:** Keyboard and mouse input are managed by the `InputManager` class (`de.heger.voxelengine.platform.InputManager.java`) within the `engine-platform` module. It uses LWJGL's GLFW callbacks to capture and process user input events.
+
+- [x] **Task ID:** P1-T6
+  - **Name:** Implement Basic Game Loop (`launcher`)
+  - **Description:** Create the main game loop structure in the `launcher` module. Include timing (delta time calculation), input polling, placeholder update logic, and placeholder render calls. Integrate window creation and logging.
+  - **Phase:** 1 - Core Engine Setup
+  - **Dependencies:** P1-T1, P1-T3, P1-T4, P1-T5, `launcher` module
+  - **Subtasks:** (none)
+  - **Implementation Context:** The main application entry point is `Main.java` in the `launcher` module, which initializes and runs the core game loop implemented in `GameLoop.java` (`de.heger.voxelengine.launcher.GameLoop.java`). This loop integrates timing, input polling (via `InputManager`), and logging.
+
+- [x] **Task ID:** P1-T7
+  - **Name:** Basic Unit Tests (`engine-core`)
+  - **Description:** Set up JUnit 5 and write initial unit tests for core utilities and data structures.
+  - **Phase:** 1 - Core Engine Setup
+  - **Dependencies:** P1-T1, P1-T2, JUnit 5
+  - **Subtasks:**
+    - [x] **Subtask ID:** P1-T7.1
+      - **Name:** Configure JUnit 5 in Gradle build
+    - [x] **Subtask ID:** P1-T7.2
+      - **Name:** Write tests for Vec3i and FastUtil wrappers
+    - [x] **Subtask ID:** P1-T7.3
+      - **Name:** Write tests for LoggerFacade and config classes
+    - [x] **Subtask ID:** P1-T7.4
+      - **Name:** Write tests for Window class and input handling
+    - [x] **Subtask ID:** P1-T7.5
+      - **Name:** Write tests for game loop timing and input polling
+  - **Implementation Context:** Unit tests are implemented using JUnit 5, configured project-wide. Test classes exist in the `src/test/java` directories of relevant modules (e.g., `WindowTest` in `engine-platform`, `GameLoopTest` in `launcher`, various tests under `engine-core/src/test/java/de/heger/voxelengine/core/`) covering core functionalities.
+
+- [x] **Task ID:** P1-T8
+  - **Name:** Setup Configuration System (`engine-core`)
+  - **Description:** Implement configuration loading and saving using a suitable format (e.g., JSON or YAML). Define config classes and integrate them into the launcher.
+  - **Phase:** 1 - Core Engine Setup
+  - **Dependencies:** P1-T2, P1-T3
+  - **Subtasks:**
+    - [x] **Subtask ID:** P1-T8.1
+      - **Name:** Choose configuration format and library
+    - [x] **Subtask ID:** P1-T8.2
+      - **Name:** Implement configuration loader and saver
+    - [x] **Subtask ID:** P1-T8.3
+      - **Name:** Integrate config into launcher startup
+  - **Implementation Context:** A configuration system is implemented in `engine-core` using the Jackson library for JSON processing. The `ConfigManager` class (`de.heger.voxelengine.core.config.ConfigManager.java`) handles loading and saving configuration data defined in POJOs like `Config.java`, and is integrated into the launcher's startup sequence.
+
+## Phase 2: Basic Rendering (Visuals)
+
+- - [x] **Task ID:** P2-T1
+  - **Name:** Setup OpenGL Context (`engine-platform`, `engine-renderer`)
+  - **Description:** Initialize the OpenGL context using LWJGL 3 GL bindings after window creation. Set initial GL state (clear color, depth testing).
+  - **Phase:** 2 - Basic Rendering
+  - **Dependencies:** P1-T4, LWJGL (OpenGL), `engine-platform`, `engine-renderer` modules
+  - **Subtasks:**
+    - - [x] **Subtask ID:** P2-T1.1
+      - **Name:** Add LWJGL OpenGL natives to Gradle build
+    - - [x] **Subtask ID:** P2-T1.2
+      - **Name:** Configure default clear color and enable depth testing
+    - - [x] **Subtask ID:** P2-T1.3
+      - **Name:** Integrate context creation call into launch sequence
+    - - [x] **Subtask ID:** P2-T1.4
+      - **Name:** Implement OpenGL error handling and logging
+  - **Implementation Context:** OpenGL context initialization is handled by the `Renderer` class (`de.heger.voxelengine.renderer.Renderer.java`) in the `engine-renderer` module. It's instantiated in the `GameLoop` after the `Window` (which makes the context current). The `Renderer.init()` method calls `GL.createCapabilities()`, sets the clear color, enables depth testing, and configures `GLUtil.setupDebugMessageCallback` for error logging. The `engine-renderer` module depends on `engine-platform` and LWJGL OpenGL bindings.
+
+- - [x] **Task ID:** P2-T2
+  - **Name:** Shader Management (`engine-renderer`)
+  - **Description:** Implement classes to load, compile, link, and use GLSL vertex and fragment shaders from files. Include uniform and attribute handling.
+  - **Phase:** 2 - Basic Rendering
+  - **Dependencies:** P2-T1, `engine-renderer` module
+  - **Subtasks:**
+    - - [x] **Subtask ID:** P2-T2.1
+      - **Name:** Define shader file directory structure
+    - - [x] **Subtask ID:** P2-T2.2
+      - **Name:** Implement ShaderLoader utility class
+    - - [x] **Subtask ID:** P2-T2.3
+      - **Name:** Write unit tests for shader compile/link errors
+  - **Implementation Context:** Shader management is handled by the `ShaderProgram` class (`de.heger.voxelengine.renderer.shader.ShaderProgram.java`) in the `engine-renderer` module. It loads GLSL source from classpath resources (e.g., `/shaders/default.vert`), compiles/links them, manages uniforms, and handles cleanup. The `Renderer` class initializes and uses a `ShaderProgram` instance. Shader files are located in `engine-renderer/src/main/resources/shaders/`.
+
+- - [x] **Task ID:** P2-T3
+  - **Name:** Basic Camera System (`engine-renderer`)
+  - **Description:** Implement a first-person camera controller. Calculate view and projection matrices (using JOML). Pass matrices to shaders.
+  - **Phase:** 2 - Basic Rendering
+  - **Dependencies:** P1-T5, P2-T2, JOML, `engine-renderer` module
+  - **Subtasks:**
+    - - [x] **Subtask ID:** P2-T3.1
+      - **Name:** Create Camera class with position and orientation
+    - - [x] **Subtask ID:** P2-T3.2
+      - **Name:** Compute projection matrix based on window aspect ratio
+    - - [x] **Subtask ID:** P2-T3.3
+      - **Name:** Integrate camera controls using input manager
+  - **Implementation Context:** A `Camera` class (`de.heger.voxelengine.renderer.camera.Camera.java`) was created in the `engine-renderer` module. It stores position, pitch, and yaw, calculating front/up/right vectors and the view matrix using JOML. The `Renderer` class initializes a `Camera` instance, calculates a perspective projection matrix (`updateProjectionMatrix`), and passes both view and projection matrices to the default shader program as uniforms (`view`, `projection`). The `InputManager` was updated to track mouse deltas (`deltaMouseX`, `deltaMouseY`) and provide methods for retrieving them. The `GameLoop` captures the mouse cursor, retrieves the `InputManager` and `Camera`, and processes mouse movement in `input()` (calling `camera.processMouseMovement`) and keyboard movement in `update(deltaTime)` (calling `camera.processKeyboard`).
+
+- - - [x] **Task ID:** P2-T4
+  - **Name:** Render Simple Shapes (`engine-renderer`)
+  - **Description:** Create VAOs/VBOs for simple shapes (e.g., a cube). Implement basic rendering logic to draw these shapes using the camera and shaders.
+  - **Phase:** 2 - Basic Rendering
+  - **Dependencies:** P2-T1, P2-T2, P2-T3, `engine-renderer` module
+  - **Subtasks:**
+    - - [x] **Subtask ID:** P2-T4.1
+      - **Name:** Define cube vertex and index data
+    - - [x] **Subtask ID:** P2-T4.2
+      - **Name:** Implement VAO/VBO helper and upload data
+    - - [x] **Subtask ID:** P2-T4.3
+      - **Name:** Draw rotating cube for validation
+  - **Implementation Context:** A `Mesh` helper class (`de.heger.voxelengine.renderer.mesh.Mesh.java`) was added to encapsulate VAO/VBO/EBO setup and a `createCube()` factory. The `Renderer` was updated to initialize `cubeMesh`, compute a rotating model matrix using `glfwGetTime()`, render via `cubeMesh.render()`, and clean up resources in `cleanup()`.
+
+- - [x] **Task ID:** P2-T5
+  - **Name:** Basic Texture Loading (`engine-assets`, `engine-renderer`)
+  - **Description:** Implement texture loading from PNG files using LWJGL STB bindings. Create OpenGL texture objects. Modify shaders and rendering logic to sample textures. For this stage, apply a simple texture to all faces of the cube.
+  - **Phase:** 2 - Basic Rendering
+  - **Dependencies:** P2-T4, LWJGL (STB), `engine-assets`, `engine-renderer` modules
+  - **Subtasks:**
+    - - [x] **Subtask ID:** P2-T5.1
+      - **Name:** Add STB image binding dependency to Gradle
+    - - [x] **Subtask ID:** P2-T5.2
+      - **Name:** Implement TextureLoader service
+    - - [x] **Subtask ID:** P2-T5.3
+      - **Name:** Update Shader files to include texture sampling
+    - - [x] **Subtask ID:** P2-T5.4
+      - **Name:** Update VAO/VBO setup to include texture coordinates
+    - - [x] **Subtask ID:** P2-T5.5
+      - **Name:** Implement texture binding and sampling in rendering
+
+## Phase 3: World Management & Generation (The World)
+
+- - [x] **Task ID:** P3-T1
+  - **Name:** Chunk Data Structure (`engine-world`)
+  - **Description:** Define the `Chunk` class to hold block data, it will be the fundamental building unit of the voxel world. It needs to efficiently store block data while providing fast access for rendering, physics, and world generation systems. Since chunks will be created, accessed, and modified across multiple threads, the design must be thread-safe where appropriate while minimizing synchronization overhead.
+  - **Phase:** 3 - World Management & Generation
+  - **Dependencies:** P1-T2, FastUtil, `engine-world` module
+  - **Subtasks:**
+    - - [x] **Subtask ID:** P3-T1.1
+      - **Name:** Design Chunk Dimensions and Memory Layout
+      - **Description:** Determine optimal chunk dimensions (e.g., 16x16x16 or 32x32x32) based on memory/performance tradeoffs. Consider memory layout for cache efficiency during iteration. Document decisions with performance considerations.
+      - **Deliverables**: Design document specifying chunk size, memory layout rationale, and expected memory footprint calculations.
+      - **Implementation Notes:**
+        - **Chunk Dimensions:** 16x16x16 blocks per chunk. This size is a common standard, being a power of two which can simplify calculations (e.g., bit shifting for coordinates) and offers a good balance between memory usage per chunk and the overhead of managing many small chunks.
+        - **World Height:** Chunks will stack vertically. A common approach is 16 chunks high (16 * 16 = 256 blocks), aligning with typical Minecraft world height limits. This can be configured later if needed.
+        - **Memory Layout:** A flat 1D array (e.g., `short[16*16*16]` or `short[4096]`) will be used to store block IDs. This promotes cache locality during iteration (e.g., for meshing or simulation) compared to a 3D array. Indexing will be `y * CHUNK_WIDTH * CHUNK_DEPTH + z * CHUNK_WIDTH + x`. Initially, we'll store block IDs (using `short` allows for 65536 block types). Additional data like lighting or block metadata might use separate arrays later to maintain cache efficiency for specific tasks.
+        - **Memory Footprint (Block IDs only):** 16 * 16 * 16 blocks/chunk * 2 bytes/block (short) = 4096 * 2 = 8192 bytes = 8 KB per chunk for block ID storage.
+        - Reference the [Chunk Design Document](docs/chunk_design.md) for more details.
+    - - [x] **Subtask ID:** P3-T1.2
+      - **Name:** Implement Chunk Coordinate System
+      - **Description:** Create classes/utilities to handle both chunk coordinates (in world space) and local coordinates (within a chunk). Implement conversion methods between world coordinates and chunk coordinates. Ensure these operations are highly optimized.
+      - **Deliverables**: `ChunkPos` class (immutable, hashable for map storage) and coordinate conversion utilities.
+      - **Implementation Context:** The `ChunkPos` class (`de.heger.voxelengine.world.chunk.ChunkPos.java`) was created to represent immutable chunk coordinates, including `equals` and `hashCode` for map usage. A `CoordinateUtils` class (`de.heger.voxelengine.world.chunk.CoordinateUtils.java`) was implemented with static methods for converting between world coordinates (`Vec3i`, `Vec3f`), chunk coordinates (`ChunkPos`), and local block coordinates (`Vec3i`, 0-15). It uses bit shifting and masking for optimized conversions based on the 16x16x16 chunk size. Methods for converting between local coordinates and the flat 1D chunk array index (Y-major order) were also included.
+    - - [x] **Subtask ID:** P3-T1.3
+      - **Name:** Implement Block Storage with FastUtil
+      - **Description:** Create efficient block data storage using FastUtil's primitive collections. Consider different options (3D arrays, flat arrays with index calculation, separate arrays for different block properties). Benchmark alternatives if necessary.
+      - **Deliverables**: Internal block storage implementation with getter/setter methods that handle the underlying data structure.
+      - **Implementation Context:** The `Chunk` class (`de.heger.voxelengine.world.chunk.Chunk.java`) was created. It stores block data in a flat `short[4096]` array (`blockData`) as decided in P3-T1.1, providing good cache locality. Basic `getBlock(x,y,z)` and `setBlock(x,y,z,id)` methods were implemented, using `CoordinateUtils.localCoordsToIndex` for index calculation and bounds checking. While the task mentioned FastUtil, a primitive array was deemed the most direct fit for the chosen flat layout.
+    - - [x] **Subtask ID:** P3-T1.4
+      - **Name:** Implement Chunk State Management
+      - **Description:** Add state management to chunks (e.g., EMPTY, GENERATED, MESHED, LOADED, MODIFIED). This helps track the chunk's lifecycle and optimize processing.
+      - **Deliverables**: `ChunkState` enum and state field/methods in the `Chunk` class.
+      - **Implementation Context:** Created the `ChunkState` enum (`de.heger.voxelengine.world.chunk.ChunkState.java`) with states EMPTY, GENERATED, MESHED, LOADED, MODIFIED. Added a `private volatile ChunkState state` field to the `Chunk` class, initialized it to `EMPTY` in the constructor, and implemented `getState()` and `setState()` methods.
+    - - [x] **Subtask ID:** P3-T1.5
+      - **Name:** Implement Neighbor Chunk References
+      - **Description:** Add optional references to neighboring chunks for seamless operations across chunk boundaries. This will be critical for meshing and physics calculations that span multiple chunks.
+      - **Deliverables**: Methods to set/get neighbor chunks and to safely query blocks in neighboring chunks.
+      - **Implementation Context:** Created the `Direction` enum (`de.heger.voxelengine.world.chunk.Direction.java`) defining the 6 cardinal directions and their offsets. Added a `private final Chunk[] neighbors = new Chunk[6];` array to the `Chunk` class. Implemented `getNeighbor(Direction)` and `setNeighbor(Direction, Chunk)` methods using the `Direction` enum's index for array access.
+    - - [x] **Subtask ID:** P3-T1.6
+      - **Name:** Add Serialization Support
+      - **Description:** Implement methods to serialize/deserialize chunk data for saving/loading. Consider both performance and storage size. This should support future persistence needs.
+      - **Deliverables**: Serialization/deserialization methods with appropriate format documentation.
+      - **Implementation Context:** Added `writeTo(DataOutputStream)` and static `readFrom(DataInputStream)` methods to the `Chunk` class. The format uses `DataOutputStream`/`DataInputStream` for efficiency: `int version`, `int posX`, `int posY`, `int posZ`, `short[4096] blockData`. A version number (`SERIALIZATION_VERSION`) was included. A private constructor was added for deserialization.
+    - - [x] **Subtask ID:** P3-T1.7
+      - **Name:** Implement Convienience Methods
+      - **Description:** Add convenience methods for nice to have features like isAir, isSolid, getBlockType, etc. These methods should be optimized for performance and should not add significant overhead to the chunk data structure.
+      - **Deliverables**: Convenience methods implemented in the `Chunk` class.
+      - **Implementation Context:** Added `isAir(x,y,z)`, `isAir(Vec3i)`, `isSolid(x,y,z)`, and `isSolid(Vec3i)` methods to the `Chunk` class. Assumes block ID 0 is air and any non-air block is solid for now. Added `AIR_BLOCK_ID` constant.
+    - - [x] **Subtask ID:** P3-T1.8
+      - **Name:** Write Unit Tests
+      - **Description:** Create comprehensive tests for the chunk data structure, including performance benchmarks for critical operations (get/set blocks, iteration patterns for meshing).
+      - **Deliverables**: Unit test suite with coverage of all public methods and performance benchmarks.
+      - **Implementation Context:** Created JUnit 5 test classes (`ChunkPosTest`, `CoordinateUtilsTest`, `ChunkTest`, `DirectionTest`) in `engine-world/src/test/java/de/heger/voxelengine/world/chunk/`. These tests cover the public methods of the respective classes, including edge cases and serialization. Performance benchmarks were not implemented as part of this task, as JUnit is not ideal for microbenchmarking; a dedicated tool like JMH would be more appropriate if needed later.
+
+- - [x] **Task ID:** P3-T2
+  - **Name:** Basic Chunk Spawning and Rendering Test
+  - **Description:** Create a simple system to instantiate a few `Chunk` objects and fill them with "dirt" blocks. Modify the renderer to traverse these chunks and render the dirt blocks. Initially, this can be a very basic implementation without complex meshing, simply rendering a cube for each dirt block to visualize the chunks. This requires updating build configurations to include the `engine-world` module.
+  - **Phase:** 3 - World Management & Generation
+  - **Dependencies:** P1-T1, P2-T4, P3-T1, `engine-world` module, `engine-renderer` module
+  - **Implementation Context**: Added `engine-world` as a dependency to `engine-renderer` and `launcher` in their respective `build.gradle.kts` files. In `GameLoop.java`, initialized a `List<Chunk>` (`testChunks`) and populated it with two test chunks containing dirt blocks in a new `initTestWorld()` method. Modified `GameLoop.render()` to call a new `renderer.renderChunks(testChunks)` method. In `Renderer.java`, implemented `renderChunks(List<Chunk> chunks)` which iterates through the chunks and their blocks. For each non-air block, it calculates the world position, sets the model matrix uniform, and renders the existing textured `cubeMesh` at that position.
+
+- [x] **Task ID:** P3-T3
+  - **Name:** Basic World Storage (`engine-world`)
+  - **Description:** Implement a class (`World` or `ChunkManager`) to store and retrieve `Chunk` objects based on their coordinates (e.g., using a FastUtil map).
+  - **Phase:** 3 - World Management & Generation
+  - **Dependencies:** P3-T1, `engine-world` module
+  - **Subtasks:**
+    - [x] **Subtask ID:** P3-T3.1
+      - **Name:** Define ChunkManager Class Structure
+      - **Description:** Create the `ChunkManager` class within the `engine-world` module. Choose and implement the primary data structure for storing loaded chunks (e.g., FastUtil's `Object2ObjectOpenHashMap<ChunkPos, Chunk>`).
+      - **Deliverables:** Class structure with appropriate methods and documentation.
+      - **Implementation Context:** Created `ChunkManager.java` in `engine-world/src/main/java/de/heger/voxelengine/world/chunk/`. It uses FastUtil's `Object2ObjectOpenHashMap<ChunkPos, Chunk>` for storage. Added `implementation(libs.fastutil)` to `engine-world/build.gradle.kts`.
+    - [x] **Subtask ID:** P3-T3.2
+      - **Name:** Implement Core Chunk Access Methods
+      - **Description:** Implement methods for adding (`addChunk`), retrieving (`getChunk`), and removing (`removeChunk`) chunks using `ChunkPos` as the key. Include checks for existing chunks and handling for requests for non-loaded chunks (e.g., returning null or Optional).
+      - **Deliverables:** Core methods implemented with appropriate error handling and documentation.
+      - **Implementation Context:** Implemented `addChunk(Chunk)`, `getChunk(ChunkPos)`, and `removeChunk(ChunkPos)` in `ChunkManager`. Input validation uses `Validate.notNull`. `getChunk` returns `null` for non-existent chunks.
+    - [x] **Subtask ID:** P3-T3.3
+      - **Name:** Implement Thread Safety
+      - **Description:** Ensure the chunk storage map is accessed in a thread-safe manner. Implement necessary synchronization (e.g., using `synchronized` blocks/methods or concurrent collections if appropriate) to prevent issues when accessed by multiple threads (e.g., main loop, generation workers).
+      - **Deliverables:** Thread safety mechanisms implemented and documented.
+      - **Implementation Context:** All public methods in `ChunkManager` (`addChunk`, `getChunk`, `removeChunk`, `containsChunk`, `getLoadedChunkCount`, `getAllLoadedChunks`) are marked `synchronized` to ensure thread-safe access to the internal map.
+    - [x] **Subtask ID:** P3-T3.4
+      - **Name:** Add Utility and Query Methods
+      - **Description:** Implement helper methods like `containsChunk(ChunkPos)`, `getLoadedChunkCount()`, and potentially a method to get a snapshot or safe view of all currently loaded chunks (`getAllLoadedChunks()`).
+      - **Deliverables:** Utility methods implemented with appropriate documentation.
+      - **Implementation Context:** Implemented `containsChunk(ChunkPos)`, `getLoadedChunkCount()`, and `getAllLoadedChunks()` in `ChunkManager`. `getAllLoadedChunks` returns an unmodifiable view.
+    - [x] **Subtask ID:** P3-T3.5
+      - **Name:** Define Lifecycle and Accessibility
+      - **Description:** Determine how the `ChunkManager` instance will be created, managed, and accessed by other systems (like the renderer, generation service, game logic). Document the chosen approach (e.g., singleton, dependency injection).
+      - **Deliverables:** Documentation on the lifecycle and accessibility of the `ChunkManager`.
+      - **Implementation Context:** Implemented `ChunkManager` as a singleton, accessible via `ChunkManager.getInstance()`. Documented this approach in `docs/chunk_design.md`.
+    - [x] **Subtask ID:** P3-T3.6
+      - **Name:** Write Unit Tests
+      - **Description:** Create JUnit 5 tests for the `ChunkManager`, covering adding, retrieving, removing chunks, handling non-existent chunks, checking counts, and verifying thread-safety mechanisms if possible within the test scope.
+      - **Deliverables:** Unit test suite with coverage of all public methods and thread-safety checks.
+      - **Implementation Context:** Created `ChunkManagerTest.java` in `engine-world/src/test/java/de/heger/voxelengine/world/chunk/` using JUnit 5. Tests cover basic add/get/remove/contains/count operations and include a concurrency test (`testConcurrentAccess`) using `ExecutorService` and `CountDownLatch` to verify synchronized method behavior.
+    - [x] **Subtask ID:** P3-T3.7
+      - **Name:** Rework `initTestWorld()` and `initStressTestWorld` in Gameloop
+      - **Description:** Refactor the `initTestWorld()` and `initStressTestWorld` methods in `GameLoop` to use the new `ChunkManager` for chunk management. This is to ensure that the test world setup is consistent with the new chunk management system and to demonstrate the usage of the `ChunkManager` in a practical scenario.
+      - **Deliverables:** Refactored `initTestWorld()` and `initStressTestWorld` methods.
+      - **Implementation Context:** Refactored both methods in `GameLoop.java` to use the singleton `ChunkManager` instance instead of directly managing the chunks in local lists. The `render()` method was updated to directly pass the chunks from `ChunkManager.getAllLoadedChunks()` to the renderer, eliminating the need for the intermediate `testChunks` list. Added cleanup code to remove chunks from the `ChunkManager` when the game loop is stopped.
+
+- - [x] **Task ID:** P3-T4
+  - **Name:** Block Registry System (`engine-world`)
+  - **Description:** Implement a system to manage block types, their properties, and associated data. This registry will serve as the central authority for block information, ensuring consistent behavior and efficient memory usage throughout the engine.
+  - **Phase:** 3 - World Management & Generation
+  - **Dependencies:** P3-T1, `engine-world` module
+  - **Subtasks:**
+    - [x] **Subtask ID:** P3-T4.1
+      - **Name:** Block Registry System Analysis
+      - **Description:** Analyze requirements and design a block registry system that is efficient in memory usage, simple to use yet extensible, and integrates well with existing chunk storage. Consider:
+        - Data structure for mapping block IDs to properties
+        - Memory-efficient representation of block properties
+        - Extensibility for future block types and properties
+        - Thread safety requirements for concurrent access
+        - Integration with chunk serialization/deserialization
+        - Performance implications for rendering and physics systems
+      - **Deliverables**: Design document outlining the block registry system, including data structures, access patterns, and performance considerations.
+      - **Implementation Context:** [Block Registry Design Document](block_registry_design.md).
+    - [x] **Subtask ID:** P3-T4.2
+      - **Name:** Implement BlockProperties Class
+      - **Description:** Create the immutable `BlockProperties` class that will hold all properties for a single block type. This class will store:
+        - Core identifiers (ID, name)
+        - Physical properties (solidity, transparency, luminance)
+        - Rendering information (textures for each face)
+        - Any additional properties defined in the Block Registry Design Document
+      - **Deliverables:** Fully implemented `BlockProperties` class with appropriate getters, constructors, and validator methods.
+      - **Implementation Context:** Created the immutable `BlockProperties` class in `engine-world/src/main/java/de/heger/voxelengine/world/block/BlockProperties.java` with fields for ID, name, solidity, transparency, luminance, and an unmodifiable `EnumMap<Direction, TextureRef>` for textures. Added validation in the constructor. Added basic implementation of `TextureRef` in `engine-world` which can be used to reference textures by name to be resolved during rendering by utilizing the `engine-assets` module.
+    - [x] **Subtask ID:** P3-T4.3
+      - **Name:** Implement BlockRegistry Core
+      - **Description:** Create the `BlockRegistry` class that will serve as the central authority for block information. Implement:
+        - Primary data structures (`BlockProperties[]` for ID lookup, `Object2ObjectMap<String, BlockProperties>` for name lookup)
+        - Core access methods (`getBlock(short id)`, `getBlock(String name)`, `getId(String name)`, etc.)
+        - Thread-safe initialization and access patterns
+        - Special block constant (AIR)
+      - **Deliverables:** Implemented `BlockRegistry` with core functionality and thread safety mechanisms.
+      - **Implementation Context:** Created a singleton `BlockRegistry` class (`de.heger.voxelengine.world.block.BlockRegistry.java`) in `engine-world` to manage block types. Defined `AIR_BLOCK_ID` (0) as static constant within it. Initialized and finalized the registry in `GameLoop` constructor (`launcher`). Replaced hardcoded block ID (0 for air) with `BlockRegistry.getInstance().getId("core:block/air")` in `Chunk.java` (`isAir`, `isSolid`), `GameLoop.java` (`initTestWorld`), and `Renderer.java` (`renderChunks`).
+    - [x] **Subtask ID:** P3-T4.4
+      - **Name:** Implement JSON Loading
+      - **Description:** Create the loading mechanism to parse block definitions from JSON files:
+        - Implement file scanning from the assets directory
+        - Use Jackson for JSON parsing
+        - Create JSON-to-BlockProperties conversion logic
+        - Implement basic validation and error handling for malformed definitions
+        - Create sample block definition files for testing
+        - Integrate this into the `BlockRegistry` initialization process
+      - **Deliverables:** JSON loading system with sample block definitions and error handling.
+      - **Implementation Context**: Added Jackson dependencies. Created `BlockDefinitionPojo` for JSON mapping. Implemented `BlockRegistry.loadBlockDefinitions()` to scan classpath resources (`assets/definitions/blocks/`), parse JSON using Jackson, validate, create `BlockProperties`, assign IDs, and register blocks. Added sample `stone.json`, `dirt.json` and `grass.json`. Loading is triggered during registry initialization.
+    - [x] **Subtask ID:** P3-T4.5
+      - **Name:** Integrate with Renderer
+      - **Description:** Update the rendering system to use block properties from the registry for:
+        - Determining transparency (for face culling decisions) -> *Note: Deferred to Meshing Task*
+        - Applying correct textures to block faces (Potentially need to modify the `Mesh` class to support this and changes to `engine-assets` for texture loading) -> *Note: Implemented texture loading based on registry; applying to faces requires Meshing Task*
+        - Other visual properties (luminance for future lighting) -> *Note: Deferred*
+      - **Deliverables:** Modified renderer that loads textures based on the block registry. Actual application to chunk faces depends on the meshing system.
+      - **Implementation Context:** Modified `Renderer.java`. Replaced single `cubeTexture` with `Map<String, Texture> textureMap`. Added `loadBlockTextures()` method called during `init()` which iterates through `BlockRegistry.getAllProperties()`, collects unique texture names (`TextureRef.getName()`), derives resource paths (e.g., "core:block/dirt" -> "textures/block/dirt.png"), loads textures using `TextureLoader`, and stores them in `textureMap`. Updated the `renderChunks()` method to look up `BlockProperties` for each block ID, get the texture name (using SOUTH face as placeholder), retrieve the `Texture` from `textureMap`, and bind it before rendering the block's mesh. Updated `cleanup()` to clear the map. **Note:** Face culling based on transparency and applying textures to specific faces needs to be handled.
+    - [x] **Subtask ID:** P3-T4.6
+      - **Name:** Integrate with Chunk System
+      - **Description:** Update the `Chunk` class to integrate with the BlockRegistry:
+        - Modify `isAir()` and `isSolid()` methods to consult the registry
+        - Add a `getBlockProperties(x,y,z)` method
+        - Ensure proper integration with the registry during serialization/deserialization
+      - **Deliverables:** Modified Chunk class that integrates with the BlockRegistry.
+      - **Implementation Context:** Added `BlockRegistry` instance field to `Chunk.java`. Implemented `getBlockProperties(x,y,z)` and `getBlockProperties(Vec3i)` which retrieve the block ID and look up properties in the registry, returning `BlockRegistry.AIR` as a default. Added `isAir(x,y,z)`/`isAir(Vec3i)` which check the block ID directly against `BlockRegistry.AIR.getId()`. Added `isSolid(x,y,z)`/`isSolid(Vec3i)` which use `getBlockProperties().isSolid()`. Serialization remains unchanged as it only deals with IDs.
+    - [x] **Subtask ID:** P3-T4.7
+      - **Name:** Refactor Test World Creation
+      - **Description:** Update the test world creation methods in GameLoop to use the BlockRegistry:
+        - Refactor `initTestWorld()` and `initStressTestWorld()` methods to use block IDs from the registry
+        - Ensure proper initialization of the registry before world creation
+        - Modify any renderer calls to use the block properties from the registry
+      - **Deliverables:** Refactored world creation code that uses the BlockRegistry.
+      - **Implementation Context:** Refactored `initTestWorld()` and `initStressTestWorld()` in `GameLoop.java` to use `blockRegistry.getId("core:block/dirt")`, `blockRegistry.getId("core:block/stone")` and `blockRegistry.getId("core:block/grass")` for block IDs. Updated the renderer to use the block properties from the registry.
+
+- - [ ] **Task ID:** P3-T5
+  - **Name:** Procedural Generation Framework (`engine-world`)
+  - **Description:** Integrate FastNoise Lite. Implement a basic terrain generator interface and a simple implementation (e.g., flat world and basic noise heightmap) that populates chunk data.
+  - **Phase:** 3 - World Management & Generation
+  - **Dependencies:** P3-T1, FastNoise Lite, `engine-world` module
+  - **Subtasks:**
+    - [x] **Subtask ID:** P3-T5.1
+      - **Name:** Add FastNoiseLite Dependency
+      - **Description:** Add the FastNoise Lite library to the `engine-world` module's dependencies in `build.gradle.kts` and define its version in `gradle/libs.versions.toml`.
+      - **Deliverables:** Updated Gradle configuration files.
+      - **Implementation Context:** Added FastNoise dependency by personthecat to `engine-world/build.gradle.kts` and defined the version in `gradle/libs.versions.toml`. The library is now available for use in the `engine-world` module.
+    - [x] **Subtask ID:** P3-T5.2
+      - **Name:** Implement TerrainGenerator Interface
+      - **Description:** Define a `TerrainGenerator` interface with a method to populate a `Chunk` with block data based on its position.
+      - **Deliverables:** `TerrainGenerator.java` interface file.
+      - **Implementation Context:** Created the `TerrainGenerator` interface in `engine-world/src/main/java/de/heger/voxelengine/world/generation/TerrainGenerator.java`. It defines a single functional method `generateChunkData(Chunk chunk)` for populating chunk data.
+    - [ ] **Subtask ID:** P3-T5.3
+      - **Name:** Implement FlatTerrainGenerator
+      - **Description:** Create a `FlatTerrainGenerator` implementation that generates a simple flat world (e.g., a few layers of stone, then dirt, then grass).
+      - **Deliverables:** `FlatTerrainGenerator.java` class file.
+      - **Implementation Context:**
+    - [ ] **Subtask ID:** P3-T5.4
+      - **Name:** Implement NoiseTerrainGenerator
+      - **Description:** Create a `NoiseTerrainGenerator` that uses FastNoise Lite to generate a simple heightmap. Blocks below the heightmap are stone, one layer of dirt, and one layer of grass on top.
+      - **Deliverables:** `NoiseTerrainGenerator.java` class file using FastNoise Lite.
+      - **Implementation Context:**
+    - [ ] **Subtask ID:** P3-T5.5
+      - **Name:** Implement ChunkGenerator Service
+      - **Description:** Create a `ChunkGenerator` service class that takes a `TerrainGenerator` and is responsible for creating and populating new `Chunk` instances. It should use the `ChunkManager` to store the generated chunks.
+      - **Deliverables:** `ChunkGenerator.java` class file.
+      - **Implementation Context:**
+    - [ ] **Subtask ID:** P3-T5.6
+      - **Name:** Integrate Chunk Generation into GameLoop
+      - **Description:** Modify `GameLoop.java` to initialize the `ChunkGenerator` (with a chosen `TerrainGenerator`). Implement logic to generate an initial 16x16 area of chunks (e.g., from (0,0,0) to (15,0,15) in chunk coordinates) on startup.
+      - **Deliverables:** Modified `GameLoop.java` to trigger initial world generation.
+      - **Implementation Context:**
+    - [ ] **Subtask ID:** P3-T5.7
+      - **Name:** Update Renderer for Generated Chunks
+      - **Description:** Ensure the `Renderer` correctly iterates through all chunks managed by `ChunkManager` and renders them. This might involve minor adjustments if the current rendering logic is tied to a specific list of test chunks.
+      - **Deliverables:** Modified `Renderer.java` if necessary.
+      - **Implementation Context:**
+
+- - [ ] **Task ID:** P3-T6
+  - **Name:** Multithreaded Generation Setup (`engine-world`)
+  - **Description:** Create a thread pool (e.g., `ExecutorService`) for background tasks. Design the system for requesting chunk generation asynchronously.
+  - **Phase:** 3 - World Management & Generation
+  - **Dependencies:** P1-T2, P3-T3, `engine-world` module
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P3-T7
+  - **Name:** Chunk Loading/Unloading Logic (`engine-world`, `game`)
+  - **Description:** Implement logic to determine which chunks should be active based on player position. Trigger asynchronous loading (generation) of new chunks and unloading of distant chunks via the multithreaded framework.
+  - **Phase:** 3 - World Management & Generation
+  - **Dependencies:** P3-T2, P3-T6, `engine-world`, `game` modules (for player position)
+  - **Subtasks:** (none)
+
+## Phase 4: Chunk Rendering & Basic Physics (Interaction)
+
+- - [ ] **Task ID:** P4-T1
+  - **Name:** Chunk Meshing Algorithm (`engine-world`)
+  - **Description:** Implement a mesh generation algorithm (e.g., Greedy Meshing) that takes chunk data and produces vertex/index data suitable for rendering. Integrate this into the asynchronous generation task. This task also needs to implement applying the correct textures for the specific faces (**Note** on P3-T4.5), instead of applying the south texture for every face of the block.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P3-T1, P3-T6, `engine-world` module
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P4-T2
+  - **Name:** Chunk Mesh Rendering (`engine-renderer`)
+  - **Description:** Create VAOs/VBOs from the generated chunk mesh data. Update the renderer to draw chunk meshes instead of simple shapes. Handle uploading mesh data generated on worker threads to the GPU on the render thread.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P2-T5, P3-T6, P4-T1, `engine-renderer`, `engine-world` modules
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P4-T3
+  - **Name:** Player Entity (`game`)
+  - **Description:** Create a `Player` class representing the player in the world, holding position, orientation, and potentially other state.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P1-T2, `game` module
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P4-T4
+  - **Name:** Basic Player Movement (`game`, `engine-physics`)
+  - **Description:** Implement movement logic (walking, jumping) based on input. Integrate basic gravity.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P1-T5, P4-T3, `game`, `engine-physics` modules
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P4-T5
+  - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`)
+  - **Description:** Implement Axis-Aligned Bounding Box (AABB) collision detection between the player entity and world blocks. Prevent player from moving into solid blocks.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P3-T2, P4-3, P4-T4, `engine-physics`, `engine-world`, `game` modules
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P4-T6
+  - **Name:** Raycasting (`engine-physics`, `engine-world`, `game`)
+  - **Description:** Implement a raycasting algorithm (e.g., Amanatides & Woo) to determine the block the player is looking at.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P2-T3, P3-T2, P4-T3, `engine-physics`, `engine-world`, `game` modules
+  - **Subtasks:** (none)
+
+## Phase 5: MVP Completion (Gameplay Loop)
+
+- - [ ] **Task ID:** P5-T1
+  - **Name:** Block Placement/Destruction (`game`, `engine-world`)
+  - **Description:** Use raycasting results to allow the player to destroy the targeted block and place a new block adjacent to the targeted face. Update chunk data and trigger mesh regeneration.
+  - **Phase:** 5 - MVP Completion
+  - **Dependencies:** P3-T5, P4-T1, P4-T6, `game`, `engine-world` modules
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P5-T2
+  - **Name:** Basic Lighting Implementation (`engine-world`, `engine-renderer`)
+  - **Description:** Implement simple ambient light and potentially a basic directional light source. Pass light information to shaders. Modify chunk meshing/shaders to include basic light values.
+  - **Phase:** 5 - MVP Completion
+  - **Dependencies:** P4-T1, P4-T2, `engine-world`, `engine-renderer` modules
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P5-T3
+  - **Name:** Minecraft Texture Pack Loading (`engine-assets`)
+  - **Description:** Implement the logic to parse the directory structure and metadata (if any) of standard Minecraft texture packs. Load appropriate textures into an atlas.
+  - **Phase:** 5 - MVP Completion
+  - **Dependencies:** P2-T5, `engine-assets` module
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P5-T4
+  - **Name:** Basic Sound Playback (`engine-assets`, `game`)
+  - **Description:** Integrate LWJGL OpenAL bindings. Implement basic sound loading (e.g., Ogg Vorbis) and playback for simple events (e.g., block breaking).
+  - **Phase:** 5 - MVP Completion
+  - **Dependencies:** P1-T1, LWJGL (OpenAL), `engine-assets`, `game` modules
+  - **Subtasks:** (none)
+
+- - [ ] **Task ID:** P5-T5
+  - **Name:** Integration Testing & Bug Fixing
+  - **Description:** Perform thorough testing of all MVP features working together. Identify and fix bugs found during integration.
+  - **Phase:** 5 - MVP Completion
+  - **Dependencies:** All previous tasks.
+  - **Subtasks:** (none)

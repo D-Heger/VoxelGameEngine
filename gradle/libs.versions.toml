@@ -1,0 +1,48 @@
+[versions]
+joml = "1.10.8"
+fastutil = "8.5.15"
+slf4j = "2.0.17"
+logback = "1.5.18"
+junit = "5.9.3"
+lwjgl = "3.3.6"
+jackson = "2.18.3"
+shadow = "8.1.1"
+fastnoise = "0.10"
+
+[libraries]
+# Core & Utilities
+joml = { group = "org.joml", name = "joml", version.ref = "joml" }
+fastutil = { group = "it.unimi.dsi", name = "fastutil", version.ref = "fastutil" }
+
+# JSON Processing
+jackson-databind = { group = "com.fasterxml.jackson.core", name = "jackson-databind", version.ref = "jackson" }
+jackson-core = { group = "com.fasterxml.jackson.core", name = "jackson-core", version.ref = "jackson" }
+jackson-annotations = { group = "com.fasterxml.jackson.core", name = "jackson-annotations", version.ref = "jackson" }
+
+# Logging
+slf4j-api = { group = "org.slf4j", name = "slf4j-api", version.ref = "slf4j" }
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
+
+# Testing
+junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit" }
+junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api" }
+junit-jupiter-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine" }
+junit-jupiter-params = { group = "org.junit.jupiter", name = "junit-jupiter-params" }
+
+# LWJGL
+lwjgl-bom = { group = "org.lwjgl", name = "lwjgl-bom", version.ref = "lwjgl" }
+lwjgl = { group = "org.lwjgl", name = "lwjgl" }
+lwjgl-glfw = { group = "org.lwjgl", name = "lwjgl-glfw" }
+lwjgl-opengl = { group = "org.lwjgl", name = "lwjgl-opengl" }
+lwjgl-stb = { group = "org.lwjgl", name = "lwjgl-stb" }
+# lwjgl-assimp = { group = "org.lwjgl", name = "lwjgl-assimp" }
+
+# FastNoise
+fastnoise = { group = "com.personthecat", name = "fastnoise", version.ref = "fastnoise" }
+
+[bundles]
+logging = ["slf4j-api", "logback-classic"]
+lwjgl-core = ["lwjgl", "lwjgl-glfw", "lwjgl-opengl"]
+
+[plugins]
+shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
