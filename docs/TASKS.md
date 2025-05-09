@@ -378,7 +378,7 @@
       - **Name:** Add FastNoise Lite
       - **Description:** Add FastNoise Lite to `engine-core` under the noise dir.
       - **Deliverables:** Added class.
-      - **Implementation Context:** Added FastNoise Lite to `engine-core/java/de/heger/voxelengine/core/noise/FastNoiseLite.java` and defined the version in `gradle/libs.versions.toml`. The library is now available for use in the `engine-world` module.
+      - **Implementation Context:** Added FastNoise Lite to `engine-core/java/de/heger/voxelengine/core/noise/FastNoiseLite.java`. The library is now available for use in the `engine-world` module.
     - [x] **Subtask ID:** P3-T5.2
       - **Name:** Implement TerrainGenerator Interface
       - **Description:** Define a `TerrainGenerator` interface with a method to populate a `Chunk` with block data based on its position.
@@ -393,7 +393,7 @@
       - **Name:** Implement NoiseTerrainGenerator
       - **Description:** Create a `NoiseTerrainGenerator` that uses FastNoise Lite to generate a simple heightmap. Blocks below the heightmap are stone, 4 to 8 layer of dirt, and one layer of grass on top.
       - **Deliverables:** `NoiseTerrainGenerator.java` class file using FastNoise Lite.
-      - **Implementation Context:**
+      - **Implementation Context:** Created `NoiseTerrainGenerator.java` in `de.heger.voxelengine.world.generation`. This class implements `TerrainGenerator`. It initializes `FastNoiseLite` (OpenSimplex2, frequency 0.005f) with a configurable seed. For each (x,z) column, it calculates a `surfaceHeight` using the noise value (scaled and added to `BASE_HEIGHT`). It then places stone up to `surfaceHeight` minus a random number of dirt layers (between `MIN_DIRT_LAYERS` and `MAX_DIRT_LAYERS`), then the dirt layers, a single grass layer at `surfaceHeight`, and air above. Block IDs are retrieved from `BlockRegistry`.
     - [x] **Subtask ID:** P3-T5.5
       - **Name:** Implement ChunkGenerator Service
       - **Description:** Create a `ChunkGenerator` service class that takes a `TerrainGenerator` and is responsible for creating and populating new `Chunk` instances. It should use the `ChunkManager` to store the generated chunks.

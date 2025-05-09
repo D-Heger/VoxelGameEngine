@@ -12,6 +12,7 @@ import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.world.chunk.Direction;
 import de.heger.voxelengine.world.generation.ChunkGenerator;
 import de.heger.voxelengine.world.generation.FlatTerrainGenerator;
+import de.heger.voxelengine.world.generation.NoiseTerrainGenerator;
 import de.heger.voxelengine.world.generation.TerrainGenerator;
 
 import org.lwjgl.glfw.GLFW;
@@ -61,10 +62,12 @@ public class GameLoop {
         LOGGER.info("Block registry finalized with {} block types.", blockRegistry.getRegisteredBlockCount());
 
         // Initialize ChunkGenerator after BlockRegistry is finalized
-        TerrainGenerator terrainGenerator = new FlatTerrainGenerator();
+        //TerrainGenerator terrainGenerator = new FlatTerrainGenerator();
+        //chunkGenerator = new ChunkGenerator(terrainGenerator);
+        TerrainGenerator terrainGenerator = new NoiseTerrainGenerator();
         chunkGenerator = new ChunkGenerator(terrainGenerator);
         LOGGER.info("ChunkGenerator initialized.");
-
+        
         // Initialize Renderer AFTER block registry is finalized, as renderer needs the finalized properties.
         renderer.init();
         LOGGER.info("Renderer initialized.");
