@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This document outlines the plan for developing a modular, performant, voxel-based game engine using Java 21 and LWJGL 3. Inspired by Minecraft Alpha, the engine will feature an infinite procedural world, core block mechanics, and a multithreaded architecture. The initial focus (MVP) is on establishing the core engine systems and basic gameplay, built upon a multi-project Gradle structure for maximum flexibility and future expansion. Key technologies include JOML for math, FastNoise Lite for world generation, FastUtil for optimized data structures, and SLF4j/Logback for robust logging.
+This document outlines the plan for developing a modular, performant, voxel-based game engine using Java 21 and LWJGL 3. Inspired by Minecraft Alpha, the engine will feature an infinite procedural world, core block mechanics, and a multithreaded architecture. The initial focus (MVP) is on establishing the core engine systems and basic gameplay, built upon a multi-project Gradle structure for maximum flexibility and future expansion. Key technologies include JOML for math, JNoise for world generation, FastUtil for optimized data structures, and SLF4j/Logback for robust logging.
 
 ## 2. Project Overview & Objectives
 
@@ -37,7 +37,7 @@ The project aims to create a custom voxel game engine from the ground up. It ser
   * Basic lighting (ambient + simple directional).
 * **World Generation & Management:**
   * Infinite world concept using a chunked system.
-  * Procedural terrain generation using noise functions (FastNoise Lite).
+  * Procedural terrain generation using noise functions (JNoise).
   * Chunk data storage (using FastUtil for efficiency).
   * Chunk loading/unloading based on player position.
   * Multithreaded chunk generation and meshing.
@@ -86,7 +86,7 @@ The project aims to create a custom voxel game engine from the ground up. It ser
 * **OpenGL Binding:** LWJGL 3
 * **Math Library:** JOML (Java OpenGL Math Library)
 * **Primitive Collections:** FastUtil
-* **Noise Generation:** FastNoise Lite
+* **Noise Generation:** JNoise
 * **Logging:** SLF4j API + Logback Backend
 * **Operating Systems:** Windows, macOS, Linux (Develop on Linux/WSL2)
 
@@ -223,7 +223,7 @@ A multi-project Gradle setup will enforce modularity.
   * Structure: Likely a 3D array `[y][z][x]` for cache-friendly iteration during meshing.
   * Storage: `Object2ObjectOpenHashMap<ChunkCoord, Chunk>` (or primitive specialized version from FastUtil) mapping chunk coordinates to Chunk objects in memory.
 * **Chunk Meshing:** Greedy Meshing algorithm to minimize vertices for rendering. This will run on worker threads.
-* **World Generation:** Multi-stage noise pipeline using FastNoise Lite (e.g., base terrain height, continentalness, erosion, temperature, humidity -> biome -> details like trees/ores). Runs on worker threads.
+* **World Generation:** Multi-stage noise pipeline using JNoise (e.g., base terrain height, continentalness, erosion, temperature, humidity -> biome -> details like trees/ores). Runs on worker threads.
 * **Rendering Pipeline:**
     1. (Core Thread) Update game state (player position, physics).
     2. (Core Thread) Identify visible/nearby chunks. Request needed chunks from World Manager.
@@ -246,7 +246,7 @@ A multi-project Gradle setup will enforce modularity.
   * LWJGL 3 (Core, OpenGL, GLFW, STB for image loading, OpenAL for sound) - Platform-specific natives managed by LWJGL Gradle plugin or manually.
   * JOML
   * FastUtil
-  * FastNoise Lite
+  * JNoise
   * SLF4j API
   * Logback Classic
   * JUnit 5 (for testing)
@@ -317,7 +317,7 @@ A multi-project Gradle setup will enforce modularity.
   * LWJGL 3: [https://www.lwjgl.org/](https://www.lwjgl.org/)
   * JOML: [https://github.com/JOML-CI/JOML](https://github.com/JOML-CI/JOML)
   * FastUtil: [https://fastutil.di.unimi.it/](https://fastutil.di.unimi.it/)
-  * FastNoise Lite: [https://github.com/Auburn/FastNoiseLite](https://github.com/Auburn/FastNoiseLite) (Java ports available)
+  * JNoise: [https://github.com/Articdive/JNoise](https://github.com/Articdive/JNoise)
   * SLF4j: [https://www.slf4j.org/](https://www.slf4j.org/)
   * Logback: [https://logback.qos.ch/](https://logback.qos.ch/)
   * Gradle: [https://gradle.org/](https://gradle.org/)
