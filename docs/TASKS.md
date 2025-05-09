@@ -370,15 +370,15 @@
 
 - - [x] **Task ID:** P3-T5
   - **Name:** Procedural Generation Framework (`engine-world`)
-  - **Description:** Integrate JNoise. Implement a basic terrain generator interface and a simple implementation (e.g., flat world and basic noise heightmap) that populates chunk data.
+  - **Description:** Integrate FastNoise Lite. Implement a basic terrain generator interface and a simple implementation (e.g., flat world and basic noise heightmap) that populates chunk data.
   - **Phase:** 3 - World Management & Generation
   - **Dependencies:** P3-T1, , `engine-world` module
   - **Subtasks:**
     - [x] **Subtask ID:** P3-T5.1
-      - **Name:** Add JNoise Dependency
-      - **Description:** Add the JNoise library to the `engine-world` module's dependencies in `build.gradle.kts` and define its version in `gradle/libs.versions.toml`.
-      - **Deliverables:** Updated Gradle configuration files.
-      - **Implementation Context:** Added JNoise to `engine-world/build.gradle.kts` and defined the version in `gradle/libs.versions.toml`. The library is now available for use in the `engine-world` module.
+      - **Name:** Add FastNoise Lite
+      - **Description:** Add FastNoise Lite to `engine-core` under the noise dir.
+      - **Deliverables:** Added class.
+      - **Implementation Context:** Added FastNoise Lite to `engine-core/java/de/heger/voxelengine/core/noise/FastNoiseLite.java` and defined the version in `gradle/libs.versions.toml`. The library is now available for use in the `engine-world` module.
     - [x] **Subtask ID:** P3-T5.2
       - **Name:** Implement TerrainGenerator Interface
       - **Description:** Define a `TerrainGenerator` interface with a method to populate a `Chunk` with block data based on its position.
@@ -391,8 +391,8 @@
       - **Implementation Context:** Created `FlatTerrainGenerator.java` in `de.heger.voxelengine.world.generation`. This class implements `TerrainGenerator` to produce a layered flat world. It defines `GRASS_SURFACE_Y` (e.g., 63) and `DIRT_LAYERS` (e.g., 3). In its constructor, it fetches block IDs for "core:block/stone", "core:block/dirt", and "core:block/grass" from `BlockRegistry.getInstance()`. The `generateChunkData(Chunk chunk)` method iterates through local chunk coordinates, calculates the world Y-coordinate for each block, and sets stone below dirt, `DIRT_LAYERS` of dirt, grass at `GRASS_SURFACE_Y`, and air above. This generator will be utilized by the `ChunkGenerator` service (P3-T5.5) to populate chunks.
     - [ ] **Subtask ID:** P3-T5.4
       - **Name:** Implement NoiseTerrainGenerator
-      - **Description:** Create a `NoiseTerrainGenerator` that uses FastNoise by personthecat to generate a simple heightmap. Blocks below the heightmap are stone, one layer of dirt, and one layer of grass on top.
-      - **Deliverables:** `NoiseTerrainGenerator.java` class file using FastNoise.
+      - **Description:** Create a `NoiseTerrainGenerator` that uses FastNoise Lite to generate a simple heightmap. Blocks below the heightmap are stone, 4 to 8 layer of dirt, and one layer of grass on top.
+      - **Deliverables:** `NoiseTerrainGenerator.java` class file using FastNoise Lite.
       - **Implementation Context:**
     - [x] **Subtask ID:** P3-T5.5
       - **Name:** Implement ChunkGenerator Service

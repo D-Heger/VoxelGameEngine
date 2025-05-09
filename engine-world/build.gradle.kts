@@ -6,7 +6,6 @@ dependencies {
     api(libs.joml)
     implementation(projects.engineCore)
     implementation(libs.fastutil)
-    implementation(libs.jnoise)
 
     // Jackson for JSON parsing
     implementation(libs.jackson.core)
