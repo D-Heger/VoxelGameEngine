@@ -391,8 +391,8 @@
       - **Implementation Context:** Created `FlatTerrainGenerator.java` in `de.heger.voxelengine.world.generation`. This class implements `TerrainGenerator` to produce a layered flat world. It defines `GRASS_SURFACE_Y` (e.g., 63) and `DIRT_LAYERS` (e.g., 3). In its constructor, it fetches block IDs for "core:block/stone", "core:block/dirt", and "core:block/grass" from `BlockRegistry.getInstance()`. The `generateChunkData(Chunk chunk)` method iterates through local chunk coordinates, calculates the world Y-coordinate for each block, and sets stone below dirt, `DIRT_LAYERS` of dirt, grass at `GRASS_SURFACE_Y`, and air above. This generator will be utilized by the `ChunkGenerator` service (P3-T5.5) to populate chunks.
     - [ ] **Subtask ID:** P3-T5.4
       - **Name:** Implement NoiseTerrainGenerator
-      - **Description:** Create a `NoiseTerrainGenerator` that uses FastNoise Lite to generate a simple heightmap. Blocks below the heightmap are stone, one layer of dirt, and one layer of grass on top.
-      - **Deliverables:** `NoiseTerrainGenerator.java` class file using FastNoise Lite.
+      - **Description:** Create a `NoiseTerrainGenerator` that uses FastNoise by personthecat to generate a simple heightmap. Blocks below the heightmap are stone, one layer of dirt, and one layer of grass on top.
+      - **Deliverables:** `NoiseTerrainGenerator.java` class file using FastNoise.
       - **Implementation Context:**
     - [x] **Subtask ID:** P3-T5.5
       - **Name:** Implement ChunkGenerator Service
