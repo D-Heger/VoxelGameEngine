@@ -415,7 +415,27 @@
   - **Description:** Create a thread pool (e.g., `ExecutorService`) for background tasks. Design the system for requesting chunk generation asynchronously.
   - **Phase:** 3 - World Management & Generation
   - **Dependencies:** P1-T2, P3-T3, `engine-world` module
-  - **Subtasks:** (none)
+  - **Subtasks:**
+    - [ ] **Subtask ID:** P3-T6.1
+      - **Name:** Define Asynchronous Task Interface for Chunk Operations
+      - **Description:** Create an interface or base class (e.g., `Callable<ChunkData>`) for tasks like chunk generation that can be processed by a thread pool.
+      - **Implementation Context:** (To be filled)
+    - [ ] **Subtask ID:** P3-T6.2
+      - **Name:** Implement `WorldGenerationService` with Thread Pool
+      - **Description:** Develop a service managing an `ExecutorService` to execute asynchronous chunk operations.
+      - **Implementation Context:** (To be filled)
+    - [ ] **Subtask ID:** P3-T6.3
+      - **Name:** Implement Asynchronous Chunk Request Method
+      - **Description:** Add a method to the `WorldGenerationService` to submit chunk generation requests (e.g., returning a `Future`) to the thread pool.
+      - **Implementation Context:** (To be filled)
+    - [ ] **Subtask ID:** P3-T6.4
+      - **Name:** Adapt `ChunkGenerator` for Asynchronous Execution
+      - **Description:** Modify the existing `ChunkGenerator` so its generation logic can be invoked by worker threads and returns chunk data instead of directly updating `ChunkManager`.
+      - **Implementation Context:** (To be filled)
+    - [ ] **Subtask ID:** P3-T6.5
+      - **Name:** Implement Chunk Completion and Integration Mechanism
+      - **Description:** Design how generated chunk data from worker threads is passed back and integrated into the `ChunkManager` on the main thread or a designated processing stage.
+      - **Implementation Context:** (To be filled)
 
 - - [ ] **Task ID:** P3-T7
   - **Name:** Chunk Loading/Unloading Logic (`engine-world`, `game`)
