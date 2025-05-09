@@ -7,7 +7,7 @@ junit = "5.9.3"
 lwjgl = "3.3.6"
 jackson = "2.18.3"
 shadow = "8.1.1"
-fastnoise = "0.10"
+jnoise = "4.1.0"
 
 [libraries]
 # Core & Utilities
@@ -37,8 +37,8 @@ lwjgl-opengl = { group = "org.lwjgl", name = "lwjgl-opengl" }
 lwjgl-stb = { group = "org.lwjgl", name = "lwjgl-stb" }
 # lwjgl-assimp = { group = "org.lwjgl", name = "lwjgl-assimp" }
 
-# FastNoise
-fastnoise = { group = "com.personthecat", name = "fastnoise", version.ref = "fastnoise" }
+# Noise
+jnoise = { group = "de.articdive", name = "jnoise-pipeline", version.ref = "jnoise" }
 
 [bundles]
 logging = ["slf4j-api", "logback-classic"]

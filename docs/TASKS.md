@@ -370,15 +370,15 @@
 
 - - [x] **Task ID:** P3-T5
   - **Name:** Procedural Generation Framework (`engine-world`)
-  - **Description:** Integrate FastNoise Lite. Implement a basic terrain generator interface and a simple implementation (e.g., flat world and basic noise heightmap) that populates chunk data.
+  - **Description:** Integrate JNoise. Implement a basic terrain generator interface and a simple implementation (e.g., flat world and basic noise heightmap) that populates chunk data.
   - **Phase:** 3 - World Management & Generation
-  - **Dependencies:** P3-T1, FastNoise Lite, `engine-world` module
+  - **Dependencies:** P3-T1, , `engine-world` module
   - **Subtasks:**
     - [x] **Subtask ID:** P3-T5.1
-      - **Name:** Add FastNoiseLite Dependency
-      - **Description:** Add the FastNoise Lite library to the `engine-world` module's dependencies in `build.gradle.kts` and define its version in `gradle/libs.versions.toml`.
+      - **Name:** Add JNoise Dependency
+      - **Description:** Add the JNoise library to the `engine-world` module's dependencies in `build.gradle.kts` and define its version in `gradle/libs.versions.toml`.
       - **Deliverables:** Updated Gradle configuration files.
-      - **Implementation Context:** Added FastNoise dependency by personthecat to `engine-world/build.gradle.kts` and defined the version in `gradle/libs.versions.toml`. The library is now available for use in the `engine-world` module.
+      - **Implementation Context:** Added JNoise to `engine-world/build.gradle.kts` and defined the version in `gradle/libs.versions.toml`. The library is now available for use in the `engine-world` module.
     - [x] **Subtask ID:** P3-T5.2
       - **Name:** Implement TerrainGenerator Interface
       - **Description:** Define a `TerrainGenerator` interface with a method to populate a `Chunk` with block data based on its position.
