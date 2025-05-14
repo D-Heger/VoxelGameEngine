@@ -412,30 +412,55 @@
 
 - - [ ] **Task ID:** P3-T6
   - **Name:** Multithreaded Generation Setup (`engine-world`)
-  - **Description:** Create a thread pool (e.g., `ExecutorService`) for background tasks. Design the system for requesting chunk generation asynchronously.
+  - **Description:** Implement a worker thread pool system for asynchronous chunk generation, meshing, and other computationally intensive world operations. This will prevent the main game loop from blocking during these operations, ensuring smooth gameplay while new chunks are being created or updated in the background.
   - **Phase:** 3 - World Management & Generation
-  - **Dependencies:** P1-T2, P3-T3, `engine-world` module
+  - **Dependencies:** P3-T1 (Chunk Data Structure), P3-T3 (World Storage), P3-T5 (Procedural Generation Framework), `engine-world` module
   - **Subtasks:**
-    - [ ] **Subtask ID:** P3-T6.1
-      - **Name:** Define Asynchronous Task Interface for Chunk Operations
-      - **Description:** Create an interface or base class (e.g., `Callable<ChunkData>`) for tasks like chunk generation that can be processed by a thread pool.
-      - **Implementation Context:** (To be filled)
+    - [x] **Subtask ID:** P3-T6.1
+      - **Name:** Design Thread Pool Architecture
+      - **Description:** Design the high-level architecture for the worker thread system. Define how work will be submitted, prioritized, and executed. Consider thread safety, worker lifecycle, and integration with the existing ChunkManager and ChunkGenerator.
+      - **Deliverables:** Design document outlining the multithreaded architecture, including class diagrams, thread communication mechanisms, and safety considerations.
+      - **Implementation Context:** Created `docs/multithreaded_generation_design.md` outlining a system with `WorldTaskExecutor` (thread pool), `GenerationTaskQueue` (priority queue), `ChunkGenerationTask` (Runnable/Callable), and a `ChunkGenerationService`. The design details workflow, thread safety for components like `ChunkManager`, `BlockRegistry`, and `TerrainGenerator`, error handling, configuration, and integration with the game loop.
     - [ ] **Subtask ID:** P3-T6.2
-      - **Name:** Implement `WorldGenerationService` with Thread Pool
-      - **Description:** Develop a service managing an `ExecutorService` to execute asynchronous chunk operations.
-      - **Implementation Context:** (To be filled)
+      - **Name:** Implement ThreadPoolExecutor
+      - **Description:** Create a thread pool manager using Java's concurrency utilities (e.g., `ExecutorService`, `ThreadPoolExecutor`). Configure an appropriate number of worker threads based on system capabilities (e.g., available CPU cores). Implement proper shutdown and exception handling.
+      - **Deliverables:** `WorldThreadPool` class in `de.heger.voxelengine.world.generation.thread` package.
+      - **Implementation Context:** TBD
     - [ ] **Subtask ID:** P3-T6.3
-      - **Name:** Implement Asynchronous Chunk Request Method
-      - **Description:** Add a method to the `WorldGenerationService` to submit chunk generation requests (e.g., returning a `Future`) to the thread pool.
-      - **Implementation Context:** (To be filled)
+      - **Name:** Create Work Queue and Task Prioritization
+      - **Description:** Implement a priority queue system for generation tasks. Tasks closer to the player should have higher priority. Implement queue management, task cancellation for distant chunks, and progress tracking.
+      - **Deliverables:** Task queue implementation with prioritization logic.
+      - **Implementation Context:** TBD
     - [ ] **Subtask ID:** P3-T6.4
-      - **Name:** Adapt `ChunkGenerator` for Asynchronous Execution
-      - **Description:** Modify the existing `ChunkGenerator` so its generation logic can be invoked by worker threads and returns chunk data instead of directly updating `ChunkManager`.
-      - **Implementation Context:** (To be filled)
+      - **Name:** Implement Generation Task Wrapper
+      - **Description:** Create task wrapper class(es) like `ChunkGenerationTask` that implements Runnable or Callable. This class will encapsulate the work needed to generate a chunk on a worker thread, including terrain generation and state management.
+      - **Deliverables:** Task wrapper classes in `de.heger.voxelengine.world.generation.thread` package.
+      - **Implementation Context:** TBD
     - [ ] **Subtask ID:** P3-T6.5
-      - **Name:** Implement Chunk Completion and Integration Mechanism
-      - **Description:** Design how generated chunk data from worker threads is passed back and integrated into the `ChunkManager` on the main thread or a designated processing stage.
-      - **Implementation Context:** (To be filled)
+      - **Name:** Add Result Callback Mechanism
+      - **Description:** Implement a system for worker threads to communicate completion status back to the main thread. Consider using CompletableFuture, a callback interface, or a thread-safe queue of completed tasks.
+      - **Deliverables:** Callback mechanism for task completion and integration with ChunkManager.
+      - **Implementation Context:** TBD
+    - [ ] **Subtask ID:** P3-T6.6
+      - **Name:** Create ChunkGenerationService
+      - **Description:** Implement a high-level service that consolidates the thread pool, task queue, and callbacks. This service will provide a clean API for the game loop to request chunk generation without dealing with concurrency details.
+      - **Deliverables:** `ChunkGenerationService` class with methods for requesting chunk generation and checking status.
+      - **Implementation Context:** TBD
+    - [ ] **Subtask ID:** P3-T6.7
+      - **Name:** Implement Thread Synchronization
+      - **Description:** Add necessary synchronization to ensure thread safety when accessing shared data structures. Audit existing code in `ChunkManager` and related classes to ensure they're thread-safe where needed. Consider using read-write locks for better concurrency.
+      - **Deliverables:** Updated chunk-related classes with appropriate synchronization.
+      - **Implementation Context:** TBD
+    - [ ] **Subtask ID:** P3-T6.8
+      - **Name:** Add Debugging and Monitoring
+      - **Description:** Implement logging and monitoring for the multithreaded system. Track metrics like queue size, generation time per chunk, thread utilization, and any exceptions or errors. Consider a debug visualization mode to show the generation queue status.
+      - **Deliverables:** Logging instrumentation and monitoring capabilities.
+      - **Implementation Context:** TBD
+    - [ ] **Subtask ID:** P3-T6.9
+      - **Name:** Integrate with GameLoop
+      - **Description:** Modify the game loop to utilize the new multithreaded generation system. Request chunks based on player position, process completed chunks, and handle any generation failures.
+      - **Deliverables:** Updated GameLoop code to use the multithreaded generation system.
+      - **Implementation Context:** TBD
 
 - - [ ] **Task ID:** P3-T7
   - **Name:** Chunk Loading/Unloading Logic (`engine-world`, `game`)
