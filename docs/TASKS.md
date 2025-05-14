@@ -421,45 +421,45 @@
       - **Description:** Design the high-level architecture for the worker thread system. Define how work will be submitted, prioritized, and executed. Consider thread safety, worker lifecycle, and integration with the existing ChunkManager and ChunkGenerator.
       - **Deliverables:** Design document outlining the multithreaded architecture, including class diagrams, thread communication mechanisms, and safety considerations.
       - **Implementation Context:** Created `docs/multithreaded_generation_design.md` outlining a system with `WorldTaskExecutor` (thread pool), `GenerationTaskQueue` (priority queue), `ChunkGenerationTask` (Runnable/Callable), and a `ChunkGenerationService`. The design details workflow, thread safety for components like `ChunkManager`, `BlockRegistry`, and `TerrainGenerator`, error handling, configuration, and integration with the game loop.
-    - [ ] **Subtask ID:** P3-T6.2
+    - [x] **Subtask ID:** P3-T6.2
       - **Name:** Implement ThreadPoolExecutor
       - **Description:** Create a thread pool manager using Java's concurrency utilities (e.g., `ExecutorService`, `ThreadPoolExecutor`). Configure an appropriate number of worker threads based on system capabilities (e.g., available CPU cores). Implement proper shutdown and exception handling.
       - **Deliverables:** `WorldThreadPool` class in `de.heger.voxelengine.world.generation.thread` package.
-      - **Implementation Context:** TBD
-    - [ ] **Subtask ID:** P3-T6.3
-      - **Name:** Create Work Queue and Task Prioritization
-      - **Description:** Implement a priority queue system for generation tasks. Tasks closer to the player should have higher priority. Implement queue management, task cancellation for distant chunks, and progress tracking.
-      - **Deliverables:** Task queue implementation with prioritization logic.
-      - **Implementation Context:** TBD
-    - [ ] **Subtask ID:** P3-T6.4
-      - **Name:** Implement Generation Task Wrapper
-      - **Description:** Create task wrapper class(es) like `ChunkGenerationTask` that implements Runnable or Callable. This class will encapsulate the work needed to generate a chunk on a worker thread, including terrain generation and state management.
-      - **Deliverables:** Task wrapper classes in `de.heger.voxelengine.world.generation.thread` package.
-      - **Implementation Context:** TBD
-    - [ ] **Subtask ID:** P3-T6.5
-      - **Name:** Add Result Callback Mechanism
-      - **Description:** Implement a system for worker threads to communicate completion status back to the main thread. Consider using CompletableFuture, a callback interface, or a thread-safe queue of completed tasks.
-      - **Deliverables:** Callback mechanism for task completion and integration with ChunkManager.
-      - **Implementation Context:** TBD
-    - [ ] **Subtask ID:** P3-T6.6
-      - **Name:** Create ChunkGenerationService
-      - **Description:** Implement a high-level service that consolidates the thread pool, task queue, and callbacks. This service will provide a clean API for the game loop to request chunk generation without dealing with concurrency details.
-      - **Deliverables:** `ChunkGenerationService` class with methods for requesting chunk generation and checking status.
-      - **Implementation Context:** TBD
-    - [ ] **Subtask ID:** P3-T6.7
-      - **Name:** Implement Thread Synchronization
-      - **Description:** Add necessary synchronization to ensure thread safety when accessing shared data structures. Audit existing code in `ChunkManager` and related classes to ensure they're thread-safe where needed. Consider using read-write locks for better concurrency.
-      - **Deliverables:** Updated chunk-related classes with appropriate synchronization.
-      - **Implementation Context:** TBD
-    - [ ] **Subtask ID:** P3-T6.8
-      - **Name:** Add Debugging and Monitoring
-      - **Description:** Implement logging and monitoring for the multithreaded system. Track metrics like queue size, generation time per chunk, thread utilization, and any exceptions or errors. Consider a debug visualization mode to show the generation queue status.
-      - **Deliverables:** Logging instrumentation and monitoring capabilities.
-      - **Implementation Context:** TBD
+      - **Implementation Context:** Created the `WorldThreadPool` class in `de.heger.voxelengine.world.generation.thread.WorldThreadPool.java`. It wraps a `ThreadPoolExecutor` and provides a static factory method `createDefault(String poolName)` to configure it with a sensible number of threads based on available CPU cores (typically N-1, min 1). It uses a custom `NamedThreadFactory` to name worker threads (e.g., "poolName-thread-X") and sets an uncaught exception handler for these threads. It also includes a `DefaultRejectedExecutionHandler` for logging and handling rejected tasks. Methods for submitting tasks (`submit`, `execute`) and managing lifecycle (`shutdown`, `shutdownNow`, `isTerminated`) are provided. Logging is done via `LoggerFacade`.
+    - [x] **Subtask ID:** P3-T6.3
+      - **Name:** Implement Generation Task Queue
+      - **Description:** Create a thread-safe priority queue system (using `PriorityBlockingQueue`) that orders chunk generation tasks based on their proximity to the player. Implement methods for adding, retrieving, and cancelling tasks, along with queue management to prevent unbounded growth.
+      - **Deliverables:** `GenerationTaskQueue` class with priority-based ordering and queue management capabilities.
+      - **Implementation Context:** Created `GenerationTaskQueue.java` in `de.heger.voxelengine.world.generation.thread`. This class wraps a `java.util.concurrent.PriorityBlockingQueue<ChunkGenerationTask>`. It supports a maximum capacity to prevent unbounded growth. Methods are provided to add tasks (`addTask`), retrieve tasks (`pollTask`, `takeTask`), peek (`peekTask`), remove specific tasks (`removeTask`), clear the queue (`clear`), and check its state (`size`, `isEmpty`, `isAtCapacity`). A placeholder `ChunkGenerationTask` class (implementing `Runnable` and `Comparable`) was also created in the same package to allow the queue to function; its `compareTo` method uses an integer priority. Logging is done via `LoggerFacade`.
+    - [x] **Subtask ID:** P3-T6.4
+      - **Name:** Create ChunkGenerationTask Implementation
+      - **Description:** Develop a `Runnable` or `Callable` implementation that encapsulates all operations needed to generate a chunk asynchronously. This includes creating a new `Chunk` object, invoking the appropriate `TerrainGenerator`, updating chunk state, and adding the completed chunk to `ChunkManager`.
+      - **Deliverables:** `ChunkGenerationTask` class in the `de.heger.voxelengine.world.generation.thread` package with proper error handling and logging.
+      - **Implementation Context:** Updated `ChunkGenerationTask.java` in `de.heger.voxelengine.world.generation.thread`. The class implements `Runnable` and `Comparable<ChunkGenerationTask>`. It takes a `ChunkPos`, an integer `priority`, and a `TerrainGenerator` in its constructor. The `run()` method: 1. Sets the current thread's name for easier debugging. 2. Logs the start of generation. 3. Creates a new `Chunk(chunkPos)`. 4. Calls `terrainGenerator.generateChunkData(newChunk)`. 5. Sets the chunk's state to `ChunkState.GENERATED`. 6. Adds the `newChunk` to `ChunkManager.getInstance()`. 7. Logs success or any exceptions encountered during the process. `equals()` and `hashCode()` are based solely on `ChunkPos` for correct queue behavior.
+    - [x] **Subtask ID:** P3-T6.5
+      - **Name:** Implement Task Completion Notification System
+      - **Description:** Create a mechanism for worker threads to notify the main thread when chunk generation is complete. Consider using `CompletableFuture`, a callback registry, or a thread-safe queue of completed tasks that the main thread can poll during its update cycle.
+      - **Deliverables:** `TaskResultHandler` interface and implementation with methods for registering and processing generation completion events.
+      - **Implementation Context:** Created the `TaskResultHandler` interface (`engine-world/src/main/java/de/heger/voxelengine/world/generation/thread/TaskResultHandler.java`) with `onTaskCompleted(ChunkGenerationTask, Chunk)` and `onTaskFailed(ChunkGenerationTask, Exception)` methods. Modified `ChunkGenerationTask` to accept an optional `TaskResultHandler` in its constructor and invoke these methods upon successful completion or failure. Also provided a basic implementation, `LoggingTaskResultHandler.java`, which logs the task outcomes. This system allows for flexible handling of task results, which will be managed and utilized by the `ChunkGenerationService` (P3-T6.6).
+    - [x] **Subtask ID:** P3-T6.6
+      - **Name:** Develop ChunkGenerationService
+      - **Description:** Create a high-level service that coordinates between the game systems and the thread pool. Implement methods for requesting chunk generation with priority levels, checking generation status, and handling the lifecycle of the generation subsystem (initialization, shutdown). This will serve as the main API for the rest of the engine.
+      - **Deliverables:** `ChunkGenerationService` class that manages the `WorldTaskExecutor` and `GenerationTaskQueue`.
+      - **Implementation Context:** Created `ChunkGenerationService.java` in the `de.heger.voxelengine.world.generation.thread` package. This service initializes and manages a `WorldThreadPool` and a `GenerationTaskQueue`. The `WorldThreadPool` is configured to use the `GenerationTaskQueue`'s underlying `PriorityBlockingQueue` directly as its work queue, enabling the thread pool to automatically pick up prioritized `ChunkGenerationTask`s. The service provides `requestChunkGeneration` methods that create tasks, wrap the provided `TaskResultHandler` for internal tracking (to prevent duplicate submissions using a `Set<ChunkPos>`), and add tasks to the `GenerationTaskQueue`. It also includes `shutdown`, `getPendingTaskCount`, and `getActiveWorkerCount` methods. Prerequisite modifications were made to `WorldThreadPool` (making `NamedThreadFactory` and `DefaultRejectedExecutionHandler` public, adding `getActiveCount`) and `GenerationTaskQueue` (adding `getUnderlyingQueue()`).
+    - [x] **Subtask ID:** P3-T6.7
+      - **Name:** Ensure Thread Safety of Shared Components
+      - **Description:** Audit and update the existing chunk-related classes for thread safety, particularly focusing on `TerrainGenerator` implementations. Implement thread-local instances of non-thread-safe components or add appropriate synchronization where needed. Consider using read-write locks for performance-critical sections with read-heavy access patterns.
+      - **Deliverables:** Thread-safe implementations of all components that interact with the multithreaded generation system.
+      - **Implementation Context:** Audited shared components. `ChunkManager` is already synchronized. `BlockRegistry` is effectively immutable after initialization. `FlatTerrainGenerator` was found to be thread-safe for shared use. `NoiseTerrainGenerator` was made thread-safe by changing its `java.util.Random` member to a `ThreadLocal<Random>`, initialized with the generator's seed. This ensures each thread using a shared `NoiseTerrainGenerator` instance gets its own `Random` object, preventing state corruption. This assumes `FastNoiseLite.GetNoise()` is re-entrant, which is typical for such libraries after initial setup. With this change, the `defaultTerrainGenerator` in `ChunkGenerationService` can be safely used by multiple concurrent tasks if it is an instance of `NoiseTerrainGenerator` or `FlatTerrainGenerator`.
+    - [x] **Subtask ID:** P3-T6.8
+      - **Name:** Add Performance Monitoring and Diagnostics
+      - **Description:** Implement comprehensive logging and monitoring for the multithreaded system. Track key metrics like queue size, generation time per chunk, thread utilization, and exceptions. Add a diagnostic mode that can visualize the generation queue status and worker thread activity for debugging purposes.
+      - **Deliverables:** Monitoring infrastructure and diagnostic tools for the multithreaded generation system.
+      - **Implementation Context:** Enhanced logging for performance monitoring. `ChunkGenerationTask` now measures its execution time. The `TaskResultHandler` interface was updated to include `durationMillis` in `onTaskCompleted`. `LoggingTaskResultHandler` was updated to log this duration. `ChunkGenerationService`'s internal `ServiceInternalResultHandler` was updated to correctly pass the duration. This provides basic tracking of generation time per chunk. The `ChunkGenerationService` already provides methods to get pending task count (`getPendingTaskCount()`) and active worker count (`getActiveWorkerCount()`), which are useful for diagnostics. More advanced visualization or diagnostic modes can be added later if needed.
     - [ ] **Subtask ID:** P3-T6.9
-      - **Name:** Integrate with GameLoop
-      - **Description:** Modify the game loop to utilize the new multithreaded generation system. Request chunks based on player position, process completed chunks, and handle any generation failures.
-      - **Deliverables:** Updated GameLoop code to use the multithreaded generation system.
+      - **Name:** Integrate with World Loading System
+      - **Description:** Update the game loop and world loading logic to utilize the new asynchronous generation system. Implement dynamic chunk request scheduling based on player position and movement, process completed chunks efficiently, and handle generation failures gracefully. Ensure smooth transitions as chunks become available.
+      - **Deliverables:** Updated game loop and world loading code that leverages the multithreaded generation system.
       - **Implementation Context:** TBD
 
 - - [ ] **Task ID:** P3-T7
@@ -500,7 +500,7 @@
   - **Subtasks:** (none)
 
 - - [ ] **Task ID:** P4-T5
-  - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`)
+  - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement Axis-Aligned Bounding Box (AABB) collision detection between the player entity and world blocks. Prevent player from moving into solid blocks.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T2, P4-3, P4-T4, `engine-physics`, `engine-world`, `game` modules

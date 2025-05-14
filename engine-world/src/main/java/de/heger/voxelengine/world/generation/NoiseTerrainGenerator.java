@@ -19,12 +19,14 @@ public class NoiseTerrainGenerator implements TerrainGenerator {
     private static final int MIN_DIRT_LAYERS = 4;
     private static final int MAX_DIRT_LAYERS = 8;
 
-    private final FastNoiseLite noise;
     private final short stoneId;
     private final short dirtId;
     private final short grassId;
     private final short airId;
-    private final Random random;
+    private final int initialSeed; // Store the initial seed for ThreadLocal
+
+    private final ThreadLocal<Random> threadLocalRandom;
+    private final ThreadLocal<FastNoiseLite> threadLocalNoise; // Added ThreadLocal for FastNoiseLite
 
     /**
      * Constructs a new NoiseTerrainGenerator.
@@ -40,16 +42,22 @@ public class NoiseTerrainGenerator implements TerrainGenerator {
      * @param seed The seed for the noise generator.
      */
     public NoiseTerrainGenerator(int seed) {
-        this.noise = new FastNoiseLite(seed);
-        this.noise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-        this.noise.SetFrequency(0.005f); // Adjust frequency to control the "zoom" of the noise
+        this.initialSeed = seed; // Store the seed
+        this.threadLocalRandom = ThreadLocal.withInitial(() -> new Random(this.initialSeed));
+
+        // Initialize ThreadLocal FastNoiseLite
+        this.threadLocalNoise = ThreadLocal.withInitial(() -> {
+            FastNoiseLite fnl = new FastNoiseLite(this.initialSeed);
+            fnl.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
+            fnl.SetFrequency(0.005f);
+            return fnl;
+        });
 
         BlockRegistry registry = BlockRegistry.getInstance();
         this.stoneId = registry.getId("core:block/stone");
         this.dirtId = registry.getId("core:block/dirt");
         this.grassId = registry.getId("core:block/grass");
         this.airId = BlockRegistry.AIR.getId();
-        this.random = new Random(seed);
     }
 
     @Override
@@ -64,15 +72,21 @@ public class NoiseTerrainGenerator implements TerrainGenerator {
                 float worldX = chunkWorldXOffset + localX;
                 float worldZ = chunkWorldZOffset + localZ;
 
+                // Get thread-local noise instance
+                FastNoiseLite localNoise = threadLocalNoise.get();
+
                 // Get noise value (range -1 to 1)
-                float noiseValue = noise.GetNoise(worldX, worldZ);
+                float noiseValue = localNoise.GetNoise(worldX, worldZ);
 
                 // Calculate surface height for this column
                 // Scale noise to 0-1 range, then apply variation and base height
                 int surfaceHeight = (int) (((noiseValue + 1) / 2.0f) * MAX_HEIGHT_VARIATION + BASE_HEIGHT);
 
+                // Get thread-local random instance
+                Random localRandom = threadLocalRandom.get();
+
                 // Determine number of dirt layers for this column
-                int dirtLayers = MIN_DIRT_LAYERS + random.nextInt(MAX_DIRT_LAYERS - MIN_DIRT_LAYERS + 1);
+                int dirtLayers = MIN_DIRT_LAYERS + localRandom.nextInt(MAX_DIRT_LAYERS - MIN_DIRT_LAYERS + 1);
                 int dirtTopY = surfaceHeight - 1; // Grass is at surfaceHeight
                 int stoneTopY = dirtTopY - dirtLayers;
 

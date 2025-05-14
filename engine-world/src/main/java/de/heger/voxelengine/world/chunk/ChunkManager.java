@@ -1,8 +1,10 @@
 package de.heger.voxelengine.world.chunk;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 import de.heger.voxelengine.core.utils.Validate;
 
@@ -98,6 +100,9 @@ public class ChunkManager {
      * @return an unmodifiable collection of all loaded chunks
      */
     public synchronized Collection<Chunk> getAllLoadedChunks() {
-        return Collections.unmodifiableCollection(chunks.values());
+        if (chunks.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Collections.unmodifiableList(new ArrayList<>(chunks.values()));
     }
 }

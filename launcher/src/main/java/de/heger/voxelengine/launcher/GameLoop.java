@@ -14,6 +14,9 @@ import de.heger.voxelengine.world.generation.ChunkGenerator;
 //import de.heger.voxelengine.world.generation.FlatTerrainGenerator;
 import de.heger.voxelengine.world.generation.NoiseTerrainGenerator;
 import de.heger.voxelengine.world.generation.TerrainGenerator;
+import de.heger.voxelengine.world.generation.thread.ChunkGenerationService;
+import de.heger.voxelengine.world.generation.thread.LoggingTaskResultHandler;
+import de.heger.voxelengine.world.generation.thread.TaskResultHandler;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -26,6 +29,7 @@ public class GameLoop {
     private static final float TARGET_UPS = 60.0f; // Target updates per second (Increased for smoother input)
     private static final float TARGET_FPS = 60.0f; // Target frames per second (for timing, not limiting)
     private static final int MAX_WORLD_HEIGHT_CHUNKS = 16; // Max world height in chunks (16 chunks * 16 blocks/chunk = 256 blocks)
+    private static final int INITIAL_WORLD_RADIUS_CHUNKS = 10; // Smaller radius for async testing
 
     private final Window window;
     private final InputManager inputManager;
@@ -33,7 +37,8 @@ public class GameLoop {
     private final Camera camera; // Add Camera instance
     private final ChunkManager chunkManager; // Added for P3-T3.7
     private final BlockRegistry blockRegistry; // Added for P3-T4
-    private final ChunkGenerator chunkGenerator; // Added for P3-T5.6
+    private final ChunkGenerator chunkGenerator; // OLD: Added for P3-T5.6 - Will be unused for initial world gen
+    private ChunkGenerationService chunkGenerationService; // NEW: For async generation (P3-T6.9)
     private boolean running = false;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen) {
@@ -44,34 +49,55 @@ public class GameLoop {
         // Get input manager from window AFTER window creation
         inputManager = window.getInputManager();
 
-        // Initialize Renderer after window context is current
-        renderer = new Renderer(window);
-        // NOTE: Renderer.init() calls BlockRegistry.getAllProperties(), which relies on the registry being finalized.
-        // This might be the source of the issue if called before finalization. Let's move renderer.init() after registry finalization.
-        // renderer.init(); // Moved down
-
-        // Get camera from renderer
-        camera = renderer.getCamera();
-
-        // Get ChunkManager singleton instance - P3-T3.7
-        chunkManager = ChunkManager.getInstance();
-
-        // Block Registry initialization
-        blockRegistry = BlockRegistry.getInstance();
-        blockRegistry.finalizeRegistry();
+        // Initialize BlockRegistry (P3-T4)
+        this.blockRegistry = BlockRegistry.getInstance();
+        // No need to explicitly call a load method if it auto-loads or is configured elsewhere
+        // For now, assuming BlockRegistry.getInstance() handles its setup.
+        // Ensure it's finalized before use by generators
+        if (!this.blockRegistry.isInitialized()) {
+            this.blockRegistry.finalizeRegistry(); 
+        }
         LOGGER.info("Block registry finalized with {} block types.", blockRegistry.getRegisteredBlockCount());
 
-        // Initialize ChunkGenerator after BlockRegistry is finalized
-        //TerrainGenerator terrainGenerator = new FlatTerrainGenerator();
-        //chunkGenerator = new ChunkGenerator(terrainGenerator);
-        TerrainGenerator terrainGenerator = new NoiseTerrainGenerator();
-        chunkGenerator = new ChunkGenerator(terrainGenerator);
-        LOGGER.info("ChunkGenerator initialized.");
-        
-        // Initialize Renderer AFTER block registry is finalized, as renderer needs the finalized properties.
-        renderer.init();
-        LOGGER.info("Renderer initialized.");
+        // Initialize ChunkManager (P3-T3.7)
+        chunkManager = ChunkManager.getInstance();
 
+        // OLD Synchronous ChunkGenerator setup (P3-T5.5 / P3-T5.6)
+        // Will be replaced by async service for initial world gen, but can be kept for other tools/tests
+        TerrainGenerator flatTerrainGenerator = new NoiseTerrainGenerator(12345); // Default to noise for old generator too
+        this.chunkGenerator = new ChunkGenerator(flatTerrainGenerator);
+        LOGGER.info("OLD Synchronous ChunkGenerator initialized.");
+
+        // NEW Asynchronous ChunkGenerationService setup (P3-T6.6 / P3-T6.9)
+        TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337); // Seed for the main async generator
+        TaskResultHandler resultHandler = new LoggingTaskResultHandler();
+        
+        // Determine dynamic queue capacity based on initial world size
+        int horizontalDim = (INITIAL_WORLD_RADIUS_CHUNKS * 2) + 1;
+        int calculatedMaxTasks = horizontalDim * horizontalDim * MAX_WORLD_HEIGHT_CHUNKS;
+        // Ensure capacity is at least a reasonable minimum (e.g., 1024) and can hold all initial tasks, plus a small buffer.
+        int queueCapacity = Math.max(1024, (int)(calculatedMaxTasks * 1.1)); 
+        LOGGER.info("Calculated ChunkGenerationService queue capacity: {} for initial world radius {}", queueCapacity, INITIAL_WORLD_RADIUS_CHUNKS);
+
+        // TODO: Tune these pool sizes based on testing and typical core counts
+        int corePoolSize = Math.max(1, Runtime.getRuntime().availableProcessors() / 2); // Example: Half of available cores
+        int maxPoolSize = Math.max(corePoolSize, Runtime.getRuntime().availableProcessors() -1 ); // Example: Most cores, but leave one for OS/main thread
+        if (maxPoolSize <= corePoolSize) maxPoolSize = corePoolSize +1; // ensure max > core slightly if low cores
+        int keepAliveSeconds = 60;
+
+        this.chunkGenerationService = new ChunkGenerationService(
+                noiseTerrainGen,
+                resultHandler,
+                corePoolSize, maxPoolSize, keepAliveSeconds,
+                queueCapacity // Use the dynamically calculated capacity
+        );
+        LOGGER.info("ChunkGenerationService initialized.");
+
+        // Initialize Renderer AFTER block registry is finalized, as renderer needs the finalized properties.
+        renderer = new Renderer(window);
+        renderer.init();
+        camera = renderer.getCamera();
+        LOGGER.info("Renderer initialized.");
 
         // Capture mouse cursor
         GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
@@ -81,10 +107,13 @@ public class GameLoop {
         //initTestWorld(); // Call the original test world
         //initStressTestWorld(); // Call the stress test world
 
-        // P3-T5.6: Initialize procedural world
-        initProceduralWorld(2); // Generate a 5x5 chunk area (radius 2 from 0,0) horizontally, and full height vertically
+        // P3-T5.6: Initialize procedural world (OLD synchronous way)
+        // initProceduralWorld(INITIAL_WORLD_RADIUS_CHUNKS); 
+        // NEW Asynchronous way (P3-T6.9)
+        initAsyncProceduralWorld(INITIAL_WORLD_RADIUS_CHUNKS); 
 
         LOGGER.info("Game loop initialized.");
+        LOGGER.info("ChunkManager: {}", chunkManager.getLoadedChunkCount());
     }
 
     // P3-T3.7: Refactored method to use ChunkManager for chunk management
@@ -297,6 +326,45 @@ public class GameLoop {
         LOGGER.info("Procedural world initialization complete. Generated {} chunks.", chunksGenerated);
     }
 
+    /**
+     * Initializes a procedural world by ASYNCHRONOUSLY requesting chunks 
+     * in a square area around the origin (0,Y,0)
+     * and vertically up to {@link #MAX_WORLD_HEIGHT_CHUNKS}.
+     * @param worldRadiusChunks The radius of the world to generate in chunks horizontally.
+     */
+    private void initAsyncProceduralWorld(int worldRadiusChunks) {
+        LOGGER.info("Requesting ASYNCHRONOUS procedural world generation with radius: {} chunks (Total {}x{} area horizontally, {} chunks high)...",
+                worldRadiusChunks, (worldRadiusChunks * 2) + 1, (worldRadiusChunks * 2) + 1, MAX_WORLD_HEIGHT_CHUNKS);
+        int chunksRequested = 0;
+        int requestFailed = 0;
+        
+        // Priority: For initial load, a simple constant priority is fine.
+        // Chunks closer to the player/center could get higher priority (lower number).
+        // Example: Priority can be based on distance from (0,y,0) for initial load.
+        // int basePriority = 1000;
+
+        for (int cx = -worldRadiusChunks; cx <= worldRadiusChunks; cx++) {
+            for (int cz = -worldRadiusChunks; cz <= worldRadiusChunks; cz++) {
+                for (int cy = 0; cy < MAX_WORLD_HEIGHT_CHUNKS; cy++) {
+                    ChunkPos pos = new ChunkPos(cx, cy, cz);
+                    // Simple priority: lower Y levels, or closer to 0,0 horizontal get slightly higher priority.
+                    int priority = 1000 + (MAX_WORLD_HEIGHT_CHUNKS - 1 - cy) + (Math.abs(cx) + Math.abs(cz));
+                    boolean requested = this.chunkGenerationService.requestChunkGeneration(pos, priority);
+                    if (requested) {
+                        chunksRequested++;
+                    } else {
+                        requestFailed++;
+                    }
+                }
+            }
+        }
+        if (requestFailed > 0) {
+             LOGGER.warn("Asynchronous procedural world initialization: {} chunks requested, {} requests failed (e.g. already loaded/queued, or queue full).", chunksRequested, requestFailed);
+        } else {
+            LOGGER.info("Asynchronous procedural world initialization complete. Requested {} chunks.", chunksRequested);
+        }
+    }
+
     public void run() {
         LOGGER.info("Starting game loop...");
         running = true;
@@ -411,6 +479,24 @@ public class GameLoop {
 
     private void cleanup() {
         LOGGER.info("Cleaning up game loop resources...");
+
+        if (this.chunkGenerationService != null) {
+            LOGGER.info("Attempting to shut down ChunkGenerationService...");
+            this.chunkGenerationService.shutdown();
+            // Simple wait for a short period. In a real game, might need more robust handling or UI feedback.
+            // This is a basic wait, actual termination is handled by WorldThreadPool's awaitTermination.
+            // try {
+            //     Thread.sleep(1000); // Give it a second to process shutdown command and clear queue
+            // } catch (InterruptedException e) {
+            //     LOGGER.warn("Interrupted while waiting for ChunkGenerationService to initiate shutdown.");
+            //     Thread.currentThread().interrupt();
+            // }
+            // The ChunkGenerationService.shutdown() calls WorldThreadPool.shutdown(), which has its own awaitTermination logic.
+            // So, further waiting here might be redundant or could conflict if not designed carefully.
+            // For now, just initiating shutdown is sufficient as per WorldThreadPool's behavior.
+            LOGGER.info("ChunkGenerationService shutdown initiated.");
+        }
+
         // Release mouse cursor
         GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
         LOGGER.info("Mouse cursor released.");

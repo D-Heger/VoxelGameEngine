@@ -56,7 +56,7 @@ public class ChunkGenerator {
         // TODO: Set neighbors after surrounding chunks are generated/loaded. For now, this is handled by ChunkManager if needed.
 
         chunkManager.addChunk(newChunk);
-        LOGGER.info("Generated and added chunk {} to ChunkManager. Current loaded chunks: {}", chunkPos, chunkManager.getLoadedChunkCount());
+        LOGGER.debug("Generated and added chunk {} to ChunkManager. Current loaded chunks: {}", chunkPos, chunkManager.getLoadedChunkCount());
 
         return newChunk;
     }
