@@ -486,6 +486,14 @@
   - **Subtasks:** (none)
   - **Implementation Context:** Implemented frustum culling in `Renderer.java` within the `engine-renderer` module. In the `renderChunks` method, the view-projection matrix is calculated using the camera's view matrix and the renderer's projection matrix. A JOML `FrustumIntersection` object is then created from this combined matrix. Before rendering each chunk, its Axis-Aligned Bounding Box (AABB) is calculated in world coordinates. This AABB is then tested against the frustum using `frustumIntersection.testAab()`. If the chunk is outside the frustum, it is skipped, thus not rendered. An import for `org.joml.FrustumIntersection` was added to `Renderer.java`.
 
+- - [x] **Task ID:** P3-T10
+  - **Name:** Basic performance display
+  - **Description:** Implement a simple performance display that shows FPS and chunk generation times. This can be done using a simple overlay on the screen.
+  - **Phase:** 3 - World Management & Generation
+  - **Dependencies:** P3-T1, P3-T2, `engine-world` module
+  - **Subtasks:** (none)
+  - **Implementation Context:** Created `PerformanceTrackingTaskResultHandler.java` in `engine-world`'s `de.heger.voxelengine.world.generation.thread` package to collect chunk generation durations. Modified `GameLoop.java` in the `launcher` module: added new fields to store original window title, current FPS, and UPS. Instantiated `PerformanceTrackingTaskResultHandler` (wrapping the existing `LoggingTaskResultHandler`) and passed it to `ChunkGenerationService`. In the main game loop's 1-second timer block, FPS and UPS are stored, and the window title is updated using `window.setTitle()` to display the original title concatenated with FPS, UPS, average chunk generation time (ms), and the number of samples used for the average. A public `setTitle(String)` method was added to `engine-platform/src/main/java/de/heger/voxelengine/platform/Window.java` to enable dynamic title updates.
+
 ## Phase 4: Chunk Rendering & Basic Physics (Interaction)
 
 - - [ ] **Task ID:** P4-T1

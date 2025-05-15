@@ -254,4 +254,18 @@ public class Window {
     public InputManager getInputManager() {
         return inputManager;
     }
+
+    /**
+     * Sets the title of the window.
+     * @param newTitle The new title for the window.
+     */
+    public void setTitle(String newTitle) {
+        if (newTitle != null && !newTitle.equals(this.title)) {
+            this.title = newTitle;
+            if (windowHandle != NULL) { // Ensure window handle is valid
+                GLFW.glfwSetWindowTitle(windowHandle, this.title);
+                LOGGER.trace("Window title set to: {}", this.title);
+            }
+        }
+    }
 }

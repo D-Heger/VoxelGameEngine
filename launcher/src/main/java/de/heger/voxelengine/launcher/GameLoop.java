@@ -16,6 +16,7 @@ import de.heger.voxelengine.world.generation.NoiseTerrainGenerator;
 import de.heger.voxelengine.world.generation.TerrainGenerator;
 import de.heger.voxelengine.world.generation.thread.ChunkGenerationService;
 import de.heger.voxelengine.world.generation.thread.LoggingTaskResultHandler;
+import de.heger.voxelengine.world.generation.thread.PerformanceTrackingTaskResultHandler;
 import de.heger.voxelengine.world.generation.thread.TaskResultHandler;
 
 import org.lwjgl.glfw.GLFW;
@@ -52,8 +53,15 @@ public class GameLoop {
     private ChunkPos lastCameraXZChunkPos = null; // Stores the XZ chunk position of the camera from the last update.
     private double chunkLoadCheckTimer = 0.0;
 
+    // New fields for P3-T10 (Performance Display)
+    private PerformanceTrackingTaskResultHandler performanceTrackingHandler;
+    private String originalWindowTitle;
+    private int currentFps = 0;
+    private int currentUps = 0;
+
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen) {
         LOGGER.info("Initializing game loop...");
+        this.originalWindowTitle = windowTitle; // Store original window title
         // Window creation also initializes GLFW
         // Pass the icon resource path. Assuming "window.ico" is in src/main/resources
         window = new Window(width, height, windowTitle, vsync, fullscreen, "/window.png");
@@ -84,7 +92,9 @@ public class GameLoop {
 
         // NEW Asynchronous ChunkGenerationService setup (P3-T6.6 / P3-T6.9)
         TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337); // Seed for the main async generator
-        TaskResultHandler resultHandler = new LoggingTaskResultHandler();
+        // TaskResultHandler resultHandler = new LoggingTaskResultHandler(); // Old handler
+        TaskResultHandler loggingHandler = new LoggingTaskResultHandler(); // Keep logging
+        this.performanceTrackingHandler = new PerformanceTrackingTaskResultHandler(loggingHandler); // Wrap with perf tracker
 
         // Determine dynamic queue capacity based on CHUNK_LOAD_RADIUS
         int horizontalDim = (CHUNK_LOAD_RADIUS * 2) + 1;
@@ -107,7 +117,8 @@ public class GameLoop {
 
         this.chunkGenerationService = new ChunkGenerationService(
                 noiseTerrainGen,
-                resultHandler,
+                // resultHandler, // Use the new wrapped handler
+                this.performanceTrackingHandler, // Use the new wrapped handler
                 corePoolSize, maxPoolSize, keepAliveSeconds,
                 queueCapacity // Use the dynamically calculated capacity
         );
@@ -465,9 +476,21 @@ public class GameLoop {
                 // --- FPS/UPS Counter ---
                 if (GLFW.glfwGetTime() - timer > 1.0) {
                     timer++; // Add one second
-                    LOGGER.debug("FPS: {}, UPS: {}", frames, updates);
+                    // LOGGER.debug("FPS: {}, UPS: {}", frames, updates);
+                    this.currentFps = frames;
+                    this.currentUps = updates;
+                    LOGGER.debug("FPS: {}, UPS: {}", this.currentFps, this.currentUps);
                     frames = 0;
                     updates = 0;
+
+                    // Update window title with performance info (P3-T10)
+                    if (this.performanceTrackingHandler != null && window != null) {
+                        double avgGenTime = this.performanceTrackingHandler.getAverageGenerationTimeMillis();
+                        int sampleCount = this.performanceTrackingHandler.getSampleCount();
+                        String perfInfo = String.format("FPS: %d, UPS: %d, Avg Gen Time: %.2f ms (%d samples)",
+                                this.currentFps, this.currentUps, avgGenTime, sampleCount);
+                        window.setTitle(this.originalWindowTitle + " | " + perfInfo);
+                    }
                 }
 
                 // Update chunk loading/unloading (P3-T7)
