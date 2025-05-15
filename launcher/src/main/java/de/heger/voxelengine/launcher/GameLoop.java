@@ -33,8 +33,8 @@ public class GameLoop {
     private static final int INITIAL_WORLD_RADIUS_CHUNKS = 10; // Smaller radius for async testing
 
     // New constants for P3-T7
-    private static final int CHUNK_LOAD_RADIUS = 3; // Results in a 7x7 horizontal area of chunk columns
-    private static final int CHUNK_UNLOAD_OFFSET = 2; // Unload if further than LOAD_RADIUS + OFFSET
+    private static final int CHUNK_LOAD_RADIUS = 2; // Results in a 7x7 horizontal area of chunk columns
+    private static final int CHUNK_UNLOAD_OFFSET = 1; // Unload if further than LOAD_RADIUS + OFFSET
     private static final double CHUNK_LOAD_CHECK_INTERVAL = 0.5; // seconds, check every half second
 
     private final Window window;

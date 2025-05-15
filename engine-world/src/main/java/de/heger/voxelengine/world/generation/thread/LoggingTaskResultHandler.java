@@ -10,7 +10,7 @@ public class LoggingTaskResultHandler implements TaskResultHandler {
 
     @Override
     public void onTaskCompleted(ChunkGenerationTask task, Chunk chunk, long durationMillis) {
-        LOGGER.info("Task completed successfully for chunk: {}. Priority: {}. Resulting chunk: {}. Duration: {}ms",
+        LOGGER.debug("Task completed successfully for chunk: {}. Priority: {}. Resulting chunk: {}. Duration: {}ms",
                 task.getChunkPos(), task.getPriority(), chunk.getPosition(), durationMillis);
         
         // Add the generated chunk to the ChunkManager

@@ -44,7 +44,7 @@ public class ChunkGenerationTask implements Runnable, Comparable<ChunkGeneration
     @Override
     public void run() {
         Thread.currentThread().setName("ChunkGenTask-" + chunkPos.x + "_" + chunkPos.y + "_" + chunkPos.z);
-        LOGGER.info("Starting generation for chunk {} with priority {}.", chunkPos, priority);
+        LOGGER.debug("Starting generation for chunk {} with priority {}.", chunkPos, priority);
         Chunk newChunk = null;
         long startTime = System.currentTimeMillis(); // Record start time
 
@@ -89,7 +89,7 @@ public class ChunkGenerationTask implements Runnable, Comparable<ChunkGeneration
             // ChunkManager.getInstance().addChunk(newChunk); // Removed: This is now handled by the TaskResultHandler
 
             long durationMillis = System.currentTimeMillis() - startTime; // Calculate duration
-            LOGGER.info("Successfully generated chunk {}. Priority: {}. Duration: {}ms. Notifying result handler.",
+            LOGGER.debug("Successfully generated chunk {}. Priority: {}. Duration: {}ms. Notifying result handler.",
                     chunkPos, priority, durationMillis); // Adjusted log message
 
             if (resultHandler != null) {
