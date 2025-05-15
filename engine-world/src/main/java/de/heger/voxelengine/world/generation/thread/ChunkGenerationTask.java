@@ -1,10 +1,12 @@
 package de.heger.voxelengine.world.generation.thread;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
+import de.heger.voxelengine.core.math.Vec3i;
 import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.world.chunk.ChunkPos;
 import de.heger.voxelengine.world.chunk.ChunkState;
+import de.heger.voxelengine.world.chunk.Direction;
 import de.heger.voxelengine.world.generation.TerrainGenerator;
 
 import java.util.Objects;
@@ -57,6 +59,31 @@ public class ChunkGenerationTask implements Runnable, Comparable<ChunkGeneration
             newChunk = new Chunk(chunkPos);
             terrainGenerator.generateChunkData(newChunk);
             newChunk.setState(ChunkState.GENERATED);
+
+            // --- Set Neighbors (P3-T8) ---
+            ChunkManager chunkManager = ChunkManager.getInstance();
+            for (Direction direction : Direction.values()) {
+                Vec3i offset = direction.getOffset();
+                ChunkPos neighborPos = new ChunkPos(
+                        newChunk.getPosition().x + offset.x,
+                        newChunk.getPosition().y + offset.y,
+                        newChunk.getPosition().z + offset.z
+                );
+
+                Chunk neighborChunk = chunkManager.getChunk(neighborPos); // Synchronized call
+
+                if (neighborChunk != null) {
+                    // Set neighbor for the newly generated chunk
+                    newChunk.setNeighbor(direction, neighborChunk); // Synchronized call
+
+                    // Set the newly generated chunk as a neighbor for the existing neighbor
+                    neighborChunk.setNeighbor(direction.getOpposite(), newChunk); // Synchronized call
+                    LOGGER.trace("Set neighbor link between {} ({}) and {} ({})",
+                                 newChunk.getPosition(), direction,
+                                 neighborChunk.getPosition(), direction.getOpposite());
+                }
+            }
+            // --- End Set Neighbors ---
 
             // The ChunkManager is synchronized, so adding the chunk is thread-safe.
             // ChunkManager.getInstance().addChunk(newChunk); // Removed: This is now handled by the TaskResultHandler

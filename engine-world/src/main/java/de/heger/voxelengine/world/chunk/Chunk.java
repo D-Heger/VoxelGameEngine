@@ -259,34 +259,43 @@ public class Chunk {
         this.state = newState;
     }
 
-    // --- Neighbor Management (P3-T1.5) ---
+    // --- Neighbor Chunk Management (P3-T1.5) ---
 
     /**
-     * Gets the neighboring chunk in the specified direction.
+     * Gets the neighbor chunk in the specified direction.
+     * Can return null if there is no neighbor in that direction or if it's not loaded.
      *
-     * @param direction The direction of the neighbor. Must not be null.
-     * @return The neighboring Chunk, or null if it's not set or doesn't exist.
+     * @param direction The direction to check for a neighbor. Must not be null.
+     * @return The neighboring Chunk, or null.
      */
-    public Chunk getNeighbor(Direction direction) {
-        Validate.notNull(direction, "Direction cannot be null");
-        return neighbors[direction.getIndex()];
+    public synchronized Chunk getNeighbor(Direction direction) {
+        Validate.notNull(direction, "Direction cannot be null.");
+        if (direction.ordinal() < 0 || direction.ordinal() >= neighbors.length) {
+            // This should not happen if Direction enum is correct and used as intended
+            // Consider logging an error or throwing an IllegalArgumentException
+            System.err.println("Invalid direction ordinal: " + direction.ordinal() + " for direction " + direction);
+            return null;
+        }
+        return this.neighbors[direction.ordinal()];
     }
 
     /**
-     * Sets the neighboring chunk in the specified direction.
-     * This is typically managed by the world loading system.
+     * Sets the neighbor chunk in the specified direction.
+     * Passing null will clear the neighbor reference.
      *
      * @param direction The direction of the neighbor. Must not be null.
-     * @param neighbor The neighboring Chunk (can be null).
+     * @param neighbor  The neighboring Chunk, or null to clear.
      */
-    public void setNeighbor(Direction direction, Chunk neighbor) {
-        Validate.notNull(direction, "Direction cannot be null");
-        // Optional: Add validation to check if the neighbor's position matches?
-        // ChunkPos expectedNeighborPos = this.position.toVec3i().add(direction.getOffset()).toChunkPos();
-        // if (neighbor != null && !neighbor.getPosition().equals(expectedNeighborPos)) {
-        //     throw new IllegalArgumentException("Neighbor position mismatch");
-        // }
-        neighbors[direction.getIndex()] = neighbor;
+    public synchronized void setNeighbor(Direction direction, Chunk neighbor) {
+        Validate.notNull(direction, "Direction cannot be null.");
+        // neighbor can be null (to clear reference)
+
+        if (direction.ordinal() < 0 || direction.ordinal() >= neighbors.length) {
+            // This should not happen
+            System.err.println("Invalid direction ordinal: " + direction.ordinal() + " for direction " + direction);
+            return;
+        }
+        this.neighbors[direction.ordinal()] = neighbor;
     }
 
     // --- Serialization (P3-T1.6) ---

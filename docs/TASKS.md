@@ -470,13 +470,13 @@
   - **Subtasks:** (none)
   - **Implementation Context:** Implemented in `GameLoop.java` within the `launcher` module. A new method, `updateChunkLoading()`, is called periodically during the game's `update()` phase. This method tracks the camera's current XZ chunk column. When the camera moves to a new column, it triggers loading of new chunks within a `CHUNK_LOAD_RADIUS` (currently 3 chunks) around the camera's column, across all `MAX_WORLD_HEIGHT_CHUNKS` (16) vertical layers, by submitting requests to the `ChunkGenerationService`. Priority is given to chunks closer to the camera and at lower Y levels. Chunks are unloaded from the `ChunkManager` if they are further than `CHUNK_LOAD_RADIUS + CHUNK_UNLOAD_OFFSET` (currently 2 chunks). When a chunk is unloaded, a call to `chunkGenerationService.cancelTask()` is made to attempt to cancel any pending generation for that chunk. The `ChunkGenerationService` in the `engine-world` module was updated with a `cancelTask(ChunkPos)` method. The initial static world generation call in `GameLoop` constructor was removed in favor of this dynamic system.
 
-- - [ ] **Task ID:** P3-T8
+- - [x] **Task ID:** P3-T8
   - **Name:** Set chunk neighbors during/after async chunk generation
   - **Description:** Set the neighbors of a chunk during or after the async chunk generation process, utilizing the `setNeighbor(Direction direction, Chunk neighbor)` method of the `Chunk` class.
   - **Phase:** 3 - World Management & Generation
   - **Dependencies:** P3-T6, `engine-world` module
   - **Subtasks:** (none)
-  - **Implementation Context:** (TBD)
+  - **Implementation Context:** Modified `ChunkGenerationTask.run()` in the `engine-world` module. After a new chunk's data is generated and its state is set to `GENERATED`, logic was added to iterate through all cardinal directions. For each direction, it calculates the neighbor's `ChunkPos`, retrieves the potential neighbor `Chunk` from `ChunkManager.getInstance()`. If an existing neighbor is found, mutual neighbor references are established by calling `newChunk.setNeighbor(direction, neighborChunk)` and `neighborChunk.setNeighbor(direction.getOpposite(), newChunk)`. This entire neighbor-setting process occurs before the `newChunk` is passed to the `TaskResultHandler` (and subsequently added to the `ChunkManager` by the `ChunkGenerationService`). To ensure thread safety for these operations, the `Chunk.setNeighbor()` and `Chunk.getNeighbor()` methods were made `synchronized`.
 
 - - [ ] **Task ID:** P3-T9
   - **Name:** Basic rendering optimization
