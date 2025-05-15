@@ -478,13 +478,13 @@
   - **Subtasks:** (none)
   - **Implementation Context:** Modified `ChunkGenerationTask.run()` in the `engine-world` module. After a new chunk's data is generated and its state is set to `GENERATED`, logic was added to iterate through all cardinal directions. For each direction, it calculates the neighbor's `ChunkPos`, retrieves the potential neighbor `Chunk` from `ChunkManager.getInstance()`. If an existing neighbor is found, mutual neighbor references are established by calling `newChunk.setNeighbor(direction, neighborChunk)` and `neighborChunk.setNeighbor(direction.getOpposite(), newChunk)`. This entire neighbor-setting process occurs before the `newChunk` is passed to the `TaskResultHandler` (and subsequently added to the `ChunkManager` by the `ChunkGenerationService`). To ensure thread safety for these operations, the `Chunk.setNeighbor()` and `Chunk.getNeighbor()` methods were made `synchronized`.
 
-- - [ ] **Task ID:** P3-T9
+- - [x] **Task ID:** P3-T9
   - **Name:** Basic rendering optimization
   - **Description:** Optimize the rendering process to avoid rendering faces that are not visible to the player. Implement frustum culling based on the camera's view frustum.
   - **Phase:** 3 - World Management & Generation
   - **Dependencies:** P3-T6, `engine-world` module
   - **Subtasks:** (none)
-  - **Implementation Context:** (TBD)
+  - **Implementation Context:** Implemented frustum culling in `Renderer.java` within the `engine-renderer` module. In the `renderChunks` method, the view-projection matrix is calculated using the camera's view matrix and the renderer's projection matrix. A JOML `FrustumIntersection` object is then created from this combined matrix. Before rendering each chunk, its Axis-Aligned Bounding Box (AABB) is calculated in world coordinates. This AABB is then tested against the frustum using `frustumIntersection.testAab()`. If the chunk is outside the frustum, it is skipped, thus not rendered. An import for `org.joml.FrustumIntersection` was added to `Renderer.java`.
 
 ## Phase 4: Chunk Rendering & Basic Physics (Interaction)
 

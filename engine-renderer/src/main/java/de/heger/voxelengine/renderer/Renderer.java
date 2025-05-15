@@ -17,6 +17,7 @@ import de.heger.voxelengine.world.chunk.CoordinateUtils;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.FrustumIntersection;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.opengl.GLUtil;
@@ -301,34 +302,52 @@ public class Renderer {
      * @param chunks The list of chunks to render.
      */
     public void renderChunks(Collection<Chunk> chunks) {
-        if (defaultShaderProgram == null || cubeMesh == null || textureMap.isEmpty() || chunks == null || chunks.isEmpty()) {
-            // logger.trace("Skipping chunk rendering - resources not ready or no chunks.");
+        if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null || cubeMesh == null || textureMap.isEmpty() || BlockRegistry.getInstance() == null) {
+            // logger.trace("RenderChunks: Skipping, essential components missing or no chunks to render.");
             return;
         }
 
         defaultShaderProgram.bind();
-        // cubeTexture.bind(0); // Bind texture once for all blocks
-        defaultShaderProgram.setUniform("uTexture", 0); // Set texture unit once
-
-        // Set camera uniforms once
-        Matrix4f viewMatrix = camera.getViewMatrix();
         defaultShaderProgram.setUniform("projection", projectionMatrix);
-        defaultShaderProgram.setUniform("view", viewMatrix);
+        defaultShaderProgram.setUniform("view", camera.getViewMatrix());
+        defaultShaderProgram.setUniform("uTexture", 0); // Assuming texture unit 0
 
-        // Iterate through chunks (P3-T2.4)
+        Matrix4f modelMatrix = new Matrix4f(); // Reused for each block's model matrix
+        BlockRegistry blockRegistry = BlockRegistry.getInstance();
+
+        // Frustum Culling
+        Matrix4f viewProjectionMatrix = new Matrix4f(projectionMatrix).mul(camera.getViewMatrix());
+        FrustumIntersection frustumIntersection = new FrustumIntersection(viewProjectionMatrix);
+
+        int totalChunks = chunks.size();
+        int renderedChunks = 0;
+        int renderedBlocks = 0; // For more detailed logging
+
         for (Chunk chunk : chunks) {
-            ChunkPos chunkPos = chunk.getPosition();
-            // Calculate the world origin of this chunk
-            Vector3f chunkWorldOrigin = new Vector3f(
-                    chunkPos.x * CoordinateUtils.CHUNK_SIZE_X,
-                    chunkPos.y * CoordinateUtils.CHUNK_SIZE_Y,
-                    chunkPos.z * CoordinateUtils.CHUNK_SIZE_Z
-            );
+            if (chunk == null) continue;
 
-            // Iterate through blocks within the chunk
-            for (int y = 0; y < CoordinateUtils.CHUNK_SIZE_Y; y++) {
-                for (int z = 0; z < CoordinateUtils.CHUNK_SIZE_Z; z++) {
-                    for (int x = 0; x < CoordinateUtils.CHUNK_SIZE_X; x++) {
+            ChunkPos chunkPos = chunk.getPosition();
+
+            // Calculate chunk AABB in world coordinates
+            float minX = (float)chunkPos.x * Chunk.SIZE_X;
+            float minY = (float)chunkPos.y * Chunk.SIZE_Y;
+            float minZ = (float)chunkPos.z * Chunk.SIZE_Z;
+            float maxX = minX + Chunk.SIZE_X;
+            float maxY = minY + Chunk.SIZE_Y;
+            float maxZ = minZ + Chunk.SIZE_Z;
+
+            // Test AABB against the frustum
+            if (!frustumIntersection.testAab(minX, minY, minZ, maxX, maxY, maxZ)) {
+                // logger.trace("Culled chunk at {},{}", chunkPos.x, chunkPos.z); // Can be spammy
+                continue; // Skip rendering this chunk
+            }
+            renderedChunks++;
+
+            // logger.trace("Rendering chunk: {} at world base ({}, {}, {})");
+
+            for (int y = 0; y < Chunk.SIZE_Y; y++) {
+                for (int z = 0; z < Chunk.SIZE_Z; z++) {
+                    for (int x = 0; x < Chunk.SIZE_X; x++) {
                         short blockId = chunk.getBlock(x, y, z);
                         BlockProperties properties = BlockRegistry.getInstance().getBlock(blockId); // Get properties
 
@@ -357,30 +376,26 @@ public class Renderer {
 
                             // Calculate world position of the block's center
                             // Add 0.5f to center the cube on the block coordinate
-                            float blockWorldX = chunkWorldOrigin.x + x + 0.5f;
-                            float blockWorldY = chunkWorldOrigin.y + y + 0.5f;
-                            float blockWorldZ = chunkWorldOrigin.z + z + 0.5f;
+                            float blockWorldX = minX + x + 0.5f;
+                            float blockWorldY = minY + y + 0.5f;
+                            float blockWorldZ = minZ + z + 0.5f;
 
                             // Calculate model matrix for this block
-                            Matrix4f modelMatrix = new Matrix4f().identity()
+                            modelMatrix.identity()
                                     .translate(blockWorldX, blockWorldY, blockWorldZ);
                                     // No scaling or rotation needed for basic blocks yet
                             defaultShaderProgram.setUniform("model", modelMatrix);
 
                             // Render the cube mesh
                             cubeMesh.render();
+                            renderedBlocks++;
                         }
                     }
                 }
             }
         }
-
-        // Unbind shader (optional, good practice)
-        defaultShaderProgram.unbind();
-        // It's often good practice to unbind the texture from the last used unit,
-        // binding texture 0 is a common way to reset the state.
-        //glActiveTexture(GL_TEXTURE0); 
-        glBindTexture(GL_TEXTURE_2D, 0);
+        // logger.debug("Rendered {}/{} chunks. Total blocks rendered: {}", renderedChunks, totalChunks, renderedBlocks);
+        // defaultShaderProgram.unbind(); // Unbind only if this is the last rendering pass
     }
 
     public void cleanup() {
