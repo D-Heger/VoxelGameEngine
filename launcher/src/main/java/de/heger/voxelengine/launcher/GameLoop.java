@@ -22,6 +22,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.ArrayList;
 
 public class GameLoop {
 
@@ -30,6 +31,11 @@ public class GameLoop {
     private static final float TARGET_FPS = 60.0f; // Target frames per second (for timing, not limiting)
     private static final int MAX_WORLD_HEIGHT_CHUNKS = 16; // Max world height in chunks (16 chunks * 16 blocks/chunk = 256 blocks)
     private static final int INITIAL_WORLD_RADIUS_CHUNKS = 10; // Smaller radius for async testing
+
+    // New constants for P3-T7
+    private static final int CHUNK_LOAD_RADIUS = 3; // Results in a 7x7 horizontal area of chunk columns
+    private static final int CHUNK_UNLOAD_OFFSET = 2; // Unload if further than LOAD_RADIUS + OFFSET
+    private static final double CHUNK_LOAD_CHECK_INTERVAL = 0.5; // seconds, check every half second
 
     private final Window window;
     private final InputManager inputManager;
@@ -40,6 +46,10 @@ public class GameLoop {
     private final ChunkGenerator chunkGenerator; // OLD: Added for P3-T5.6 - Will be unused for initial world gen
     private ChunkGenerationService chunkGenerationService; // NEW: For async generation (P3-T6.9)
     private boolean running = false;
+
+    // New fields for P3-T7
+    private ChunkPos lastCameraXZChunkPos = null; // Stores the XZ chunk position of the camera from the last update.
+    private double chunkLoadCheckTimer = 0.0;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen) {
         LOGGER.info("Initializing game loop...");
@@ -72,12 +82,12 @@ public class GameLoop {
         TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337); // Seed for the main async generator
         TaskResultHandler resultHandler = new LoggingTaskResultHandler();
         
-        // Determine dynamic queue capacity based on initial world size
-        int horizontalDim = (INITIAL_WORLD_RADIUS_CHUNKS * 2) + 1;
+        // Determine dynamic queue capacity based on CHUNK_LOAD_RADIUS
+        int horizontalDim = (CHUNK_LOAD_RADIUS * 2) + 1;
         int calculatedMaxTasks = horizontalDim * horizontalDim * MAX_WORLD_HEIGHT_CHUNKS;
-        // Ensure capacity is at least a reasonable minimum (e.g., 1024) and can hold all initial tasks, plus a small buffer.
-        int queueCapacity = Math.max(1024, (int)(calculatedMaxTasks * 1.1)); 
-        LOGGER.info("Calculated ChunkGenerationService queue capacity: {} for initial world radius {}", queueCapacity, INITIAL_WORLD_RADIUS_CHUNKS);
+        // Ensure capacity can hold all tasks within load radius, plus a buffer.
+        int queueCapacity = Math.max(256, (int)(calculatedMaxTasks * 1.5)); 
+        LOGGER.info("Calculated ChunkGenerationService queue capacity: {} for CHUNK_LOAD_RADIUS {}", queueCapacity, CHUNK_LOAD_RADIUS);
 
         // TODO: Tune these pool sizes based on testing and typical core counts
         int corePoolSize = Math.max(1, Runtime.getRuntime().availableProcessors() / 2); // Example: Half of available cores
@@ -109,8 +119,11 @@ public class GameLoop {
 
         // P3-T5.6: Initialize procedural world (OLD synchronous way)
         // initProceduralWorld(INITIAL_WORLD_RADIUS_CHUNKS); 
-        // NEW Asynchronous way (P3-T6.9)
-        initAsyncProceduralWorld(INITIAL_WORLD_RADIUS_CHUNKS); 
+        // NEW Asynchronous way (P3-T6.9) - This is now replaced by dynamic loading in updateChunkLoading
+        // initAsyncProceduralWorld(INITIAL_WORLD_RADIUS_CHUNKS); 
+
+        // Initialize lastCameraXZChunkPos to ensure the first load check runs
+        this.lastCameraXZChunkPos = new ChunkPos(Integer.MIN_VALUE, 0, Integer.MIN_VALUE);
 
         LOGGER.info("Game loop initialized.");
         LOGGER.info("ChunkManager: {}", chunkManager.getLoadedChunkCount());
@@ -332,6 +345,9 @@ public class GameLoop {
      * and vertically up to {@link #MAX_WORLD_HEIGHT_CHUNKS}.
      * @param worldRadiusChunks The radius of the world to generate in chunks horizontally.
      */
+    // This method is no longer called for initial world generation due to P3-T7 dynamic loading.
+    // It can be kept for testing or other purposes if needed.
+    @SuppressWarnings("unused") // Mark as unused if it's no longer called
     private void initAsyncProceduralWorld(int worldRadiusChunks) {
         LOGGER.info("Requesting ASYNCHRONOUS procedural world generation with radius: {} chunks (Total {}x{} area horizontally, {} chunks high)...",
                 worldRadiusChunks, (worldRadiusChunks * 2) + 1, (worldRadiusChunks * 2) + 1, MAX_WORLD_HEIGHT_CHUNKS);
@@ -419,6 +435,13 @@ public class GameLoop {
                     frames = 0;
                     updates = 0;
                 }
+
+                // Update chunk loading/unloading (P3-T7)
+                chunkLoadCheckTimer += delta;
+                if (chunkLoadCheckTimer >= CHUNK_LOAD_CHECK_INTERVAL) {
+                    updateChunkLoading();
+                    chunkLoadCheckTimer = 0.0; // Reset timer
+                }
             }
         } catch (Exception e) {
             LOGGER.error("An error occurred in the game loop:", e);
@@ -504,11 +527,12 @@ public class GameLoop {
         try {
             // Clean up ChunkManager by removing all chunks
             LOGGER.info("Cleaning up ChunkManager...");
-            Collection<Chunk> chunks = List.copyOf(chunkManager.getAllLoadedChunks());
-            for (Chunk chunk : chunks) {
+            // Make a copy to avoid ConcurrentModificationException if removeChunk triggers listeners or internal changes
+            List<Chunk> chunksSnapshot = List.copyOf(chunkManager.getAllLoadedChunks());
+            for (Chunk chunk : chunksSnapshot) {
                 chunkManager.removeChunk(chunk.getPosition());
             }
-            LOGGER.info("ChunkManager cleanup complete. Removed {} chunks.", chunks.size());
+            LOGGER.info("ChunkManager cleanup complete. Removed {} chunks.", chunksSnapshot.size());
             
             if (renderer != null) {
                 LOGGER.info("Cleaning up renderer...");
@@ -538,5 +562,106 @@ public class GameLoop {
             LOGGER.error("Error during window cleanup:", e);
         }
         LOGGER.info("Game loop cleanup finished.");
+    }
+
+    // New method for P3-T7: Dynamic Chunk Loading and Unloading
+    private void updateChunkLoading() {
+        if (camera == null || chunkManager == null || chunkGenerationService == null) {
+            LOGGER.warn("Cannot update chunk loading, essential components are null.");
+            return;
+        }
+
+        float cameraX = camera.getPosition().x;
+        // float cameraY = camera.getPosition().y; // Y position of camera might not be directly used for column center
+        float cameraZ = camera.getPosition().z;
+
+        int camChunkX = (int) Math.floor(cameraX / Chunk.SIZE_X);
+        // int camChunkY = (int) Math.floor(cameraY / Chunk.SIZE_Y); // Center Y for loading decisions
+        int camChunkZ = (int) Math.floor(cameraZ / Chunk.SIZE_Z);
+
+        ChunkPos currentCamXZPos = new ChunkPos(camChunkX, 0, camChunkZ); // Use Y=0 for XZ comparison
+
+        // Only update if camera has moved to a new XZ chunk column
+        if (currentCamXZPos.equals(this.lastCameraXZChunkPos)) {
+            return;
+        }
+        LOGGER.debug("Camera moved to new chunk column: {} (was {}), triggering load/unload check.", currentCamXZPos, this.lastCameraXZChunkPos);
+        this.lastCameraXZChunkPos = currentCamXZPos;
+
+        // --- Chunk Loading ---
+        int chunksRequestedThisCycle = 0;
+        int chunksAlreadyManagedThisCycle = 0; // For logging how many were skipped because already loaded/queued
+
+        for (int dx = -CHUNK_LOAD_RADIUS; dx <= CHUNK_LOAD_RADIUS; dx++) {
+            for (int dz = -CHUNK_LOAD_RADIUS; dz <= CHUNK_LOAD_RADIUS; dz++) {
+                int targetChunkColX = camChunkX + dx;
+                int targetChunkColZ = camChunkZ + dz;
+
+                for (int targetChunkY = 0; targetChunkY < MAX_WORLD_HEIGHT_CHUNKS; targetChunkY++) {
+                    ChunkPos targetPos = new ChunkPos(targetChunkColX, targetChunkY, targetChunkColZ);
+
+                    if (!chunkManager.containsChunk(targetPos)) {
+                        // Priority: lower Y, closer XZ = higher priority (lower number)
+                        int manhattanDistXZ = Math.abs(dx) + Math.abs(dz);
+                        // Y level factor: lower Y levels get higher priority.
+                        // MAX_WORLD_HEIGHT_CHUNKS ensures XZ distance has more weight than Y.
+                        int priority = manhattanDistXZ * MAX_WORLD_HEIGHT_CHUNKS + targetChunkY;
+
+                        // requestChunkGeneration returns true if successfully queued
+                        if (this.chunkGenerationService.requestChunkGeneration(targetPos, priority)) {
+                            chunksRequestedThisCycle++;
+                        } else {
+                            // Could be already queued by the service, or queue is full.
+                            // We don't log this every time to avoid spam, requestChunkGeneration handles its own logging.
+                        }
+                    } else {
+                        chunksAlreadyManagedThisCycle++;
+                    }
+                }
+            }
+        }
+        if (chunksRequestedThisCycle > 0) {
+            LOGGER.debug("Requested {} new chunks for generation. Skipped {} already loaded/managed.", chunksRequestedThisCycle, chunksAlreadyManagedThisCycle);
+        }
+
+
+        // --- Chunk Unloading ---
+        // Make sure to not modify the collection while iterating. Get a snapshot.
+        List<Chunk> currentlyLoadedChunks = List.copyOf(chunkManager.getAllLoadedChunks());
+        List<ChunkPos> chunksToUnload = new ArrayList<>(); // Use java.util.ArrayList
+        int unloadRadiusActual = CHUNK_LOAD_RADIUS + CHUNK_UNLOAD_OFFSET;
+
+        for (Chunk loadedChunk : currentlyLoadedChunks) {
+            ChunkPos loadedPos = loadedChunk.getPosition();
+
+            int distX = Math.abs(loadedPos.x - camChunkX);
+            int distZ = Math.abs(loadedPos.z - camChunkZ);
+
+            // Unload if the chunk column is outside the unload radius
+            // Y-coordinate of the chunk is not considered for unload distance; we unload whole columns.
+            if (distX > unloadRadiusActual || distZ > unloadRadiusActual) {
+                chunksToUnload.add(loadedPos);
+            }
+        }
+
+        if (!chunksToUnload.isEmpty()) {
+            LOGGER.debug("Attempting to unload {} chunk positions that are out of range (Player at XZ: {},{}, UnloadRadius: {}).", 
+                chunksToUnload.size(), camChunkX, camChunkZ, unloadRadiusActual);
+            int actualUnloads = 0;
+            for (ChunkPos posToUnload : chunksToUnload) {
+                // First check if the chunk exists, then remove it.
+                // The removeChunk method in ChunkManager is void.
+                if (chunkManager.containsChunk(posToUnload)) {
+                    chunkManager.removeChunk(posToUnload);
+                    actualUnloads++;
+                    // Attempt to cancel if it was being generated
+                    // This method will be added to ChunkGenerationService
+                    this.chunkGenerationService.cancelTask(posToUnload); 
+                }
+            }
+            if (actualUnloads > 0) {
+                LOGGER.info("Successfully unloaded {} chunks. {} were requested for unload.", actualUnloads, chunksToUnload.size());
+            }
+        }
     }
 }

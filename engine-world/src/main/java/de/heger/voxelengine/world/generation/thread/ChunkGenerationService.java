@@ -179,6 +179,35 @@ public class ChunkGenerationService {
     }
 
     /**
+     * Attempts to cancel a pending or active chunk generation task.
+     * If the task is found in the pending set or the execution queue, it will be removed.
+     * Note: This does not interrupt actively running tasks, but prevents them from starting if queued
+     * or removes them from internal tracking if they were about to be processed.
+     *
+     * @param chunkPos The position of the chunk whose generation task should be cancelled.
+     * @return {@code true} if the task was found and an attempt to cancel was made (either removed from tracking or queue),
+     *         {@code false} otherwise.
+     */
+    public synchronized boolean cancelTask(ChunkPos chunkPos) {
+        Objects.requireNonNull(chunkPos, "chunkPos cannot be null for cancellation");
+
+        boolean removedFromTracking = submittedTaskPositions.remove(chunkPos);
+
+        // Create a dummy task for queue removal comparison (equals/hashCode based on ChunkPos)
+        // TerrainGenerator and TaskResultHandler can be null as they are not used in equals/hashCode.
+        ChunkGenerationTask dummyTask = new ChunkGenerationTask(chunkPos, 0, this.defaultTerrainGenerator, null);
+        boolean removedFromQueue = taskQueue.removeTask(dummyTask);
+
+        if (removedFromTracking || removedFromQueue) {
+            LOGGER.debug("Attempted to cancel generation task for chunk: {}. Removed from tracking: {}, Removed from queue: {}.", 
+                chunkPos, removedFromTracking, removedFromQueue);
+            return true;
+        }
+        LOGGER.trace("No pending generation task found to cancel for chunk: {}", chunkPos);
+        return false;
+    }
+
+    /**
      * Inner class to wrap the user-provided TaskResultHandler.
      * This ensures that submittedTaskPositions is cleaned up regardless of task outcome.
      */
