@@ -494,7 +494,7 @@
   - **Subtasks:** (none)
   - **Implementation Context:** Created `PerformanceTrackingTaskResultHandler.java` in `engine-world`'s `de.heger.voxelengine.world.generation.thread` package to collect chunk generation durations. Modified `GameLoop.java` in the `launcher` module: added new fields to store original window title, current FPS, and UPS. Instantiated `PerformanceTrackingTaskResultHandler` (wrapping the existing `LoggingTaskResultHandler`) and passed it to `ChunkGenerationService`. In the main game loop's 1-second timer block, FPS and UPS are stored, and the window title is updated using `window.setTitle()` to display the original title concatenated with FPS, UPS, average chunk generation time (ms), and the number of samples used for the average. A public `setTitle(String)` method was added to `engine-platform/src/main/java/de/heger/voxelengine/platform/Window.java` to enable dynamic title updates.
   
-- - [ ] **Task ID:** P3-T11
+- - [x] **Task ID:** P3-T11
   - **Name:** Basic lighting system
   - **Description:** Implement a basic lighting system that simulates sunlight and ambient light. This can be a simple directional light source for sunlight and a global ambient light level.
   - **Phase:** 3 - World Management & Generation
