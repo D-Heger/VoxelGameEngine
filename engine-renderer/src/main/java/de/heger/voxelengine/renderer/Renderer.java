@@ -5,6 +5,8 @@ import de.heger.voxelengine.assets.texture.TextureLoader;
 import de.heger.voxelengine.core.logging.LoggerFacade;
 import de.heger.voxelengine.platform.Window;
 import de.heger.voxelengine.renderer.camera.Camera;
+import de.heger.voxelengine.renderer.culling.AABB;
+import de.heger.voxelengine.renderer.culling.FrustumCuller;
 import de.heger.voxelengine.renderer.mesh.Mesh;
 import de.heger.voxelengine.renderer.shader.ShaderProgram;
 import de.heger.voxelengine.renderer.texture.Texture;
@@ -14,10 +16,10 @@ import de.heger.voxelengine.world.block.TextureRef;
 import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkPos;
 import de.heger.voxelengine.world.chunk.CoordinateUtils;
+import de.heger.voxelengine.core.math.Vec3i;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.joml.FrustumIntersection;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.opengl.GLUtil;
@@ -46,6 +48,7 @@ public class Renderer {
     private TextureLoader textureLoader;
     // private Texture cubeTexture; // Replaced by textureMap
     private Map<String, Texture> textureMap; // Stores textures loaded based on BlockRegistry
+    private FrustumCuller frustumCuller; // Add FrustumCuller field
 
     public Renderer(Window window) {
         this.window = window;
@@ -90,7 +93,9 @@ public class Renderer {
         logger.info("Vendor: {}", glGetString(GL_VENDOR));
         logger.info("Renderer: {}", glGetString(GL_RENDERER));
 
-        // Calculate initial projection matrix
+        // Calculate initial projection matrix and initialize FrustumCuller
+        // The camera might not be fully initialized here for its view matrix,
+        // so frustumCuller is initialized/updated in updateProjectionMatrix and before rendering chunks.
         updateProjectionMatrix();
 
         // Load and compile shaders
@@ -231,10 +236,17 @@ public class Renderer {
         // FOV (field of view), aspect ratio, near plane, far plane
         projectionMatrix = new Matrix4f().perspective((float) Math.toRadians(45.0f), aspectRatio, 0.1f, 200.0f); // Increased far plane
         logger.debug("Projection matrix updated for aspect ratio: {}", aspectRatio);
-        // If shader is already bound, update the uniform immediately
-        // if (defaultShaderProgram != null /* && shader is bound */) {
-        //     defaultShaderProgram.setUniform("projection", projectionMatrix);
-        // }
+
+        // Update or initialize FrustumCuller with the new projection matrix and current camera view
+        // It's important that the camera's view matrix is current when this is called.
+        Matrix4f viewMatrix = camera.getViewMatrix(); // Ensure camera's view matrix is up-to-date
+        Matrix4f viewProjectionMatrix = new Matrix4f(projectionMatrix).mul(viewMatrix);
+
+        if (this.frustumCuller == null) {
+            this.frustumCuller = new FrustumCuller(viewProjectionMatrix);
+        } else {
+            this.frustumCuller.updateViewProjectionMatrix(viewProjectionMatrix);
+        }
     }
 
 
@@ -308,16 +320,29 @@ public class Renderer {
         }
 
         defaultShaderProgram.bind();
+        Matrix4f currentViewMatrix = camera.getViewMatrix(); // Get current view matrix
         defaultShaderProgram.setUniform("projection", projectionMatrix);
-        defaultShaderProgram.setUniform("view", camera.getViewMatrix());
+        defaultShaderProgram.setUniform("view", currentViewMatrix);
         defaultShaderProgram.setUniform("uTexture", 0); // Assuming texture unit 0
 
         Matrix4f modelMatrix = new Matrix4f(); // Reused for each block's model matrix
         BlockRegistry blockRegistry = BlockRegistry.getInstance();
 
-        // Frustum Culling
-        Matrix4f viewProjectionMatrix = new Matrix4f(projectionMatrix).mul(camera.getViewMatrix());
-        FrustumIntersection frustumIntersection = new FrustumIntersection(viewProjectionMatrix);
+        // Frustum Culling Logic
+        // Ensure FrustumCuller is up-to-date with the latest camera and projection matrices.
+        // updateProjectionMatrix() should be called if the projection changes (e.g., window resize).
+        // If only the camera moves, the frustum culler needs to be updated with the new view matrix.
+        Matrix4f viewProjectionMatrix = new Matrix4f(projectionMatrix).mul(currentViewMatrix);
+        if (this.frustumCuller == null) {
+            // This case should ideally be handled by init calling updateProjectionMatrix,
+            // but as a fallback or if camera is not ready during init.
+            this.frustumCuller = new FrustumCuller(viewProjectionMatrix);
+            logger.warn("FrustumCuller was null and re-initialized in renderChunks. Ensure camera is ready earlier if possible.");
+        } else {
+            // Update the culler with the potentially new viewProjectionMatrix
+            this.frustumCuller.updateViewProjectionMatrix(viewProjectionMatrix);
+        }
+
 
         int totalChunks = chunks.size();
         int renderedChunks = 0;
@@ -326,24 +351,26 @@ public class Renderer {
         for (Chunk chunk : chunks) {
             if (chunk == null) continue;
 
-            ChunkPos chunkPos = chunk.getPosition();
+            // Create AABB for the current chunk
+            AABB chunkAABB = AABB.fromChunk(chunk);
 
-            // Calculate chunk AABB in world coordinates
-            float minX = (float)chunkPos.x * Chunk.SIZE_X;
-            float minY = (float)chunkPos.y * Chunk.SIZE_Y;
-            float minZ = (float)chunkPos.z * Chunk.SIZE_Z;
-            float maxX = minX + Chunk.SIZE_X;
-            float maxY = minY + Chunk.SIZE_Y;
-            float maxZ = minZ + Chunk.SIZE_Z;
-
-            // Test AABB against the frustum
-            if (!frustumIntersection.testAab(minX, minY, minZ, maxX, maxY, maxZ)) {
-                // logger.trace("Culled chunk at {},{}", chunkPos.x, chunkPos.z); // Can be spammy
+            // Test AABB against the frustum using FrustumCuller
+            if (!frustumCuller.testAABB(chunkAABB)) {
+                // logger.trace("Culled chunk at {},{}", chunk.getPosition().x, chunk.getPosition().z); // Can be spammy
                 continue; // Skip rendering this chunk
             }
             renderedChunks++;
 
             // logger.trace("Rendering chunk: {} at world base ({}, {}, {})");
+
+            // Calculate chunk's base world coordinates (min corner)
+            // Needed for positioning blocks within the chunk
+            ChunkPos chunkPos = chunk.getPosition();
+            Vec3i chunkOriginWorld = CoordinateUtils.chunkOriginToWorldCoords(chunkPos);
+            float chunkMinX = (float)chunkOriginWorld.x;
+            float chunkMinY = (float)chunkOriginWorld.y;
+            float chunkMinZ = (float)chunkOriginWorld.z;
+
 
             for (int y = 0; y < Chunk.SIZE_Y; y++) {
                 for (int z = 0; z < Chunk.SIZE_Z; z++) {
@@ -376,9 +403,9 @@ public class Renderer {
 
                             // Calculate world position of the block's center
                             // Add 0.5f to center the cube on the block coordinate
-                            float blockWorldX = minX + x + 0.5f;
-                            float blockWorldY = minY + y + 0.5f;
-                            float blockWorldZ = minZ + z + 0.5f;
+                            float blockWorldX = chunkMinX + x + 0.5f;
+                            float blockWorldY = chunkMinY + y + 0.5f;
+                            float blockWorldZ = chunkMinZ + z + 0.5f;
 
                             // Calculate model matrix for this block
                             modelMatrix.identity()

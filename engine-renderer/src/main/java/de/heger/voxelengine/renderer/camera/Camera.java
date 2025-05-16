@@ -3,7 +3,6 @@ package de.heger.voxelengine.renderer.camera;
 import de.heger.voxelengine.platform.InputManager;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.lwjgl.glfw.GLFW;
 
 import static org.lwjgl.glfw.GLFW.*;
 
@@ -23,7 +22,7 @@ public class Camera {
     private float mouseSensitivity = 0.1f;
 
     public Camera() {
-        this(new Vector3f(0.0f, 0.0f, 3.0f)); // Default position
+        this(new Vector3f(0.0f, 80.0f, 0.0f)); // Default position
     }
 
     public Camera(Vector3f position) {
