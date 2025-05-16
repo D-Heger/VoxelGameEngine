@@ -43,10 +43,8 @@ public class Renderer {
     private Callback debugCallback;
     private ShaderProgram defaultShaderProgram;
     private Camera camera;
-    private Matrix4f projectionMatrix;
     private Mesh cubeMesh; // Keep for testing for now
     private TextureLoader textureLoader;
-    // private Texture cubeTexture; // Replaced by textureMap
     private Map<String, Texture> textureMap; // Stores textures loaded based on BlockRegistry
     private FrustumCuller frustumCuller; // Add FrustumCuller field
 
@@ -89,35 +87,29 @@ public class Renderer {
 
         // Log OpenGL version
         logger.info("OpenGL Version: {}", glGetString(GL_VERSION));
-        //logger.info("GLSL Version: {}", glGetString(GL_SHADING_LANGUAGE_VERSION)); // GLSL version string requires GL 4.3+ or extension
         logger.info("Vendor: {}", glGetString(GL_VENDOR));
         logger.info("Renderer: {}", glGetString(GL_RENDERER));
 
-        // Calculate initial projection matrix and initialize FrustumCuller
-        // The camera might not be fully initialized here for its view matrix,
-        // so frustumCuller is initialized/updated in updateProjectionMatrix and before rendering chunks.
-        updateProjectionMatrix();
+        // Set initial aspect ratio for camera
+        camera.setAspectRatio(window.getAspectRatio());
 
         // Load and compile shaders
         try {
             loadShaders();
         } catch (Exception e) {
             logger.error("Failed to load shaders", e);
-            // Depending on the desired behavior, you might want to re-throw,
-            // exit, or try loading fallback shaders.
             throw new RuntimeException("Failed to initialize shaders", e);
         }
 
         // Load Textures based on BlockRegistry
         try {
             logger.info("Loading textures based on BlockRegistry...");
-            loadBlockTextures(); // New method to load textures
+            loadBlockTextures();
             logger.info("Finished loading block textures. {} textures loaded.", textureMap.size());
         } catch (Exception e) {
             logger.error("Failed to load block textures", e);
             throw new RuntimeException("Failed to initialize block textures", e);
         }
-
 
         // Initialize simple cube mesh (now uses UVs) - Keep for testing
         cubeMesh = Mesh.createCube();
@@ -229,27 +221,6 @@ public class Renderer {
 
     }
 
-    // Method to update projection matrix (e.g., on window resize)
-    public void updateProjectionMatrix() {
-        float aspectRatio = window.getAspectRatio();
-        // Example: Perspective projection
-        // FOV (field of view), aspect ratio, near plane, far plane
-        projectionMatrix = new Matrix4f().perspective((float) Math.toRadians(45.0f), aspectRatio, 0.1f, 200.0f); // Increased far plane
-        logger.debug("Projection matrix updated for aspect ratio: {}", aspectRatio);
-
-        // Update or initialize FrustumCuller with the new projection matrix and current camera view
-        // It's important that the camera's view matrix is current when this is called.
-        Matrix4f viewMatrix = camera.getViewMatrix(); // Ensure camera's view matrix is up-to-date
-        Matrix4f viewProjectionMatrix = new Matrix4f(projectionMatrix).mul(viewMatrix);
-
-        if (this.frustumCuller == null) {
-            this.frustumCuller = new FrustumCuller(viewProjectionMatrix);
-        } else {
-            this.frustumCuller.updateViewProjectionMatrix(viewProjectionMatrix);
-        }
-    }
-
-
     public void clear() {
         // Clear the framebuffer (color and depth)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -262,9 +233,9 @@ public class Renderer {
              defaultShaderProgram.bind();
 
              // Set camera-based uniforms
-             Matrix4f viewMatrix = camera.getViewMatrix(); // Get view matrix from camera
-             defaultShaderProgram.setUniform("projection", projectionMatrix); // Use calculated projection matrix
-             defaultShaderProgram.setUniform("view", viewMatrix); // Use camera's view matrix
+             Matrix4f viewMatrix = camera.getViewMatrix();
+             defaultShaderProgram.setUniform("projection", camera.getProjectionMatrix());
+             defaultShaderProgram.setUniform("view", viewMatrix);
 
              // Compute rotating model matrix for test cube
              double time = glfwGetTime();
@@ -320,10 +291,10 @@ public class Renderer {
         }
 
         defaultShaderProgram.bind();
-        Matrix4f currentViewMatrix = camera.getViewMatrix(); // Get current view matrix
-        defaultShaderProgram.setUniform("projection", projectionMatrix);
+        Matrix4f currentViewMatrix = camera.getViewMatrix();
+        defaultShaderProgram.setUniform("projection", camera.getProjectionMatrix());
         defaultShaderProgram.setUniform("view", currentViewMatrix);
-        defaultShaderProgram.setUniform("uTexture", 0); // Assuming texture unit 0
+        defaultShaderProgram.setUniform("uTexture", 0);
 
         Matrix4f modelMatrix = new Matrix4f(); // Reused for each block's model matrix
         BlockRegistry blockRegistry = BlockRegistry.getInstance();
@@ -332,7 +303,7 @@ public class Renderer {
         // Ensure FrustumCuller is up-to-date with the latest camera and projection matrices.
         // updateProjectionMatrix() should be called if the projection changes (e.g., window resize).
         // If only the camera moves, the frustum culler needs to be updated with the new view matrix.
-        Matrix4f viewProjectionMatrix = new Matrix4f(projectionMatrix).mul(currentViewMatrix);
+        Matrix4f viewProjectionMatrix = new Matrix4f(camera.getProjectionMatrix()).mul(currentViewMatrix);
         if (this.frustumCuller == null) {
             // This case should ideally be handled by init calling updateProjectionMatrix,
             // but as a fallback or if camera is not ready during init.

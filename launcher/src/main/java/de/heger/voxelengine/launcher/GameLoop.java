@@ -1,6 +1,8 @@
 package de.heger.voxelengine.launcher;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
+import de.heger.voxelengine.core.config.Config;
+import de.heger.voxelengine.core.config.ConfigManager;
 import de.heger.voxelengine.platform.InputManager;
 import de.heger.voxelengine.platform.Window;
 import de.heger.voxelengine.renderer.Renderer;
@@ -59,7 +61,7 @@ public class GameLoop {
     private int currentFps = 0;
     private int currentUps = 0;
 
-    public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen) {
+    public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
         this.originalWindowTitle = windowTitle; // Store original window title
         // Window creation also initializes GLFW
@@ -82,6 +84,14 @@ public class GameLoop {
         // Initialize ChunkManager (P3-T3.7)
         chunkManager = ChunkManager.getInstance();
 
+        // Initialize Renderer AFTER block registry is finalized, as renderer needs the
+        // finalized properties.
+        renderer = new Renderer(window);
+        renderer.init();
+        camera = renderer.getCamera();
+        camera.setViewDistance(viewDistance);
+        LOGGER.info("Renderer initialized with view distance: {}", viewDistance);
+
         // OLD Synchronous ChunkGenerator setup (P3-T5.5 / P3-T5.6)
         // Will be replaced by async service for initial world gen, but can be kept for
         // other tools/tests
@@ -92,9 +102,11 @@ public class GameLoop {
 
         // NEW Asynchronous ChunkGenerationService setup (P3-T6.6 / P3-T6.9)
         TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337); // Seed for the main async generator
-        // TaskResultHandler resultHandler = new LoggingTaskResultHandler(); // Old handler
+        // TaskResultHandler resultHandler = new LoggingTaskResultHandler(); // Old
+        // handler
         TaskResultHandler loggingHandler = new LoggingTaskResultHandler(); // Keep logging
-        this.performanceTrackingHandler = new PerformanceTrackingTaskResultHandler(loggingHandler); // Wrap with perf tracker
+        this.performanceTrackingHandler = new PerformanceTrackingTaskResultHandler(loggingHandler); // Wrap with perf
+                                                                                                    // tracker
 
         // Determine dynamic queue capacity based on CHUNK_LOAD_RADIUS
         int horizontalDim = (CHUNK_LOAD_RADIUS * 2) + 1;
@@ -125,13 +137,6 @@ public class GameLoop {
         LOGGER.info("ChunkGenerationService initialized.");
         LOGGER.info("Generating {} initial chunks", (CHUNK_LOAD_RADIUS * 2 + 1)
                 * (CHUNK_LOAD_RADIUS * 2 + 1) * MAX_WORLD_HEIGHT_CHUNKS);
-
-        // Initialize Renderer AFTER block registry is finalized, as renderer needs the
-        // finalized properties.
-        renderer = new Renderer(window);
-        renderer.init();
-        camera = renderer.getCamera();
-        LOGGER.info("Renderer initialized.");
 
         // Capture mouse cursor
         GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);

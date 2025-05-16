@@ -16,6 +16,8 @@ public class Config {
     private boolean vsync = true;
     @JsonProperty
     private boolean fullscreen = false;
+    @JsonProperty
+    private float viewDistance = 200.0f;
 
     public Config() {
         // Default constructor with default values
@@ -61,5 +63,13 @@ public class Config {
     public void setFullscreen(boolean fullscreen)
     {
         this.fullscreen = fullscreen;
+    }
+
+    public float getViewDistance() {
+        return viewDistance;
+    }
+
+    public void setViewDistance(float viewDistance) {
+        this.viewDistance = viewDistance;
     }
 }

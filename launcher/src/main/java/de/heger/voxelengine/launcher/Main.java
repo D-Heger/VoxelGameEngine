@@ -12,10 +12,10 @@ public class Main {
         try {
             LOGGER.info("Starting VoxelGameEngine Launcher...");
             Config config = ConfigManager.load();
-            LOGGER.info("Loaded configuration: title={}, width={}, height={}, vsync={}, fullscreen={}",
-                        config.getWindowTitle(), config.getWidth(), config.getHeight(), config.isVsync(), config.isFullscreen());
+            LOGGER.info("Loaded configuration: title={}, width={}, height={}, vsync={}, fullscreen={}, viewDistance={}",
+                        config.getWindowTitle(), config.getWidth(), config.getHeight(), config.isVsync(), config.isFullscreen(), config.getViewDistance());
             GameLoop gameLoop = new GameLoop(
-                    config.getWindowTitle(), config.getWidth(), config.getHeight(), config.isVsync(), config.isFullscreen());
+                    config.getWindowTitle(), config.getWidth(), config.getHeight(), config.isVsync(), config.isFullscreen(), config.getViewDistance());
             gameLoop.run();
             LOGGER.info("Launcher finished cleanly.");
         } catch (Exception e) {

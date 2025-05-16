@@ -20,6 +20,9 @@ public class Camera {
 
     private float movementSpeed = 5.0f; // Units per second
     private float mouseSensitivity = 0.1f;
+    private float viewDistance = 200.0f; // Default view distance
+    private Matrix4f projectionMatrix;
+    private float aspectRatio = 16.0f / 9.0f; // Default aspect ratio
 
     public Camera() {
         this(new Vector3f(0.0f, 80.0f, 0.0f)); // Default position
@@ -34,6 +37,7 @@ public class Camera {
         this.up = new Vector3f();
         this.right = new Vector3f();
         updateCameraVectors();
+        updateProjectionMatrix(); // Initialize projection matrix
     }
 
     public Matrix4f getViewMatrix() {
@@ -41,6 +45,30 @@ public class Camera {
         // Center: Position + Front vector
         // Up: Camera's local up vector
         return new Matrix4f().lookAt(position, new Vector3f(position).add(front), up);
+    }
+
+    public Matrix4f getProjectionMatrix() {
+        return projectionMatrix;
+    }
+
+    public void setAspectRatio(float aspectRatio) {
+        this.aspectRatio = aspectRatio;
+        updateProjectionMatrix();
+    }
+
+    public void setViewDistance(float viewDistance) {
+        this.viewDistance = viewDistance;
+        updateProjectionMatrix();
+    }
+
+    private void updateProjectionMatrix() {
+        // FOV (field of view), aspect ratio, near plane, far plane
+        projectionMatrix = new Matrix4f().perspective(
+            (float) Math.toRadians(45.0f), // FOV
+            aspectRatio,
+            0.1f, // Near plane
+            viewDistance // Far plane (view distance)
+        );
     }
 
     public void processKeyboard(InputManager inputManager, float deltaTime) {
