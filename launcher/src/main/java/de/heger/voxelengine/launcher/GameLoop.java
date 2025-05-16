@@ -1,8 +1,6 @@
 package de.heger.voxelengine.launcher;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
-import de.heger.voxelengine.core.config.Config;
-import de.heger.voxelengine.core.config.ConfigManager;
 import de.heger.voxelengine.platform.InputManager;
 import de.heger.voxelengine.platform.Window;
 import de.heger.voxelengine.renderer.Renderer;
