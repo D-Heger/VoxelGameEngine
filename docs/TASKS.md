@@ -493,6 +493,14 @@
   - **Dependencies:** P3-T1, P3-T2, `engine-world` module
   - **Subtasks:** (none)
   - **Implementation Context:** Created `PerformanceTrackingTaskResultHandler.java` in `engine-world`'s `de.heger.voxelengine.world.generation.thread` package to collect chunk generation durations. Modified `GameLoop.java` in the `launcher` module: added new fields to store original window title, current FPS, and UPS. Instantiated `PerformanceTrackingTaskResultHandler` (wrapping the existing `LoggingTaskResultHandler`) and passed it to `ChunkGenerationService`. In the main game loop's 1-second timer block, FPS and UPS are stored, and the window title is updated using `window.setTitle()` to display the original title concatenated with FPS, UPS, average chunk generation time (ms), and the number of samples used for the average. A public `setTitle(String)` method was added to `engine-platform/src/main/java/de/heger/voxelengine/platform/Window.java` to enable dynamic title updates.
+  
+- - [ ] **Task ID:** P3-T11
+  - **Name:** Basic lighting system
+  - **Description:** Implement a basic lighting system that simulates sunlight and ambient light. This can be a simple directional light source for sunlight and a global ambient light level.
+  - **Phase:** 3 - World Management & Generation
+  - **Dependencies:** P3-T1, `engine-world` module
+  - **Subtasks:** (none)
+  - **Implementation Context:** Implement a basic lighting system that simulates sunlight and ambient light, add lighting uniforms to shader program, update vertex shader to include normal data, update fragment shader to calculate lighting, update mesh class to include normal data, update renderer to set lighting uniforms
 
 ## Phase 4: Chunk Rendering & Basic Physics (Interaction)
 
@@ -524,34 +532,27 @@
       - **Dependencies:** P4-T1.3, P4-T1.5 (as a baseline for comparison)
 
 - - [ ] **Task ID:** P4-T2
-  - **Name:** Chunk Mesh Rendering (`engine-renderer`)
-  - **Description:** Create VAOs/VBOs from the generated chunk mesh data. Update the renderer to draw chunk meshes instead of simple shapes. Handle uploading mesh data generated on worker threads to the GPU on the render thread.
-  - **Phase:** 4 - Chunk Rendering & Basic Physics
-  - **Dependencies:** P2-T5, P3-T6, P4-T1, `engine-renderer`, `engine-world` modules
-  - **Subtasks:** (none)
-
-- - [ ] **Task ID:** P4-T3
   - **Name:** Player Entity (`game`)
   - **Description:** Create a `Player` class representing the player in the world, holding position, orientation, and potentially other state.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T2, `game` module
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T4
+- - [ ] **Task ID:** P4-T3
   - **Name:** Basic Player Movement (`game`, `engine-physics`)
   - **Description:** Implement movement logic (walking, jumping) based on input. Integrate basic gravity.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T5, P4-T3, `game`, `engine-physics` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T5
+- - [ ] **Task ID:** P4-T4
   - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement Axis-Aligned Bounding Box (AABB) collision detection between the player entity and world blocks. Prevent player from moving into solid blocks.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T2, P4-3, P4-T4, `engine-physics`, `engine-world`, `game` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T6
+- - [ ] **Task ID:** P4-T5
   - **Name:** Raycasting (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement a raycasting algorithm (e.g., Amanatides & Woo) to determine the block the player is looking at.
   - **Phase:** 4 - Chunk Rendering & Basic Physics

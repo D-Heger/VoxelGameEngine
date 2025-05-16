@@ -52,7 +52,7 @@ public class Renderer {
         this.window = window;
         this.camera = new Camera();
         this.textureLoader = new TextureLoader();
-        this.textureMap = new HashMap<>(); // Initialize map
+        this.textureMap = new HashMap<>();
     }
 
     public void init() {
@@ -215,10 +215,11 @@ public class Renderer {
         defaultShaderProgram.createUniform("view");
         defaultShaderProgram.createUniform("model");
         defaultShaderProgram.createUniform("uTexture"); // Add texture sampler uniform
-        // defaultShaderProgram.createUniform("objectColor"); // Removed
-        // defaultShaderProgram.createUniform("lightColor"); // Removed
+        defaultShaderProgram.createUniform("lightDir");
+        defaultShaderProgram.createUniform("lightColor");
+        defaultShaderProgram.createUniform("ambientColor");
+        defaultShaderProgram.createUniform("ambientStrength");
         logger.debug("Created uniforms for default shader program.");
-
     }
 
     public void clear() {
@@ -236,6 +237,12 @@ public class Renderer {
              Matrix4f viewMatrix = camera.getViewMatrix();
              defaultShaderProgram.setUniform("projection", camera.getProjectionMatrix());
              defaultShaderProgram.setUniform("view", viewMatrix);
+
+             // Set lighting uniforms
+             defaultShaderProgram.setUniform("lightDir", new Vector3f(-0.5f, -1.0f, -0.5f)); // Sunlight direction
+             defaultShaderProgram.setUniform("lightColor", new Vector3f(1.0f, 0.95f, 0.8f)); // Slightly warm sunlight
+             defaultShaderProgram.setUniform("ambientColor", new Vector3f(0.4f, 0.5f, 0.6f)); // Slightly blue-tinted ambient
+             defaultShaderProgram.setUniform("ambientStrength", 0.6f); // Increased ambient strength
 
              // Compute rotating model matrix for test cube
              double time = glfwGetTime();
@@ -286,7 +293,6 @@ public class Renderer {
      */
     public void renderChunks(Collection<Chunk> chunks) {
         if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null || cubeMesh == null || textureMap.isEmpty() || BlockRegistry.getInstance() == null) {
-            // logger.trace("RenderChunks: Skipping, essential components missing or no chunks to render.");
             return;
         }
 
@@ -294,10 +300,15 @@ public class Renderer {
         Matrix4f currentViewMatrix = camera.getViewMatrix();
         defaultShaderProgram.setUniform("projection", camera.getProjectionMatrix());
         defaultShaderProgram.setUniform("view", currentViewMatrix);
-        defaultShaderProgram.setUniform("uTexture", 0);
 
-        Matrix4f modelMatrix = new Matrix4f(); // Reused for each block's model matrix
-        BlockRegistry blockRegistry = BlockRegistry.getInstance();
+        // Set lighting uniforms
+        defaultShaderProgram.setUniform("lightDir", new Vector3f(-0.5f, -1.0f, -0.5f)); // Sunlight direction
+        defaultShaderProgram.setUniform("lightColor", new Vector3f(1.0f, 0.95f, 0.8f)); // Slightly warm sunlight
+        defaultShaderProgram.setUniform("ambientColor", new Vector3f(0.4f, 0.5f, 0.6f)); // Slightly blue-tinted ambient
+        defaultShaderProgram.setUniform("ambientStrength", 0.6f); // Increased ambient strength
+
+        // Create a reusable model matrix
+        Matrix4f modelMatrix = new Matrix4f();
 
         // Frustum Culling Logic
         // Ensure FrustumCuller is up-to-date with the latest camera and projection matrices.
@@ -314,11 +325,6 @@ public class Renderer {
             this.frustumCuller.updateViewProjectionMatrix(viewProjectionMatrix);
         }
 
-
-        int totalChunks = chunks.size();
-        int renderedChunks = 0;
-        int renderedBlocks = 0; // For more detailed logging
-
         for (Chunk chunk : chunks) {
             if (chunk == null) continue;
 
@@ -330,9 +336,6 @@ public class Renderer {
                 // logger.trace("Culled chunk at {},{}", chunk.getPosition().x, chunk.getPosition().z); // Can be spammy
                 continue; // Skip rendering this chunk
             }
-            renderedChunks++;
-
-            // logger.trace("Rendering chunk: {} at world base ({}, {}, {})");
 
             // Calculate chunk's base world coordinates (min corner)
             // Needed for positioning blocks within the chunk
@@ -354,7 +357,7 @@ public class Renderer {
                             // --- Bind the correct texture ---
                             // For now, just use one texture (e.g., SOUTH face) for the whole cube
                             // Proper multi-texture blocks require meshing changes.
-                            TextureRef texRef = properties.getTexture(de.heger.voxelengine.world.chunk.Direction.SOUTH); // Example: Use South face texture
+                            TextureRef texRef = properties.getTexture(de.heger.voxelengine.world.chunk.Direction.SOUTH);
                             Texture textureToRender = null;
                             if (texRef != null) {
                                 textureToRender = textureMap.get(texRef.getName());
@@ -386,7 +389,6 @@ public class Renderer {
 
                             // Render the cube mesh
                             cubeMesh.render();
-                            renderedBlocks++;
                         }
                     }
                 }
