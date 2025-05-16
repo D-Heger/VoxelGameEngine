@@ -2,7 +2,7 @@
   "windowTitle" : "Voxel Game Engine",
   "width" : 1280,
   "height" : 720,
-  "vsync" : true,
+  "vsync" : false,
   "fullscreen" : false,
   "viewDistance" : 400.0
 }
