@@ -505,39 +505,45 @@
 ## Phase 4: Chunk Rendering & Basic Physics (Interaction)
 
 - - [ ] **Task ID:** P4-T1
-  - **Name:** Chunk Meshing Pipeline (`engine-world`)
-  - **Description:** Implement a mesh generation pipeline that takes chunk data and produces vertex/index data suitable for rendering. This pipeline will be a separate part of the asynchronous generation process. This task also needs to implement applying the correct textures for the specific faces (**Note** on P3-T4.5), instead of applying the south texture for every face of the block.
+  - **Name:** Multithreaded chunk meshing
+  - **Description:** Implement a multithreaded chunk meshing system that takes chunk data and produces vertex/index data suitable for rendering, including culling of faces that are not visible to the player (covered by the face of a another, non transparent block in the same or neighboring chunk). This pipeline will be a separate part of the asynchronous generation process. This task also needs to implement applying the correct textures for the specific faces (**Note** on P3-T4.5), instead of applying the south texture for every face of the block.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T1, P3-T6, `engine-world` module
   - **Subtasks:**
     - [ ] **Subtask ID:** P4-T1.1
-      - **Name:** Design Chunk Mesh Data Structure and Algorithm Choice
-      - **Description:** Define a data structure (e.g., a new `ChunkMeshData` class or record) to hold the vertices (including position, normal, and UV coordinates) and indices for a chunk's renderable mesh. Use Culled Faces Meshing. Document the chosen algorithm, data structures, and the overall flow of mesh generation.
-      - **Dependencies:** P3-T1 (Chunk data structure), P3-T4 (BlockProperties for texture and transparency information)
+      - **Name:** Rework thread pool architecture from P3-T6.1 & P3-T6.2
+      - **Description:** Rework the thread pool architecture from P3-T6.1 & P3-T6.2 to be a more generic and reusable implementation. Search for usage of the current implementation and refactor it to use the new architecture.
+      - **Deliverables:** New thread pool architecture implementation
     - [ ] **Subtask ID:** P4-T1.2
-      - **Name:** Implement Basic Face Culling Logic
-      - **Description:** Implement the core logic to iterate through each block position within a chunk. For each block, determine which of its six faces are visible. A face is visible if the adjacent block (in the same chunk or a neighboring chunk) is an air block or a transparent block. This will require querying `BlockProperties` for transparency.
-      - **Dependencies:** P4-T1.1, P3-T1 (Chunk class for block data and neighbor access), P3-T4 (BlockProperties for transparency)
+      - **Name:** Implement Meshing Task Queue
+      - **Description:** Create a thread-safe priority queue system (similar to P3-T6.3) that orders chunk meshing tasks based on their proximity to the player. Implement methods for adding, retrieving and cancelling tasks, along with queue management to prevent unbounded growth.
+      - **Deliverables:** New meshing task queue implementation
+      - **Implementation Context:** 
     - [ ] **Subtask ID:** P4-T1.3
-      - **Name:** Implement Vertex Generation and Face-Specific Texturing
-      - **Description:** For each visible block face identified in P4-T1.2, generate the necessary vertices (e.g., 4 vertices for a quad) and indices (e.g., 6 indices for two triangles). Calculate vertex positions relative to the chunk origin, and determine appropriate normals for each face. Crucially, calculate and assign the correct UV (texture) coordinates for each vertex. These UV coordinates must correspond to the specific texture assigned to that particular face of that block type, as defined in `BlockProperties.getFaceTextures()` (which uses `TextureRef`).
-      - **Dependencies:** P4-T1.2, P3-T4 (BlockProperties for face-specific textures via `TextureRef`), P2-T5 (understanding of texture loading)
+      - **Name:** Implement ChunkMeshGenerator
+      - **Description:** Create a class that takes a `Chunk` object and generates a `ChunkMesh` object. This class will be responsible for taking the chunk data and generating the vertex, index and normal data for the mesh. It will also be responsible for applying the correct textures for the specific faces (**Note** on P3-T4.5), instead of applying the south texture for every face of the block. Data should only be generated for the faces that are visible to the player (not covered by the face of a another, non transparent block in the same or neighboring chunk), and the mesh should be culled accordingly.
+      - **Deliverables:** New chunk mesh generator and chunk mesh implementation
+      - **Implementation Context:** 
     - [ ] **Subtask ID:** P4-T1.4
-      - **Name:** Create Asynchronous Meshing Task
-      - **Description:** Develop a new `Runnable` or `Callable` task (e.g., `ChunkMeshingTask`) that takes a fully generated `Chunk` (state `GENERATED`) as input. This task will execute the meshing algorithm (from P4-T1.2 and P4-T1.3). The generated `ChunkMeshData` (from P4-T1.1) should be stored, likely within the `Chunk` object itself or closely associated with it. Upon successful mesh generation, the task should update the `ChunkState` of the chunk to `MESHED`. This task will be managed by the `WorldThreadPool` and a new queue if necessary, or integrated into the existing `ChunkGenerationService`.
-      - **Dependencies:** P4-T1.3, P3-T6 (WorldThreadPool, understanding of async task structure), P3-T1 (ChunkState, Chunk object modification)
+      - **Name:** Create ChunkMeshingTask Implementation
+      - **Description:** Develop a `Runnable` or `Callable` implementation that encapsulates all operations needed to mesh a chunk asynchronously. This includes creating a new `ChunkMesh` object, invoking the appropriate `ChunkMeshGenerator`, updating chunk state, and adding the completed chunk to `ChunkManager`.
+      - **Deliverables:** New chunk meshing task implementation
+      - **Implementation Context:** 
     - [ ] **Subtask ID:** P4-T1.5
-      - **Name:** Integrate Meshing Task into Generation Pipeline
-      - **Description:** Modify the `ChunkGenerationService` (or the completion handler of `ChunkGenerationTask`). After a `ChunkGenerationTask` successfully completes and the chunk's state is `GENERATED`, the `ChunkGenerationService` should submit a new `ChunkMeshingTask` for that chunk to the `WorldThreadPool`. This creates a two-stage pipeline: Generate -> Mesh.
-      - **Dependencies:** P4-T1.4, P3-T6 (ChunkGenerationService, ChunkGenerationTask)
+      - **Name:** Rework Task Completion Notification System
+      - **Description:** Rework the task completion notification system from P3-T6.5 to be a more generic and reusable implementation. Search for usage of the current implementation and refactor it to use the new architecture.
+      - **Deliverables:** New task completion notification system implementation
+      - **Implementation Context:** 
     - [ ] **Subtask ID:** P4-T1.6
-      - **Name:** Update Renderer to Use Chunk Meshes
-      - **Description:** Modify the `Renderer` to no longer render individual blocks as cubes. Instead, for each chunk that is in the `MESHED` state and has valid `ChunkMeshData`, the renderer should upload this mesh data to a VAO/VBO (potentially managed by a new `ChunkRenderData` class or similar) and render it. This replaces the old block-by-block rendering logic from P3-T2.
-      - **Dependencies:** P4-T1.1, P2-T4 (Mesh class for VAO/VBO handling), P3-T1 (ChunkState)
+      - **Name:** Implement Mesh Generation Service
+      - **Description:** Create a high-level service that coordinates between the game systems and the thread pool. Implement methods for requesting chunk meshing with priority levels, checking meshing status, and handling the lifecycle of the meshing subsystem (initialization, shutdown). This will serve as the main API for the rest of the engine.
+      - **Deliverables:** New mesh generation service implementation
+      - **Implementation Context:** 
     - [ ] **Subtask ID:** P4-T1.7
-      - **Name:** (Optional) Investigate and Implement Greedy Meshing
-      - **Description:** After implementing and testing the Culled Faces Meshing, if performance (either mesh generation time or vertex count impacting rendering) is a concern, investigate and implement a Greedy Meshing algorithm. This would involve merging adjacent coplanar faces of the same block type (and texture) into larger quads, potentially significantly reducing the total number of vertices. This would replace or augment the meshing logic from P4-T1.2 and P4-T1.3.
-      - **Dependencies:** P4-T1.3, P4-T1.6 (as a baseline for comparison)
+      - **Name:** Integrate with Renderer
+      - **Description:** Integrate the mesh generation service with the renderer. This includes updating the renderer to use the new mesh data, and updating the chunk manager to use the new mesh data.
+      - **Deliverables:** Updated renderer and chunk manager implementations
+      - **Implementation Context:** 
 
 - - [ ] **Task ID:** P4-T2
   - **Name:** Player Entity (`game`)
