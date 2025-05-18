@@ -576,15 +576,30 @@
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P4-T3, `engine-renderer` module
   - **Subtasks:**
-    - [ ] **Subtask ID:** P4-T4.1
+    - [x] **Subtask ID:** P4-T4.1
       - **Name:** Add wireframe rendering
       - **Description:** Add wireframe rendering to the renderer, to visualize the chunk meshes. This should be done in a new class `WireframeRenderer` that takes a `ChunkMesh` and renders it in wireframe mode. This should be toggled via a key binding (default: `F3`). Integrate this into the existing renderer's chunk rendering process. Ensure that this causes no opengl errors.
       - **Deliverables:** New `WireframeRenderer` class.
       - **Implementation Context:** Added a new `WireframeRenderer` class that renders a `ChunkMesh` in wireframe mode. This is integrated into the existing renderer's chunk rendering process and toggled via a key binding (default: `F3`) in `GameLoop.java`.
     - [ ] **Subtask ID:** P4-T4.2
-      - **Name:** Rework performance display
-      - **Description:** Rework the performance display to be an overlay on the screen, instead of updating the window title, utilizing nuklear java bindings included in lwjgl.
-      - **Deliverables:** Reworked performance display.
+      - **Name:** Integrate nuklear
+      - **Description:** Integrate the Nuklear GUI library (bindings are included in lwjgl).
+      - **Deliverables:** Nuklear integration in libs.toml and build.gradle
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T4.3
+      - **Name:** Add base nuklear UI class
+      - **Description:** Add a base Nuklear UI class that can be used to create a Nuklear UI. This should include a basic layout and a way to add widgets.
+      - **Deliverables:** Base Nuklear UI class.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T4.4
+      - **Name:** Add performance display
+      - **Description:** Add a performance display that shows FPS, chunk generation times, and other performance metrics. This should be done using the Nuklear UI library. This needs to be toggelable (F2 by default).
+      - **Deliverables:** Performance display using Nuklear.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T4.5
+      - **Name:** Integrate performance display into game loop
+      - **Description:** Replace the existing performance display with the new Nuklear-based performance display. Ensure that it is updated every frame and displays relevant performance metrics.
+      - **Deliverables:** Integrated performance display in the game loop.
       - **Implementation Context:** (TBD)
 
 - - [ ] **Task ID:** P4-T5
