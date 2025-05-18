@@ -581,26 +581,26 @@
       - **Description:** Add wireframe rendering to the renderer, to visualize the chunk meshes. This should be done in a new class `WireframeRenderer` that takes a `ChunkMesh` and renders it in wireframe mode. This should be toggled via a key binding (default: `F3`). Integrate this into the existing renderer's chunk rendering process. Ensure that this causes no opengl errors.
       - **Deliverables:** New `WireframeRenderer` class.
       - **Implementation Context:** Added a new `WireframeRenderer` class that renders a `ChunkMesh` in wireframe mode. This is integrated into the existing renderer's chunk rendering process and toggled via a key binding (default: `F3`) in `GameLoop.java`.
-    - [ ] **Subtask ID:** P4-T4.2
-      - **Name:** Integrate legui
-      - **Description:** Integrate the legui library (bindings are included in lwjgl).
-      - **Deliverables:** legui integration in libs.toml and build.gradle
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T4.3
-      - **Name:** Add base legui UI class
-      - **Description:** Add a base legui UI class that can be used to create a legui UI. This should include a basic layout and a way to add widgets.
-      - **Deliverables:** Base legui UI class.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T4.4
+    - [x] **Subtask ID:** P4-T4.2
+      - **Name:** Design custom ui implementation
+      - **Description:** Design a custom ui implementation that is used to create a custom ui. This should offer basic layouting and text rendering. At this stage, no interaction is needed. A font is already included in the `engine-renderer` modules resources folder.
+      - **Deliverables:** Custom ui implementation with extensive documentation.
+      - **Implementation Context:** A design document (`docs/ui_design.md`) was created, outlining a UI system for `engine-renderer`. The design includes: `FontManager` (using STB TrueType for `Roboto-Regular.ttf` and glyph atlases), `UIShader` (simple 2D orthographic shader), `UIElement` (base class), `TextElement`, an optional `PanelElement`, a `UIRenderer` to manage elements and the render pass (2D orthographic, blending, after 3D scene), and `UIManager`. Text rendering relies on the font atlas and dynamic quad generation per character. Layout is based on absolute screen coordinates. The design document also details integration with the rendering pipeline and connections to subsequent subtasks P4-T4.3, P4-T4.4, and P4-T4.5.
+    - [x] **Subtask ID:** P4-T4.3
+      - **Name:** Add base custom ui class
+      - **Description:** Add a base custom ui class that can be used to create a custom ui.
+      - **Deliverables:** Base custom ui class.
+      - **Implementation Context:** Created the foundational classes for the UI system in the `de.heger.voxelengine.renderer.ui` package as per `docs/ui_design.md`. This includes: `UIElement` (abstract base class with position, size, visibility, `render()`, `update()`), `GlyphInfo` (data class for glyph metrics), `Font` (loads TTF using STB, bakes glyph atlas, provides glyph info and metrics), `FontManager` (manages/caches `Font` objects, loads from resources like `fonts/Roboto-Regular.ttf`), `ui.vert`/`ui.frag` (GLSL shaders for 2D orthographic rendering with texturing and alpha blending), `UIShader` (manages these shaders), `TextElement` (extends `UIElement`, dynamically generates mesh for text using `Font`), `UIRenderer` (manages `UIElement` list, sets up 2D GL state, projection, calls element render methods, handles window resize for projection), and `UIManager` (initializes/coordinates `FontManager` and `UIRenderer`, provides API for UI elements). These classes form the base for subsequent UI tasks like the performance display.
+    - [x] **Subtask ID:** P4-T4.4
       - **Name:** Add performance display
-      - **Description:** Add a performance display that shows FPS, chunk generation times, and other performance metrics. This should be done using the legui UI library. This needs to be toggelable (F2 by default).
-      - **Deliverables:** Performance display using legui.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T4.5
+      - **Description:** Add a performance display that shows FPS, chunk generation times, and other performance metrics. This needs to be toggelable (F2 by default).
+      - **Deliverables:** Performance display using the custom ui implementation.
+      - **Implementation Context:** Created `PerformanceDisplay.java` in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/ui/debug/`. This class uses `UIManager` and `TextElement`s to show FPS, UPS, chunk generation time, draw calls, rendered indices, culling stats (frustum & occlusion), loaded chunk count, active mesh count, generation queue size, and active generation threads. It includes a `PerformanceData` inner class to group metrics. Integrated into `GameLoop.java` (`launcher` module): `UIManager` and `PerformanceDisplay` are initialized; F2 key toggles visibility. `GameLoop` collects data into `PerformanceData` and calls `performanceDisplay.update()`. The old window-title performance metrics were removed. `Renderer.java` was updated with getters for `frustumCulledChunksLastFrame` and `activeMeshCount`. `OcclusionCuller.java` was updated to accept an `IntConsumer` for stats.
+    - [x] **Subtask ID:** P4-T4.5
       - **Name:** Integrate performance display into game loop
-      - **Description:** Replace the existing performance display with the new legui-based performance display. Ensure that it is updated every frame and displays relevant performance metrics.
+      - **Description:** Replace the existing performance display with the new custom performance display. Ensure that it is updated every frame and displays relevant performance metrics.
       - **Deliverables:** Integrated performance display in the game loop.
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** The new `PerformanceDisplay` (implemented in P4-T4.4) was directly integrated into `GameLoop.java`. The previous performance display mechanism (updating the window title) was removed. The `PerformanceDisplay` is updated with fresh metrics each second within the game loop and rendered each frame via the `UIManager`. The F2 key correctly toggles its visibility.
 
 - - [ ] **Task ID:** P4-T5
   - **Name:** Player Entity (`game`)

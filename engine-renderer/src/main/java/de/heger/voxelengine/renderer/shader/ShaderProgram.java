@@ -17,7 +17,7 @@ public class ShaderProgram {
 
     private static final LoggerFacade logger = LoggerFacade.get(ShaderProgram.class);
 
-    private final int programId;
+    protected final int programId;
     private int vertexShaderId;
     private int fragmentShaderId;
     private final Map<String, Integer> uniforms;
@@ -138,6 +138,13 @@ public class ShaderProgram {
          if (uniformLocation != -1) {
             glUniform3f(uniformLocation, value.x, value.y, value.z);
          }
+    }
+
+    public void setUniform(String uniformName, org.joml.Vector4f value) {
+        int uniformLocation = getUniformLocation(uniformName);
+        if (uniformLocation != -1) {
+            glUniform4f(uniformLocation, value.x, value.y, value.z, value.w);
+        }
     }
 
     public void setUniform(String uniformName, int value) {

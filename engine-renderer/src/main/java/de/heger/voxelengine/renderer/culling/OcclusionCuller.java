@@ -7,6 +7,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.IntConsumer;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
 import de.heger.voxelengine.world.chunk.Chunk;
@@ -35,14 +36,17 @@ public class OcclusionCuller {
      * @param chunks The chunks to filter (all chunks that are within the frustum).
      * @param cameraPosition The current camera position.
      * @param cameraDirection The camera's view direction vector.
+     * @param occludedChunkCounter A consumer to report the number of chunks culled by occlusion.
      * @return A collection of chunks that are likely visible (not occluded).
      */
     public Collection<Chunk> filterOccludedChunks(
             Collection<Chunk> chunks,
             Vector3f cameraPosition,
-            Vector3f cameraDirection) {
+            Vector3f cameraDirection,
+            IntConsumer occludedChunkCounter) {
         
         if (chunks == null || chunks.size() <= 1) {
+            if (occludedChunkCounter != null) occludedChunkCounter.accept(0);
             return chunks; // Nothing to cull if there's 0 or 1 chunk
         }
         
@@ -75,6 +79,7 @@ public class OcclusionCuller {
         // Apply occlusion culling
         Set<Chunk> visibleChunks = new HashSet<>();
         Set<ChunkPos> potentialOccluders = new HashSet<>();
+        int culledCount = 0; // Counter for occluded chunks
         
         // First pass: identify chunks that are definitely visible and potential occluders
         for (ChunkWithDistance chunkWithDist : sortedChunks) {
@@ -83,6 +88,7 @@ public class OcclusionCuller {
             
             // Check if this chunk is "behind" any occluders from the camera's perspective
             if (isPotentiallyOccluded(pos, cameraPosition, potentialOccluders, sortedChunks)) {
+                culledCount++; // Increment culled counter
                 // Skipping this chunk as it might be occluded
                 continue;
             }
@@ -96,7 +102,10 @@ public class OcclusionCuller {
             }
         }
         
-        logger.debug("Occlusion culling: {} chunks visible out of {} total", visibleChunks.size(), chunks.size());
+        logger.debug("Occlusion culling: {} chunks visible out of {} total ({} culled)", visibleChunks.size(), chunks.size(), culledCount);
+        if (occludedChunkCounter != null) {
+            occludedChunkCounter.accept(culledCount); // Report the count
+        }
         return visibleChunks;
     }
     

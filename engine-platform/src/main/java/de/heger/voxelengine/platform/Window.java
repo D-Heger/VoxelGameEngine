@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
 import static org.lwjgl.glfw.GLFW.*;
@@ -31,6 +33,13 @@ public class Window {
     private boolean vsyncEnabled;
     private float aspectRatio;
     private InputManager inputManager;
+    private final List<FramebufferSizeCallback> framebufferSizeCallbacks = new ArrayList<>();
+
+    // Functional interface for callbacks
+    @FunctionalInterface
+    public interface FramebufferSizeCallback {
+        void invoke(long windowHandle, int width, int height);
+    }
 
     public Window(int width, int height, String title, boolean vsync, boolean fullscreen, String iconResourcePath) {
         this.width = width;
@@ -125,14 +134,17 @@ public class Window {
 
     private void setupCallbacks() {
         // Setup resize callback
-        glfwSetFramebufferSizeCallback(windowHandle, (window, w, h) -> {
+        glfwSetFramebufferSizeCallback(windowHandle, (windowHandle, w, h) -> {
             if (w > 0 && h > 0) {
                 this.width = w;
                 this.height = h;
                 this.aspectRatio = (float) w / h;
                 glViewport(0, 0, w, h);
-                LOGGER.debug("Window resized to {}x{}", w, h);
-                // TODO: Notify camera or renderer about aspect ratio change if needed
+                LOGGER.debug("Window resized to {}x{}, aspect ratio: {}", w, h, this.aspectRatio);
+                // Notify registered callbacks
+                for (FramebufferSizeCallback callback : framebufferSizeCallbacks) {
+                    callback.invoke(windowHandle, w, h);
+                }
             }
         });
 
@@ -232,6 +244,16 @@ public class Window {
         } catch (Exception e) {
             LOGGER.error("Error setting window icon from resource '{}':", iconResourcePath, e);
         }
+    }
+
+    public void addFramebufferSizeCallback(FramebufferSizeCallback callback) {
+        if (callback != null && !framebufferSizeCallbacks.contains(callback)) {
+            framebufferSizeCallbacks.add(callback);
+        }
+    }
+
+    public void removeFramebufferSizeCallback(FramebufferSizeCallback callback) {
+        framebufferSizeCallbacks.remove(callback);
     }
 
     // --- Getters ---

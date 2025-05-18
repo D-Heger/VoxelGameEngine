@@ -42,6 +42,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.List;
+import java.util.Comparator;
+import java.util.ArrayList;
 
 public class Renderer {
 
@@ -70,12 +73,12 @@ public class Renderer {
     private final Map<ChunkPos, Map<String, ChunkMesh>> activeChunkMeshes = new HashMap<>();
 
     // P4-T2.7: Performance metrics
-    private long totalIndicesRenderedLastFrame = 0;
+    private int totalIndicesRenderedLastFrame = 0;
     private int drawCallsLastFrame = 0;
-    private long currentFrameIndices = 0;
-    private int currentFrameDrawCalls = 0;
-    // Number of chunks culled by occlusion in the last frame
     private int occlusionCulledChunksLastFrame = 0;
+    private int frustumCulledChunksLastFrame = 0; // Added for frustum culling stats
+
+    private static final boolean USE_OCCLUSION_CULLING = true; // Or from config
 
     public Renderer(Window window) {
         this.window = window;
@@ -341,14 +344,14 @@ public class Renderer {
      * @param chunks The list of chunks to render.
      */
     public void renderChunks(Collection<Chunk> chunks) {
-        if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null /*|| faceMeshes.isEmpty()*/ || textureMap.isEmpty() || blockRegistry == null || chunkManager == null) {
-            // faceMeshes.isEmpty() check removed as it's being replaced
+        if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null || textureMap.isEmpty() || blockRegistry == null || chunkManager == null) {
             return;
         }
 
-        // P4-T2.7: Reset per-frame counters
-        currentFrameIndices = 0;
-        currentFrameDrawCalls = 0;
+        drawCallsLastFrame = 0;
+        totalIndicesRenderedLastFrame = 0;
+        frustumCulledChunksLastFrame = 0; 
+        occlusionCulledChunksLastFrame = 0; 
 
         defaultShaderProgram.bind();
         Matrix4f currentViewMatrix = camera.getViewMatrix();
@@ -379,21 +382,33 @@ public class Renderer {
         for (Chunk chunk : chunks) {
             if (chunk == null) continue;
 
-            // Frustum Culling
             AABB chunkAABB = AABB.fromChunk(chunk);
             if (!frustumCuller.testAABB(chunkAABB)) {
-                continue; // Skip chunk if not in frustum
+                frustumCulledChunksLastFrame++; 
+                continue; 
             }
-            
-            // Add to the set of chunks that passed frustum culling
             chunksInFrustum.add(chunk);
         }
         
-        Collection<Chunk> visibleChunks = occlusionCuller.filterOccludedChunks(
-            chunksInFrustum, 
-            camera.getPosition(),
-            camera.getFront()
-        );
+        Collection<Chunk> visibleChunks;
+        if (occlusionCuller != null && USE_OCCLUSION_CULLING) {
+            List<Chunk> sortedChunksInFrustum = new ArrayList<>(chunksInFrustum);
+            final Vector3f cameraPos = camera.getPosition(); 
+            sortedChunksInFrustum.sort(Comparator.comparingDouble(chunk -> {
+                Vec3i worldPos = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
+                // Use Chunk.SIZE_X for cubic chunk dimensions
+                return cameraPos.distanceSquared(worldPos.x + Chunk.SIZE_X / 2f, worldPos.y + Chunk.SIZE_Y / 2f, worldPos.z + Chunk.SIZE_Z / 2f);
+            }));
+
+            visibleChunks = occlusionCuller.filterOccludedChunks(
+                sortedChunksInFrustum, 
+                camera.getPosition(),
+                camera.getFront(),
+                (occludedCount) -> this.occlusionCulledChunksLastFrame = occludedCount // Corrected lambda usage based on new signature
+            );
+        } else {
+            visibleChunks = chunksInFrustum; 
+        }
         
         // Track occlusion culling statistics
         occlusionCulledChunksLastFrame = chunksInFrustum.size() - visibleChunks.size();
@@ -469,8 +484,8 @@ public class Renderer {
                     chunkMeshToRender.render();
                 }
                 // P4-T2.7: Increment performance counters
-                currentFrameIndices += chunkMeshToRender.getIndexCount();
-                currentFrameDrawCalls++;
+                totalIndicesRenderedLastFrame += chunkMeshToRender.getIndexCount();
+                drawCallsLastFrame++;
             }
         }
         // Removed old rendering logic that iterates individual blocks/faces
@@ -490,10 +505,6 @@ public class Renderer {
             }
             return false;
         });
-
-        // Update performance counters for the completed frame
-        this.totalIndicesRenderedLastFrame = currentFrameIndices;
-        this.drawCallsLastFrame = currentFrameDrawCalls;
 
         // defaultShaderProgram.unbind(); // Only unbind if no other render passes follow
     }
@@ -627,22 +638,24 @@ public class Renderer {
     }
 
     // P4-T2.7: Getters for performance metrics
-    public long getTotalIndicesRenderedLastFrame() {
-        return totalIndicesRenderedLastFrame;
-    }
-
     public int getDrawCallsLastFrame() {
         return drawCallsLastFrame;
     }
-    
-    /**
-     * Gets the number of chunks that were culled by occlusion in the last frame.
-     * This can be used for performance monitoring.
-     * 
-     * @return The number of chunks culled by occlusion.
-     */
+
+    public int getTotalIndicesRenderedLastFrame() {
+        return totalIndicesRenderedLastFrame;
+    }
+
     public int getOcclusionCulledChunksLastFrame() {
         return occlusionCulledChunksLastFrame;
+    }
+
+    public int getFrustumCulledChunksLastFrame() {
+        return frustumCulledChunksLastFrame;
+    }
+
+    public int getActiveMeshCount() {
+        return activeChunkMeshes.values().stream().mapToInt(Map::size).sum();
     }
 
     /**

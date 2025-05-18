@@ -86,6 +86,35 @@ public class Texture {
         LOGGER.info("Created OpenGL texture ID: {} ({}x{})", textureId, width, height);
     }
 
+    // New constructor for raw grayscale pixel data (e.g., font atlas)
+    public Texture(int width, int height, java.nio.ByteBuffer pixelData) {
+        this.width = width;
+        this.height = height;
+
+        textureId = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, textureId);
+
+        // Set texture parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        // For fonts, GL_LINEAR can look smoother than GL_NEAREST
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        // Upload texture data - STB bakeFontBitmap produces 1-channel (alpha) bitmap
+        // We use GL_RED to store it, and swizzle in shader if needed, or treat R as Alpha.
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Ensure correct alignment for single channel
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, pixelData);
+
+        // No mipmaps needed or desired for font atlases typically.
+        // If you wanted mipmaps: glGenerateMipmap(GL_TEXTURE_2D); 
+        
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // Restore default alignment
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+        LOGGER.info("Created OpenGL texture ID: {} ({}x{}) from raw data for font atlas.", textureId, width, height);
+    }
+
     public void bind(int textureUnit) {
         if (textureUnit < 0 || textureUnit > 31) { // Check against GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS limit (usually at least 32)
             LOGGER.warn("Texture unit {} is out of typical range.", textureUnit);
