@@ -578,9 +578,9 @@
   - **Subtasks:**
     - [ ] **Subtask ID:** P4-T4.1
       - **Name:** Add wireframe rendering
-      - **Description:** Add wireframe rendering to the renderer. This should be a new class `WireframeRenderer` that takes a `ChunkMesh` and renders it in wireframe mode. This should be toggled via a key binding (default: `F3`).
+      - **Description:** Add wireframe rendering to the renderer, to visualize the chunk meshes. This should be done in a new class `WireframeRenderer` that takes a `ChunkMesh` and renders it in wireframe mode. This should be toggled via a key binding (default: `F3`). Integrate this into the existing renderer's chunk rendering process. Ensure that this causes no opengl errors.
       - **Deliverables:** New `WireframeRenderer` class.
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** Added a new `WireframeRenderer` class that renders a `ChunkMesh` in wireframe mode. This is integrated into the existing renderer's chunk rendering process and toggled via a key binding (default: `F3`) in `GameLoop.java`.
     - [ ] **Subtask ID:** P4-T4.2
       - **Name:** Add ui and text rendering
       - **Description:** Integrate a performant ui and text rendering library.

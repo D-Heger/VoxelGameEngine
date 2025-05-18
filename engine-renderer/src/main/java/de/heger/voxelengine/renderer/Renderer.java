@@ -23,6 +23,8 @@ import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.renderer.mesh.ChunkMesh;
 import de.heger.voxelengine.renderer.mesh.ChunkMeshBuilder;
 import de.heger.voxelengine.world.chunk.ChunkMeshState;
+import de.heger.voxelengine.renderer.debug.WireframeRenderer;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -60,6 +62,10 @@ public class Renderer {
     private ChunkManager chunkManager; // For neighbor chunk access
     private BlockRegistry blockRegistry; // For block properties access
 
+    // P4-T4.1: Wireframe rendering support
+    private WireframeRenderer wireframeRenderer;
+    private boolean wireframeMode = false;
+
     // P4-T2.6: Cache for active chunk meshes, renderer-side
     private final Map<ChunkPos, Map<String, ChunkMesh>> activeChunkMeshes = new HashMap<>();
 
@@ -80,6 +86,7 @@ public class Renderer {
         this.chunkManager = ChunkManager.getInstance(); // Get ChunkManager instance
         this.blockRegistry = BlockRegistry.getInstance(); // Get BlockRegistry instance
         this.occlusionCuller = new OcclusionCuller(); // Initialize occlusion culler
+        this.wireframeRenderer = new WireframeRenderer(); // Initialize wireframe renderer
     }
 
     public void init() {
@@ -456,7 +463,11 @@ public class Renderer {
                     textureToRender.bind(0); // Bind to texture unit 0
                 }
                 
-                chunkMeshToRender.render();
+                if (wireframeMode) {
+                    wireframeRenderer.render(chunkMeshToRender);
+                } else {
+                    chunkMeshToRender.render();
+                }
                 // P4-T2.7: Increment performance counters
                 currentFrameIndices += chunkMeshToRender.getIndexCount();
                 currentFrameDrawCalls++;
@@ -632,5 +643,21 @@ public class Renderer {
      */
     public int getOcclusionCulledChunksLastFrame() {
         return occlusionCulledChunksLastFrame;
+    }
+
+    /**
+     * Toggles wireframe rendering mode on or off.
+     */
+    public void toggleWireframeMode() {
+        wireframeMode = !wireframeMode;
+        logger.info("Wireframe mode: {}", wireframeMode ? "enabled" : "disabled");
+    }
+
+    /**
+     * Checks if wireframe mode is currently enabled.
+     * @return true if wireframe mode is enabled, false otherwise.
+     */
+    public boolean isWireframeMode() {
+        return wireframeMode;
     }
 }

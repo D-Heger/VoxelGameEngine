@@ -24,6 +24,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.ArrayList;
 
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
+
 public class GameLoop {
 
     private static final LoggerFacade LOGGER = LoggerFacade.get(GameLoop.class);
@@ -62,6 +64,8 @@ public class GameLoop {
     
     // P4-T3.2: Occlusion culling stats
     private int lastFrameOcclusionCulledChunks = 0;
+
+    private boolean wasF3Pressed = false;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
@@ -522,7 +526,13 @@ public class GameLoop {
     }
 
     private void input() {
-        // Process input polled by inputManager.update()
+        // Process input - assuming InputManager updates state internally or via another method
+        // Handle F3 key for toggling wireframe mode
+        boolean isF3Pressed = inputManager.isKeyPressed(GLFW_KEY_F3);
+        if (isF3Pressed && !wasF3Pressed) {
+            renderer.toggleWireframeMode();
+        }
+        wasF3Pressed = isF3Pressed;
 
         // Check for escape key to close
         if (inputManager.isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
