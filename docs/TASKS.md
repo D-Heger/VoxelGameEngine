@@ -514,7 +514,7 @@
 
 - - [ ] **Task ID:** P4-T2
   - **Name:** Mesh Optimization
-  - **Description:** Optimize the mesh data structure to reduce memory usage and improve rendering performance. Create optimized meshes for each chunk, potentially using a single mesh per chunk with multiple submeshes for different block types. Add support for sending mesh data to the GPU in a more efficient way. This should not yet include advanced optimizations like greedy meshing, lod or multithreaded meshing.
+  - **Description:** Optimize the mesh data structure to reduce memory usage and improve rendering performance. Create optimized meshes for each chunk, potentially using a single mesh per chunk with multiple submeshes for different block types. Add support for sending mesh data to the GPU in a more efficient way. This should not yet include advanced optimizations like greedy meshing, lod or multithreaded meshing, nor implement a texture atlas.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T9, `engine-renderer` module
   - **Subtasks:**
