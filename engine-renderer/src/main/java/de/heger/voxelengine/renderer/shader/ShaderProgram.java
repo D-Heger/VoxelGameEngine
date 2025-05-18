@@ -159,7 +159,14 @@ public class ShaderProgram {
          if (uniformLocation != -1) {
             glUniform1f(uniformLocation, value);
          }
-     }
+    }
+
+    public void setUniform(String uniformName, boolean value) {
+        int uniformLocation = getUniformLocation(uniformName);
+        if (uniformLocation != -1) {
+            glUniform1i(uniformLocation, value ? 1 : 0);
+        }
+    }
 
     public void cleanup() {
         unbind();

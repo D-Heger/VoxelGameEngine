@@ -17,6 +17,7 @@ public class UIShader extends ShaderProgram {
     private static final String UNIFORM_COLOR = "uColor";
     private static final String UNIFORM_ALPHA = "uAlpha";
     private static final String UNIFORM_TEXTURE_SAMPLER = "uTexture";
+    private static final String UNIFORM_USE_TEXTURE = "useTexture";
 
     // Attribute names (must match shader file)
     public static final int ATTRIB_POSITION = 0;
@@ -47,6 +48,7 @@ public class UIShader extends ShaderProgram {
             super.createUniform(UNIFORM_COLOR);
             super.createUniform(UNIFORM_ALPHA);
             super.createUniform(UNIFORM_TEXTURE_SAMPLER);
+            super.createUniform(UNIFORM_USE_TEXTURE);
 
             LOGGER.info("UIShader created and linked successfully.");
 
@@ -79,5 +81,9 @@ public class UIShader extends ShaderProgram {
 
     public void connectTextureSampler(int textureUnit) {
         super.setUniform(UNIFORM_TEXTURE_SAMPLER, textureUnit);
+    }
+
+    public void loadUseTexture(boolean use) {
+        super.setUniform(UNIFORM_USE_TEXTURE, use);
     }
 } 

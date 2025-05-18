@@ -205,6 +205,7 @@ public class TextElement extends UIElement {
         UIShader shader = renderer.getUIShader(); 
         // shader.bind(); // UIRenderer should manage this
 
+        shader.loadUseTexture(true); // Tell shader to use a texture
         modelMatrix.identity().translate(position.x, position.y, 0);
         shader.loadModelMatrix(modelMatrix);
         shader.loadColor(color);

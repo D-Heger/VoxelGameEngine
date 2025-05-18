@@ -2,6 +2,7 @@ package de.heger.voxelengine.renderer.ui.debug;
 
 import de.heger.voxelengine.renderer.ui.UIManager;
 import de.heger.voxelengine.renderer.ui.elements.TextElement;
+import de.heger.voxelengine.renderer.ui.elements.BoxElement;
 import de.heger.voxelengine.renderer.ui.font.Font;
 
 import org.joml.Vector2f;
@@ -16,10 +17,12 @@ public class PerformanceDisplay {
     private final UIManager uiManager;
     private final Font font;
     private final Vector4f textColor = new Vector4f(1.0f, 1.0f, 1.0f, 1.0f); // White
-    private final float fontSize = 16f; // Example font size
-    private final float lineSpacing = 2f; // Spacing between lines of text
+    private final float fontSize = 16f; // Nominal font size, actual line height comes from font object
+    private final float lineSpacing = 2f; // Additional spacing between lines of text (on top of font's own linegap)
+    private final float textBlockPadding = 5.0f; // Padding around the text block inside the background box
 
     private final List<TextElement> textElements = new ArrayList<>();
+    private BoxElement backgroundBox;
     private boolean visible = true;
 
     // Text elements for different metrics
@@ -42,31 +45,61 @@ public class PerformanceDisplay {
     }
 
     public void init() {
-        float currentY = 20.0f; // Starting Y position for the first text element
-        float xPos = 10.0f;
+        // These are the start coordinates for the TextElements themselves (their baselines)
+        float firstTextBaselineY = 20.0f + font.getAscent(); // Adjust so 20.0 is the visual top
+        float textX = 10.0f;
 
-        fpsText = createTextElement("FPS: -", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        upsText = createTextElement("UPS: -", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        avgChunkGenTimeText = createTextElement("Avg Gen Time: - ms (0)", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        drawCallsText = createTextElement("Draw Calls: -", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        renderedIndicesText = createTextElement("Rendered Indices: -", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        occlusionCulledText = createTextElement("Occlusion Culled Chunks: -", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        frustumCulledText = createTextElement("Frustum Culled Chunks: -", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        totalLoadedChunksText = createTextElement("Loaded Chunks: -", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        activeMeshesText = createTextElement("Active Meshes: -", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        generationQueueText = createTextElement("Gen Queue: -", xPos, currentY);
-        currentY += fontSize + lineSpacing;
-        activeGenThreadsText = createTextElement("Active Gen Threads: -", xPos, currentY);
+        int numTextElements = 11; // Number of performance text lines
 
+        // Calculate dimensions for the text block content itself
+        float textContentWidth = 0;
+        // Estimate max text width. A more accurate way would be to render all text once, get max width.
+        // For now, using a fixed estimate that was previously implicitly used by boxWidth.
+        float estimatedMaxTextStringWidth = 230f;
+        textContentWidth = estimatedMaxTextStringWidth; 
+
+        // Height of the text block content from the top of the first line to bottom of the last line
+        float textContentHeight = (numTextElements * font.getLineHeight()) + ((numTextElements - 1) * lineSpacing);
+        if (numTextElements == 1) textContentHeight = font.getLineHeight();
+
+        // Background Box positioning and sizing
+        // Box top-left X: textX is where text starts, so box is textX - padding
+        float boxX = textX - textBlockPadding;
+        // Box top-left Y: firstTextBaselineY is baseline of first line. Top of text is firstTextBaselineY - font.getAscent().
+        // So box top is (firstTextBaselineY - font.getAscent()) - textBlockPadding.
+        float boxY = (firstTextBaselineY - font.getAscent()) - textBlockPadding;
+        
+        float boxWidth = textContentWidth + (2 * textBlockPadding);
+        float boxHeight = textContentHeight + (2 * textBlockPadding);
+        Vector4f boxColor = new Vector4f(0.216f, 0.0f, 0.116f, 0.8f);
+        
+        backgroundBox = new BoxElement(new Vector2f(boxX, boxY), new Vector2f(boxWidth, boxHeight), boxColor);
+        uiManager.addElement(backgroundBox);
+
+        // Initialize text elements
+        float currentTextBaselineY = firstTextBaselineY;
+
+        fpsText = createTextElement("FPS: -", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        upsText = createTextElement("UPS: -", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        avgChunkGenTimeText = createTextElement("Avg Gen Time: - ms (0)", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        drawCallsText = createTextElement("Draw Calls: -", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        renderedIndicesText = createTextElement("Rendered Indices: -", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        occlusionCulledText = createTextElement("Occlusion Culled Chunks: -", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        frustumCulledText = createTextElement("Frustum Culled Chunks: -", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        totalLoadedChunksText = createTextElement("Loaded Chunks: -", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        activeMeshesText = createTextElement("Active Meshes: -", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        generationQueueText = createTextElement("Gen Queue: -", textX, currentTextBaselineY);
+        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        activeGenThreadsText = createTextElement("Active Gen Threads: -", textX, currentTextBaselineY);
 
         // Set initial visibility
         setVisible(this.visible);
@@ -99,6 +132,9 @@ public class PerformanceDisplay {
 
     public void setVisible(boolean visible) {
         this.visible = visible;
+        if (backgroundBox != null) {
+            backgroundBox.setVisible(visible);
+        }
         for (TextElement element : textElements) {
             element.setVisible(visible);
         }
@@ -113,6 +149,11 @@ public class PerformanceDisplay {
     }
 
     public void cleanup() {
+        if (backgroundBox != null) {
+            uiManager.removeElement(backgroundBox);
+            backgroundBox.cleanup();
+            backgroundBox = null;
+        }
         for (TextElement element : textElements) {
             uiManager.removeElement(element);
         }
