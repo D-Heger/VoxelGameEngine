@@ -414,6 +414,11 @@ public class Renderer {
         int neighborLocalX = localBlockPosInCurrentChunk.x + neighborOffset.x;
         int neighborLocalY = localBlockPosInCurrentChunk.y + neighborOffset.y;
         int neighborLocalZ = localBlockPosInCurrentChunk.z + neighborOffset.z;
+        // Cull downward faces at world bottom (y < 0)
+        int worldNeighborY = currentChunk.getPosition().y * Chunk.SIZE_Y + neighborLocalY;
+        if (faceDir == Direction.DOWN && worldNeighborY < 0) {
+            return false;
+        }
 
         BlockProperties neighborBlockProps;
 
