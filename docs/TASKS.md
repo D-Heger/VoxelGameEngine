@@ -514,20 +514,38 @@
 
 - - [ ] **Task ID:** P4-T2
   - **Name:** Mesh Optimization
-  - **Description:** Optimize the mesh data structure to reduce memory usage and improve rendering performance by using a more efficient data structure for storing mesh data for a whole chunk instead of each block.
+  - **Description:** Optimize the mesh data structure to reduce memory usage and improve rendering performance. Create optimized meshes for each chunk, potentially using a single mesh per chunk with multiple submeshes for different block types. Add support for sending mesh data to the GPU in a more efficient way. This should not yet include advanced optimizations like greedy meshing, lod or multithreaded meshing.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T9, `engine-renderer` module
-  - **Subtasks:** 
+  - **Subtasks:**
     - [ ] **Subtask ID:** P4-T2.1
-      - **Name:** Refactor Mesh Class
-      - **Description:** Refactor the `Mesh` class to store mesh data for a whole chunk instead of each block. This includes changing the data structure to use a single vertex buffer and index buffer for the whole chunk.
-      - **Deliverables:** Refactored `Mesh` class that stores mesh data for a whole chunk.
-      - **Implementation Context:** (TBD)
+      - **Name:** Design ChunkMesh Class Structure
+      - **Description:** Create a dedicated `ChunkMesh` class to represent all visible faces in a chunk as a single optimized mesh. Define the internal data structure to efficiently store vertex data, indices, and texture information for all visible faces.
+      - **Deliverables:** `ChunkMesh.java` class with appropriate fields and methods to handle mesh data.
     - [ ] **Subtask ID:** P4-T2.2
+      - **Name:** Implement Mesh Building from Culled Faces
+      - **Description:** Implement methods to build a complete chunk mesh by analyzing which faces need to be rendered (using the existing face culling logic). The mesh building process should collect all visible faces into a single efficient data structure.
+      - **Deliverables:** Methods in `ChunkMesh` to construct mesh data from a chunk, integrating with the existing face culling logic.
+    - [ ] **Subtask ID:** P4-T2.3
+      - **Name:** Group Mesh Data by Block Type
+      - **Description:** Organize the chunk mesh data to group faces by block type or texture. This allows for efficient batch rendering with minimal texture binding changes.
+      - **Deliverables:** Data structures and methods in `ChunkMesh` to support grouping by block type.
+    - [ ] **Subtask ID:** P4-T2.4
+      - **Name:** Implement Mesh Caching
+      - **Description:** Create a system to cache chunk meshes and only rebuild them when necessary (e.g., when blocks in the chunk or adjacent chunks change). Track mesh state (e.g., NEEDS_REBUILD, UP_TO_DATE) in the `Chunk` class.
+      - **Deliverables:** Mesh caching system and integration with the chunk state management.
+    - [ ] **Subtask ID:** P4-T2.5
+      - **Name:** Optimize GPU Data Transfer
+      - **Description:** Implement efficient buffering strategies to minimize data transfer to the GPU. Consider using buffer objects that can be updated partially when only a portion of the chunk changes.
+      - **Deliverables:** Optimized VAO/VBO management for chunk meshes.
+    - [ ] **Subtask ID:** P4-T2.6
       - **Name:** Update Renderer to Use Chunk Meshes
-      - **Description:** Update the `Renderer` class to use the new chunk meshes instead of individual block meshes. This includes updating the rendering logic to render the whole chunk at once.
-      - **Deliverables:** Updated `Renderer` class that uses chunk meshes.
-      - **Implementation Context:** (TBD)
+      - **Description:** Refactor the `renderChunks()` method to use the new chunk mesh system instead of rendering individual faces. Implement batched rendering of chunk meshes grouped by texture.
+      - **Deliverables:** Updated `Renderer.java` with optimized chunk rendering using the new mesh system.
+    - [ ] **Subtask ID:** P4-T2.7
+      - **Name:** Add Performance Metrics
+      - **Description:** Implement tracking for key performance metrics (vertices per chunk, draw calls, FPS with varying view distances) to validate the optimization work and identify bottlenecks.
+      - **Deliverables:** Performance measurement system and baseline metrics.
 
 - - [ ] **Task ID:** P4-T3
   - **Name:** Player Entity (`game`)
