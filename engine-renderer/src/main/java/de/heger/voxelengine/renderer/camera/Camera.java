@@ -74,7 +74,7 @@ public class Camera {
     public void processKeyboard(InputManager inputManager, float deltaTime) {
         float velocity = movementSpeed * deltaTime;
         if (inputManager.isKeyPressed(GLFW_KEY_LEFT_CONTROL)) {
-            velocity *= 2;
+            velocity *= 5;
         }
         if (inputManager.isKeyPressed(GLFW_KEY_W)) {
             position.add(new Vector3f(front).mul(velocity));

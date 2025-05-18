@@ -560,16 +560,16 @@
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P4-T2, `engine-renderer` module
   - **Subtasks:**
-    - [ ] **Subtask ID:** P4-T3.1
+    - [x] **Subtask ID:** P4-T3.1
       - **Name:** Rework frustum culling
       - **Description:** Rework existing frustum culling implementation. Use the new chunk mesh system to determine which chunks are visible. If possible, chunks which are partially visible should be partially culled instead of fully culled.
       - **Deliverables:** Reworked frustum culling implementation.
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** The existing frustum culling mechanism in `Renderer.java` (primarily from P3-T9) was reviewed in the context of the P4-T2 `ChunkMesh` system. The `Renderer` correctly uses a `FrustumCuller` (JOML-based) and per-chunk `AABB` objects to determine if a chunk is visible. If a chunk's AABB is entirely outside the frustum, all its associated `ChunkMesh` objects are skipped for processing and rendering. If the AABB intersects or is inside the frustum (i.e., the chunk is partially or fully visible), its complete `ChunkMesh` objects are rendered. This chunk-level culling strategy is appropriate for the current `ChunkMesh` architecture, where meshes represent entire chunks. "Partially culling" the *contents* of an intersecting chunk at a sub-chunk level would require a more granular meshing approach or shader-based culling, deemed out of scope for this rework. The current implementation is considered robust for chunk-level frustum culling and integrates correctly with the `ChunkMesh` lifecycle (caching, building, rendering). No code changes were necessary.
     - [ ] **Subtask ID:** P4-T3.2
       - **Name:** Add occlusion culling
-      - **Description:** Add occlusion culling to the renderer. This should be based on the new chunk mesh system, and should use a simple occlusion culling algorithm (e.g., bounding box intersection) to determine which faces in a chunk are visible.
+      - **Description:** Add occlusion culling to the renderer, to cull chunk meshes that are fully occluded by other chunks. Integrate this into the renderer's chunk rendering process.
       - **Deliverables:** New `OcclusionCuller` class.
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** 
 
 - - [ ] **Task ID:** P4-T4
   - **Name:** Add debug utilities
