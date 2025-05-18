@@ -512,13 +512,22 @@
   - **Subtasks:** (none)
   - **Implementation Context:** Face culling was implemented by modifying `Mesh.java` and `Renderer.java`. In `Mesh.java`, static methods (e.g., `createUpFace`, `createNorthFace`) were added to generate individual 1x1 quad meshes for each of the six block faces, including vertex positions, UV coordinates, and normals; a private helper `createSingleFace` supports this. Texture V coordinates for side faces were adjusted to correct orientation. In `Renderer.java`, a `Map<Direction, Mesh> faceMeshes` now stores these pre-generated face meshes, initialized in `init()` and cleaned in `cleanup()`. The `renderChunks()` method was reworked: for each non-air block, it iterates through its six faces. A new private helper `isFaceVisible(Chunk, Vec3i, Direction)` determines if a face is visible by checking the transparency of the adjacent block (in the same or neighboring chunk, accessed via `ChunkManager` and `BlockRegistry`). If a face is visible (or the neighbor chunk is unloaded), the correct texture for that specific face (from `BlockProperties`) and its corresponding pre-generated mesh are used for rendering, replacing the old `cubeMesh` based rendering for chunks.
 
-- - [x] **Task ID:** P4-T2
+- - [ ] **Task ID:** P4-T2
   - **Name:** Mesh Optimization
   - **Description:** Optimize the mesh data structure to reduce memory usage and improve rendering performance by using a more efficient data structure for storing mesh data for a whole chunk instead of each block.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T9, `engine-renderer` module
-  - **Subtasks:** (none)
-  - **Implementation Context:** 
+  - **Subtasks:** 
+    - [ ] **Subtask ID:** P4-T2.1
+      - **Name:** Refactor Mesh Class
+      - **Description:** Refactor the `Mesh` class to store mesh data for a whole chunk instead of each block. This includes changing the data structure to use a single vertex buffer and index buffer for the whole chunk.
+      - **Deliverables:** Refactored `Mesh` class that stores mesh data for a whole chunk.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T2.2
+      - **Name:** Update Renderer to Use Chunk Meshes
+      - **Description:** Update the `Renderer` class to use the new chunk meshes instead of individual block meshes. This includes updating the rendering logic to render the whole chunk at once.
+      - **Deliverables:** Updated `Renderer` class that uses chunk meshes.
+      - **Implementation Context:** (TBD)
 
 - - [ ] **Task ID:** P4-T3
   - **Name:** Player Entity (`game`)
