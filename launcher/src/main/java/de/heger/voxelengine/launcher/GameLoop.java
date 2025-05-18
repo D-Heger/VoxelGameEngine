@@ -361,9 +361,12 @@ public class GameLoop {
             int actualUnloads = 0;
             for (ChunkPos posToUnload : chunksToUnload) {
                 if (chunkManager.containsChunk(posToUnload)) {
-                    chunkManager.removeChunk(posToUnload);
+                    // Ensure renderer resources are freed for this chunk.
+                    renderer.releaseChunkResources(posToUnload);
+
+                    chunkManager.removeChunk(posToUnload); // Remove from game logic management
                     actualUnloads++;
-                    this.chunkGenerationService.cancelTask(posToUnload);
+                    this.chunkGenerationService.cancelTask(posToUnload); // Cancel any pending generation
                 }
             }
             if (actualUnloads > 0) {

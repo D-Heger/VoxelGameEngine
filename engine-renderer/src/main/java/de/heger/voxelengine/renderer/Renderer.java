@@ -673,4 +673,19 @@ public class Renderer {
     public boolean isWireframeMode() {
         return wireframeMode;
     }
+
+    /**
+     * Releases any renderer-specific resources associated with a chunk,
+     * primarily its meshes.
+     * @param chunkPos The position of the chunk whose resources are to be released.
+     */
+    public void releaseChunkResources(ChunkPos chunkPos) {
+        Map<String, ChunkMesh> meshesForChunk = activeChunkMeshes.remove(chunkPos);
+        if (meshesForChunk != null) {
+            logger.debug("Releasing {} sub-meshes for chunk {}.", meshesForChunk.size(), chunkPos);
+            for (ChunkMesh mesh : meshesForChunk.values()) {
+                mesh.cleanup(); // Assumes ChunkMesh has a cleanup method for VBO/VAO
+            }
+        }
+    }
 }
