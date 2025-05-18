@@ -512,7 +512,7 @@
   - **Subtasks:** (none)
   - **Implementation Context:** Face culling was implemented by modifying `Mesh.java` and `Renderer.java`. In `Mesh.java`, static methods (e.g., `createUpFace`, `createNorthFace`) were added to generate individual 1x1 quad meshes for each of the six block faces, including vertex positions, UV coordinates, and normals; a private helper `createSingleFace` supports this. Texture V coordinates for side faces were adjusted to correct orientation. In `Renderer.java`, a `Map<Direction, Mesh> faceMeshes` now stores these pre-generated face meshes, initialized in `init()` and cleaned in `cleanup()`. The `renderChunks()` method was reworked: for each non-air block, it iterates through its six faces. A new private helper `isFaceVisible(Chunk, Vec3i, Direction)` determines if a face is visible by checking the transparency of the adjacent block (in the same or neighboring chunk, accessed via `ChunkManager` and `BlockRegistry`). If a face is visible (or the neighbor chunk is unloaded), the correct texture for that specific face (from `BlockProperties`) and its corresponding pre-generated mesh are used for rendering, replacing the old `cubeMesh` based rendering for chunks.
 
-- - [ ] **Task ID:** P4-T2
+- - [x] **Task ID:** P4-T2
   - **Name:** Mesh Optimization
   - **Description:** Optimize the mesh data structure to reduce memory usage and improve rendering performance. Create optimized meshes for each chunk, potentially using a single mesh per chunk with multiple submeshes for different block types. Add support for sending mesh data to the GPU in a more efficient way. This should not yet include advanced optimizations like greedy meshing, lod or multithreaded meshing, nor implement a texture atlas.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
@@ -555,27 +555,71 @@
       - **Implementation Context:** Added `getIndexCount()` to `ChunkMesh.java`. In `Renderer.java`, added fields `totalIndicesRenderedLastFrame` and `drawCallsLastFrame`, along with internal per-frame counters. These are reset at the start of `renderChunks()` and incremented when each `ChunkMesh` is rendered (indices from `getIndexCount()`, draw calls by 1). Getters for these metrics were exposed. In `GameLoop.java`, these values are retrieved from the renderer each second and appended to the window title string, displaying total draw calls and rendered indices (e.g., "Idx: 150k" for 150,000 indices).
 
 - - [ ] **Task ID:** P4-T3
+  - **Name:** Rework culling implementation
+  - **Description:** Rework existing frustum culling implementation to use the new chunk mesh system, and add occlusion culling.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P4-T2, `engine-renderer` module
+  - **Subtasks:**
+    - [ ] **Subtask ID:** P4-T3.1
+      - **Name:** Rework frustum culling
+      - **Description:** Rework existing frustum culling implementation. Use the new chunk mesh system to determine which chunks are visible. If possible, chunks which are partially visible should be partially culled instead of fully culled.
+      - **Deliverables:** Reworked frustum culling implementation.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T3.2
+      - **Name:** Add occlusion culling
+      - **Description:** Add occlusion culling to the renderer. This should be based on the new chunk mesh system, and should use a simple occlusion culling algorithm (e.g., bounding box intersection) to determine which faces in a chunk are visible.
+      - **Deliverables:** New `OcclusionCuller` class.
+      - **Implementation Context:** (TBD)
+
+- - [ ] **Task ID:** P4-T4
+  - **Name:** Add debug utilities
+  - **Description:** Add debug utilities, including wireframe rendering and a rework of the performance display.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P4-T3, `engine-renderer` module
+  - **Subtasks:**
+    - [ ] **Subtask ID:** P4-T4.1
+      - **Name:** Add wireframe rendering
+      - **Description:** Add wireframe rendering to the renderer. This should be a new class `WireframeRenderer` that takes a `ChunkMesh` and renders it in wireframe mode. This should be toggled via a key binding (default: `F3`).
+      - **Deliverables:** New `WireframeRenderer` class.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T4.2
+      - **Name:** Add ui and text rendering
+      - **Description:** Integrate a performant ui and text rendering library.
+      - **Deliverables:** Changed gradle dependencies.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T4.3
+      - **Name:** Create an example ui
+      - **Description:** Create an example ui with a button and a text field.
+      - **Deliverables:** Example ui.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T4.4
+      - **Name:** Rework performance display
+      - **Description:** Rework the performance display to be an overlay on the screen, instead of updating the window title.
+      - **Deliverables:** Reworked performance display.
+      - **Implementation Context:** (TBD)
+
+- - [ ] **Task ID:** P4-T5
   - **Name:** Player Entity (`game`)
   - **Description:** Create a `Player` class representing the player in the world, holding position, orientation, and potentially other state.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T2, `game` module
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T4
+- - [ ] **Task ID:** P4-T6
   - **Name:** Basic Player Movement (`game`, `engine-physics`)
   - **Description:** Implement movement logic (walking, jumping) based on input. Integrate basic gravity.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T5, P4-T3, `game`, `engine-physics` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T5
+- - [ ] **Task ID:** P4-T7
   - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement Axis-Aligned Bounding Box (AABB) collision detection between the player entity and world blocks. Prevent player from moving into solid blocks.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T2, P4-3, P4-T4, `engine-physics`, `engine-world`, `game` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T6
+- - [ ] **Task ID:** P4-T8
   - **Name:** Raycasting (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement a raycasting algorithm (e.g., Amanatides & Woo) to determine the block the player is looking at.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
