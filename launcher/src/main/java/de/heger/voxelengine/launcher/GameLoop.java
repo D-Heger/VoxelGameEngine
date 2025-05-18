@@ -367,7 +367,7 @@ public class GameLoop {
                 }
             }
             if (actualUnloads > 0) {
-                LOGGER.info("Successfully unloaded {} chunks. {} were requested for unload.", actualUnloads,
+                LOGGER.debug("Successfully unloaded {} chunks. {} were requested for unload.", actualUnloads,
                         chunksToUnload.size());
             }
         }
