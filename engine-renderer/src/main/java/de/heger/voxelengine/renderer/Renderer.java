@@ -426,7 +426,7 @@ public class Renderer {
             neighborLocalY >= 0 && neighborLocalY < Chunk.SIZE_Y &&
             neighborLocalZ >= 0 && neighborLocalZ < Chunk.SIZE_Z) {
             // Neighbor is within the same chunk
-            neighborBlockProps = currentChunk.getBlockProperties(new Vec3i(neighborLocalX, neighborLocalY, neighborLocalZ));
+            neighborBlockProps = currentChunk.getBlockProperties(neighborLocalX, neighborLocalY, neighborLocalZ);
         } else {
             // Neighbor is in an adjacent chunk
             Vec3i currentBlockWorldPos = CoordinateUtils.localToWorldCoords(currentChunk.getPosition(), localBlockPosInCurrentChunk);
