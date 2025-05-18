@@ -56,11 +56,12 @@ public class GameLoop {
     private PerformanceTrackingTaskResultHandler performanceTrackingHandler;
     private String originalWindowTitle;
     private int currentFps = 0;
-    private int currentUps = 0;
-
-    // P4-T2.7: Performance metrics storage
+    private int currentUps = 0;    // P4-T2.7: Performance metrics storage
     private long lastFrameRenderedIndices = 0;
     private int lastFrameDrawCalls = 0;
+    
+    // P4-T3.2: Occlusion culling stats
+    private int lastFrameOcclusionCulledChunks = 0;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
@@ -487,19 +488,19 @@ public class GameLoop {
                     this.currentUps = updates;
                     LOGGER.debug("FPS: {}, UPS: {}", this.currentFps, this.currentUps);
                     frames = 0;
-                    updates = 0;
-
-                    // Update performance metrics for display
+                    updates = 0;                    // Update performance metrics for display
                     lastFrameRenderedIndices = renderer.getTotalIndicesRenderedLastFrame();
                     lastFrameDrawCalls = renderer.getDrawCallsLastFrame();
+                    lastFrameOcclusionCulledChunks = renderer.getOcclusionCulledChunksLastFrame();
 
-                    String perfMetricsString = String.format("FPS: %d, UPS: %d, Avg Gen: %.2fms (%d samples), DrawCalls: %d, Idx: %dk",
+                    String perfMetricsString = String.format("FPS: %d, UPS: %d, Avg Gen: %.2fms (%d samples), DrawCalls: %d, Idx: %dk, Occlusion: %d chunks",
                         this.currentFps,
                         this.currentUps,
                         performanceTrackingHandler.getAverageGenerationTimeMillis(),
                         performanceTrackingHandler.getSampleCount(),
                         lastFrameDrawCalls,
-                        lastFrameRenderedIndices / 1000
+                        lastFrameRenderedIndices / 1000,
+                        lastFrameOcclusionCulledChunks
                     );
                     window.setTitle(this.originalWindowTitle + " | " + perfMetricsString);
                 }

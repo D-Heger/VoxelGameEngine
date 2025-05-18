@@ -21,6 +21,7 @@ import org.lwjgl.opengl.GL11;
 /**
  * Mesh encapsulates a VAO, VBO, and EBO for rendering simple shapes.
  */
+@Deprecated
 public class Mesh {
     private final int vaoId;
     private final int vboId;

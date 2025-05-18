@@ -7,6 +7,7 @@ import de.heger.voxelengine.platform.Window;
 import de.heger.voxelengine.renderer.camera.Camera;
 import de.heger.voxelengine.renderer.culling.AABB;
 import de.heger.voxelengine.renderer.culling.FrustumCuller;
+import de.heger.voxelengine.renderer.culling.OcclusionCuller;
 import de.heger.voxelengine.renderer.mesh.Mesh;
 import de.heger.voxelengine.renderer.shader.ShaderProgram;
 import de.heger.voxelengine.renderer.texture.Texture;
@@ -53,6 +54,7 @@ public class Renderer {
     private TextureLoader textureLoader;
     private Map<String, Texture> textureMap; // Stores textures loaded based on BlockRegistry
     private FrustumCuller frustumCuller; // Add FrustumCuller field
+    private OcclusionCuller occlusionCuller; // Add OcclusionCuller field for occlusion culling
 
     private Map<Direction, Mesh> faceMeshes; // For face culling - TO BE REMOVED/REPLACED by ChunkMesh
     private ChunkManager chunkManager; // For neighbor chunk access
@@ -66,6 +68,8 @@ public class Renderer {
     private int drawCallsLastFrame = 0;
     private long currentFrameIndices = 0;
     private int currentFrameDrawCalls = 0;
+    // Number of chunks culled by occlusion in the last frame
+    private int occlusionCulledChunksLastFrame = 0;
 
     public Renderer(Window window) {
         this.window = window;
@@ -75,6 +79,7 @@ public class Renderer {
         this.faceMeshes = new EnumMap<>(Direction.class); // Initialize faceMeshes map
         this.chunkManager = ChunkManager.getInstance(); // Get ChunkManager instance
         this.blockRegistry = BlockRegistry.getInstance(); // Get BlockRegistry instance
+        this.occlusionCuller = new OcclusionCuller(); // Initialize occlusion culler
     }
 
     public void init() {
@@ -361,6 +366,9 @@ public class Renderer {
 
         Set<ChunkPos> currentlyVisibleAndMeshedChunks = new HashSet<>();
 
+        // Apply frustum culling first to create a list of potentially visible chunks
+        Set<Chunk> chunksInFrustum = new HashSet<>();
+        
         for (Chunk chunk : chunks) {
             if (chunk == null) continue;
 
@@ -369,7 +377,22 @@ public class Renderer {
             if (!frustumCuller.testAABB(chunkAABB)) {
                 continue; // Skip chunk if not in frustum
             }
-
+            
+            // Add to the set of chunks that passed frustum culling
+            chunksInFrustum.add(chunk);
+        }
+        
+        Collection<Chunk> visibleChunks = occlusionCuller.filterOccludedChunks(
+            chunksInFrustum, 
+            camera.getPosition(),
+            camera.getFront()
+        );
+        
+        // Track occlusion culling statistics
+        occlusionCulledChunksLastFrame = chunksInFrustum.size() - visibleChunks.size();
+        
+        // Process and render the visible chunks
+        for (Chunk chunk : visibleChunks) {
             ChunkPos chunkPos = chunk.getPosition();
             currentlyVisibleAndMeshedChunks.add(chunkPos);
 
@@ -576,6 +599,12 @@ public class Renderer {
             logger.debug("Freed debug callback.");
         }
 
+        // Clean up occlusion culler
+        if (occlusionCuller != null) {
+            occlusionCuller.clearOpaqueCache();
+            logger.debug("Cleared occlusion culler cache.");
+        }
+        
         // Destroy OpenGL context? Usually handled by Window class on close.
         // GL.destroy(); // Don't call this here, Window manages context lifetime
 
@@ -593,5 +622,15 @@ public class Renderer {
 
     public int getDrawCallsLastFrame() {
         return drawCallsLastFrame;
+    }
+    
+    /**
+     * Gets the number of chunks that were culled by occlusion in the last frame.
+     * This can be used for performance monitoring.
+     * 
+     * @return The number of chunks culled by occlusion.
+     */
+    public int getOcclusionCulledChunksLastFrame() {
+        return occlusionCulledChunksLastFrame;
     }
 }
