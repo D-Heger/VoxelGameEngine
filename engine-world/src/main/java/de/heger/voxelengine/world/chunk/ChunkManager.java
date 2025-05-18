@@ -70,7 +70,21 @@ public class ChunkManager {
      */
     public synchronized void removeChunk(ChunkPos position) {
         Validate.notNull(position, "ChunkPos cannot be null");
-        chunks.remove(position);
+        Chunk chunkToRemove = chunks.get(position); // Get the chunk before removing it
+
+        if (chunkToRemove != null) {
+            // Iterate through all directions to find neighbors
+            for (Direction direction : Direction.values()) {
+                Chunk neighbor = chunkToRemove.getNeighbor(direction);
+                if (neighbor != null) {
+                    // Clear the neighbor's reference to the chunk being removed
+                    neighbor.setNeighbor(direction.getOpposite(), null);
+                }
+                // Clear the chunk's own reference to this neighbor
+                chunkToRemove.setNeighbor(direction, null);
+            }
+        }
+        chunks.remove(position); // Now remove the chunk from the manager
     }
 
     /**
