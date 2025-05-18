@@ -35,9 +35,10 @@ public class Mesh {
     }
 
     /**
-     * Creates a Mesh from given vertex data (positions, texture coords) and indices.
+     * Creates a Mesh from given vertex data (positions, texture coords, normals) and indices.
+     * Vertex data should be interleaved: 3 pos, 2 tex, 3 normal.
      *
-     * @param vertices Vertex data (e.g., [posX, posY, posZ, texU, texV, ...])
+     * @param vertices Vertex data
      * @param indices  Triangle indices
      * @return The created Mesh object.
      */
@@ -102,6 +103,105 @@ public class Mesh {
         glDeleteBuffers(eboId);
         // Delete VAO
         glDeleteVertexArrays(vaoId);
+    }
+
+    // Helper method to create a quad mesh for a specific face
+    // Vertices array should contain 4 vertices, each with 8 floats (pos, uv, normal)
+    // Indices array should contain 6 indices for 2 triangles forming the quad
+    private static Mesh createSingleFace(float[] faceVertices, int[] faceIndices) {
+        if (faceVertices.length != 4 * 8) { // 4 vertices, 8 floats each
+            throw new IllegalArgumentException("Vertex data for a single face must contain 32 floats (4 vertices * (3 pos + 2 uv + 3 normal)).");
+        }
+        if (faceIndices.length != 6) { // 2 triangles, 3 indices each
+            throw new IllegalArgumentException("Index data for a single face must contain 6 integers.");
+        }
+        return create(faceVertices, faceIndices);
+    }
+
+    // Standard indices for a quad with vertices v0, v1, v2, v3 in CCW order
+    private static final int[] QUAD_INDICES = {0, 1, 2, 0, 2, 3};
+
+    public static Mesh createUpFace() { // Y+
+        float[] vertices = {
+                // Positions             // TexCoords    // Normals (0,1,0)
+                -0.5f, 0.5f,  0.5f,      0.0f, 0.0f,     0.0f, 1.0f, 0.0f, // v0 (front-left on top)
+                 0.5f, 0.5f,  0.5f,      1.0f, 0.0f,     0.0f, 1.0f, 0.0f, // v1 (front-right on top)
+                 0.5f, 0.5f, -0.5f,      1.0f, 1.0f,     0.0f, 1.0f, 0.0f, // v2 (back-right on top)
+                -0.5f, 0.5f, -0.5f,      0.0f, 1.0f,     0.0f, 1.0f, 0.0f  // v3 (back-left on top)
+        };
+        return createSingleFace(vertices, QUAD_INDICES);
+    }
+
+    public static Mesh createDownFace() { // Y-
+        float[] vertices = {
+                // Positions             // TexCoords    // Normals (0,-1,0)
+                -0.5f, -0.5f, -0.5f,     0.0f, 0.0f,     0.0f, -1.0f, 0.0f, // v0 (front-left from below)
+                 0.5f, -0.5f, -0.5f,     1.0f, 0.0f,     0.0f, -1.0f, 0.0f, // v1 (front-right from below)
+                 0.5f, -0.5f,  0.5f,     1.0f, 1.0f,     0.0f, -1.0f, 0.0f, // v2 (back-right from below)
+                -0.5f, -0.5f,  0.5f,     0.0f, 1.0f,     0.0f, -1.0f, 0.0f  // v3 (back-left from below)
+        };
+        // For downward face, to be CCW from outside (below), order v0,v3,v2 and v0,v2,v1
+        // Or, use standard quad indices and ensure vertices are ordered for CCW when viewed from outside.
+        // Current: v0(-x,-y,-z), v1(+x,-y,-z), v2(+x,-y,+z), v3(-x,-y,+z)
+        // Tri1: (-x,-y,-z)-(+x,-y,-z)-(+x,-y,+z). Cross((1,0,0),(1,0,1)) -> (0,-1,0) -> CW from outside.
+        // Need to flip indices or vertex order for bottom face if GL_CULL_FACE GL_BACK is on.
+        // If vertices are defined v0, v1, v2, v3:
+        // v0(-0.5f, -0.5f,  0.5f) UV(0,0) // Front-Left (when looking towards -Z on the bottom face)
+        // v1( 0.5f, -0.5f,  0.5f) UV(1,0) // Front-Right
+        // v2( 0.5f, -0.5f, -0.5f) UV(1,1) // Back-Right
+        // v3(-0.5f, -0.5f, -0.5f) UV(0,1) // Back-Left
+        // This makes it CCW when viewed from below.
+        float[] downVertices = {
+                -0.5f, -0.5f,  0.5f,     0.0f, 0.0f,      0.0f, -1.0f, 0.0f,
+                 0.5f, -0.5f,  0.5f,     1.0f, 0.0f,      0.0f, -1.0f, 0.0f,
+                 0.5f, -0.5f, -0.5f,     1.0f, 1.0f,      0.0f, -1.0f, 0.0f,
+                -0.5f, -0.5f, -0.5f,     0.0f, 1.0f,      0.0f, -1.0f, 0.0f
+        };
+        return createSingleFace(downVertices, QUAD_INDICES);
+    }
+
+    public static Mesh createNorthFace() { // Z-
+        float[] vertices = {
+                // Positions             // TexCoords    // Normals (0,0,-1)
+                 0.5f, -0.5f, -0.5f,     0.0f, 1.0f,     0.0f, 0.0f, -1.0f, // v0 (bottom-right on face) - V flipped
+                -0.5f, -0.5f, -0.5f,     1.0f, 1.0f,     0.0f, 0.0f, -1.0f, // v1 (bottom-left on face)  - V flipped
+                -0.5f,  0.5f, -0.5f,     1.0f, 0.0f,     0.0f, 0.0f, -1.0f, // v2 (top-left on face)     - V flipped
+                 0.5f,  0.5f, -0.5f,     0.0f, 0.0f,     0.0f, 0.0f, -1.0f  // v3 (top-right on face)    - V flipped
+        };
+        return createSingleFace(vertices, QUAD_INDICES);
+    }
+
+    public static Mesh createSouthFace() { // Z+
+        float[] vertices = {
+                // Positions             // TexCoords    // Normals (0,0,1)
+                -0.5f, -0.5f,  0.5f,     0.0f, 1.0f,     0.0f, 0.0f, 1.0f,  // v0 (bottom-left on face) - V flipped
+                 0.5f, -0.5f,  0.5f,     1.0f, 1.0f,     0.0f, 0.0f, 1.0f,  // v1 (bottom-right on face) - V flipped
+                 0.5f,  0.5f,  0.5f,     1.0f, 0.0f,     0.0f, 0.0f, 1.0f,  // v2 (top-right on face)    - V flipped
+                -0.5f,  0.5f,  0.5f,     0.0f, 0.0f,     0.0f, 0.0f, 1.0f   // v3 (top-left on face)     - V flipped
+        };
+        return createSingleFace(vertices, QUAD_INDICES);
+    }
+
+    public static Mesh createWestFace() { // X-
+        float[] vertices = {
+                // Positions             // TexCoords    // Normals (-1,0,0)
+                -0.5f, -0.5f, -0.5f,     0.0f, 1.0f,    -1.0f, 0.0f, 0.0f,  // v0 (bottom-right on face, view from -X) - V flipped
+                -0.5f, -0.5f,  0.5f,     1.0f, 1.0f,    -1.0f, 0.0f, 0.0f,  // v1 (bottom-left on face) - V flipped
+                -0.5f,  0.5f,  0.5f,     1.0f, 0.0f,    -1.0f, 0.0f, 0.0f,  // v2 (top-left on face)    - V flipped
+                -0.5f,  0.5f, -0.5f,     0.0f, 0.0f,    -1.0f, 0.0f, 0.0f   // v3 (top-right on face)   - V flipped
+        };
+        return createSingleFace(vertices, QUAD_INDICES);
+    }
+
+    public static Mesh createEastFace() { // X+
+        float[] vertices = {
+                // Positions             // TexCoords    // Normals (1,0,0)
+                 0.5f, -0.5f,  0.5f,     0.0f, 1.0f,     1.0f, 0.0f, 0.0f,  // v0 (bottom-left on face, view from +X) - V flipped
+                 0.5f, -0.5f, -0.5f,     1.0f, 1.0f,     1.0f, 0.0f, 0.0f,  // v1 (bottom-right on face) - V flipped
+                 0.5f,  0.5f, -0.5f,     1.0f, 0.0f,     1.0f, 0.0f, 0.0f,  // v2 (top-right on face)    - V flipped
+                 0.5f,  0.5f,  0.5f,     0.0f, 0.0f,     1.0f, 0.0f, 0.0f   // v3 (top-left on face)     - V flipped
+        };
+        return createSingleFace(vertices, QUAD_INDICES);
     }
 
     /**

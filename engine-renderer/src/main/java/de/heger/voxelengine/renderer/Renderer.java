@@ -17,6 +17,8 @@ import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkPos;
 import de.heger.voxelengine.world.chunk.CoordinateUtils;
 import de.heger.voxelengine.core.math.Vec3i;
+import de.heger.voxelengine.world.chunk.Direction;
+import de.heger.voxelengine.world.chunk.ChunkManager;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -29,6 +31,7 @@ import static org.lwjgl.glfw.GLFW.glfwGetTime;
 import static org.lwjgl.opengl.GL11.*;
 
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -48,11 +51,18 @@ public class Renderer {
     private Map<String, Texture> textureMap; // Stores textures loaded based on BlockRegistry
     private FrustumCuller frustumCuller; // Add FrustumCuller field
 
+    private Map<Direction, Mesh> faceMeshes; // For face culling
+    private ChunkManager chunkManager; // For neighbor chunk access
+    private BlockRegistry blockRegistry; // For block properties access
+
     public Renderer(Window window) {
         this.window = window;
         this.camera = new Camera();
         this.textureLoader = new TextureLoader();
         this.textureMap = new HashMap<>();
+        this.faceMeshes = new EnumMap<>(Direction.class); // Initialize faceMeshes map
+        this.chunkManager = ChunkManager.getInstance(); // Get ChunkManager instance
+        this.blockRegistry = BlockRegistry.getInstance(); // Get BlockRegistry instance
     }
 
     public void init() {
@@ -113,6 +123,21 @@ public class Renderer {
 
         // Initialize simple cube mesh (now uses UVs) - Keep for testing
         cubeMesh = Mesh.createCube();
+
+        // Initialize face meshes for face culling
+        logger.info("Initializing face meshes for culling...");
+        try {
+            faceMeshes.put(Direction.UP, Mesh.createUpFace());
+            faceMeshes.put(Direction.DOWN, Mesh.createDownFace());
+            faceMeshes.put(Direction.NORTH, Mesh.createNorthFace());
+            faceMeshes.put(Direction.SOUTH, Mesh.createSouthFace());
+            faceMeshes.put(Direction.WEST, Mesh.createWestFace());
+            faceMeshes.put(Direction.EAST, Mesh.createEastFace());
+            logger.info("Face meshes initialized.");
+        } catch (Exception e) {
+            logger.error("Failed to initialize face meshes", e);
+            throw new RuntimeException("Failed to initialize face meshes", e);
+        }
 
         logger.info("OpenGL context initialized successfully.");
     }
@@ -292,7 +317,7 @@ public class Renderer {
      * @param chunks The list of chunks to render.
      */
     public void renderChunks(Collection<Chunk> chunks) {
-        if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null || cubeMesh == null || textureMap.isEmpty() || BlockRegistry.getInstance() == null) {
+        if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null || faceMeshes.isEmpty() || textureMap.isEmpty() || blockRegistry == null) {
             return;
         }
 
@@ -302,100 +327,122 @@ public class Renderer {
         defaultShaderProgram.setUniform("view", currentViewMatrix);
 
         // Set lighting uniforms
-        defaultShaderProgram.setUniform("lightDir", new Vector3f(-0.5f, -1.0f, -0.5f)); // Sunlight direction
-        defaultShaderProgram.setUniform("lightColor", new Vector3f(1.0f, 0.95f, 0.8f)); // Slightly warm sunlight
-        defaultShaderProgram.setUniform("ambientColor", new Vector3f(0.4f, 0.5f, 0.6f)); // Slightly blue-tinted ambient
-        defaultShaderProgram.setUniform("ambientStrength", 0.6f); // Increased ambient strength
+        defaultShaderProgram.setUniform("lightDir", new Vector3f(-0.5f, -1.0f, -0.5f));
+        defaultShaderProgram.setUniform("lightColor", new Vector3f(1.0f, 0.95f, 0.8f));
+        defaultShaderProgram.setUniform("ambientColor", new Vector3f(0.4f, 0.5f, 0.6f));
+        defaultShaderProgram.setUniform("ambientStrength", 0.6f);
+        defaultShaderProgram.setUniform("uTexture", 0); // Tell shader to use texture unit 0
 
-        // Create a reusable model matrix
         Matrix4f modelMatrix = new Matrix4f();
-
-        // Frustum Culling Logic
-        // Ensure FrustumCuller is up-to-date with the latest camera and projection matrices.
-        // updateProjectionMatrix() should be called if the projection changes (e.g., window resize).
-        // If only the camera moves, the frustum culler needs to be updated with the new view matrix.
         Matrix4f viewProjectionMatrix = new Matrix4f(camera.getProjectionMatrix()).mul(currentViewMatrix);
+
         if (this.frustumCuller == null) {
-            // This case should ideally be handled by init calling updateProjectionMatrix,
-            // but as a fallback or if camera is not ready during init.
             this.frustumCuller = new FrustumCuller(viewProjectionMatrix);
-            logger.warn("FrustumCuller was null and re-initialized in renderChunks. Ensure camera is ready earlier if possible.");
         } else {
-            // Update the culler with the potentially new viewProjectionMatrix
             this.frustumCuller.updateViewProjectionMatrix(viewProjectionMatrix);
         }
 
         for (Chunk chunk : chunks) {
             if (chunk == null) continue;
 
-            // Create AABB for the current chunk
             AABB chunkAABB = AABB.fromChunk(chunk);
-
-            // Test AABB against the frustum using FrustumCuller
             if (!frustumCuller.testAABB(chunkAABB)) {
-                // logger.trace("Culled chunk at {},{}", chunk.getPosition().x, chunk.getPosition().z); // Can be spammy
-                continue; // Skip rendering this chunk
+                continue;
             }
 
-            // Calculate chunk's base world coordinates (min corner)
-            // Needed for positioning blocks within the chunk
             ChunkPos chunkPos = chunk.getPosition();
             Vec3i chunkOriginWorld = CoordinateUtils.chunkOriginToWorldCoords(chunkPos);
-            float chunkMinX = (float)chunkOriginWorld.x;
-            float chunkMinY = (float)chunkOriginWorld.y;
-            float chunkMinZ = (float)chunkOriginWorld.z;
-
 
             for (int y = 0; y < Chunk.SIZE_Y; y++) {
                 for (int z = 0; z < Chunk.SIZE_Z; z++) {
                     for (int x = 0; x < Chunk.SIZE_X; x++) {
-                        short blockId = chunk.getBlock(x, y, z);
-                        BlockProperties properties = BlockRegistry.getInstance().getBlock(blockId); // Get properties
+                        Vec3i localPos = new Vec3i(x, y, z);
+                        BlockProperties currentBlockProps = chunk.getBlockProperties(localPos);
 
-                        // Render if not air (P3-T2.5) and properties are valid
-                        if (properties != null && blockId != BlockRegistry.AIR.getId()) { // Use AIR constant
-                            // --- Bind the correct texture ---
-                            // For now, just use one texture (e.g., SOUTH face) for the whole cube
-                            // Proper multi-texture blocks require meshing changes.
-                            TextureRef texRef = properties.getTexture(de.heger.voxelengine.world.chunk.Direction.SOUTH);
-                            Texture textureToRender = null;
-                            if (texRef != null) {
-                                textureToRender = textureMap.get(texRef.getName());
+                        if (currentBlockProps != null && currentBlockProps.getId() != BlockRegistry.AIR.getId()) {
+                            for (Direction faceDir : Direction.values()) {
+                                if (isFaceVisible(chunk, localPos, faceDir)) {
+                                    TextureRef texRef = currentBlockProps.getTexture(faceDir);
+                                    Texture textureToRender = null;
+                                    if (texRef != null && texRef.getName() != null) {
+                                        textureToRender = textureMap.get(texRef.getName());
+                                    }
+
+                                    if (textureToRender == null) {
+                                        // logger.warn("Texture not found for block '{}' face {}, texRef: '{}'. Skipping face.", 
+                                        //             currentBlockProps.getName(), faceDir, (texRef != null ? texRef.getName() : "null"));
+                                        continue; // Skip rendering this face if texture is missing
+                                    }
+                                    textureToRender.bind(0);
+
+                                    Mesh faceMesh = faceMeshes.get(faceDir);
+                                    if (faceMesh == null) { // Should not happen if initialized correctly
+                                        logger.error("Face mesh for direction {} is null!", faceDir);
+                                        continue;
+                                    }
+
+                                    float blockWorldX = chunkOriginWorld.x + x + 0.5f;
+                                    float blockWorldY = chunkOriginWorld.y + y + 0.5f;
+                                    float blockWorldZ = chunkOriginWorld.z + z + 0.5f;
+
+                                    modelMatrix.identity().translation(blockWorldX, blockWorldY, blockWorldZ);
+                                    defaultShaderProgram.setUniform("model", modelMatrix);
+
+                                    faceMesh.render();
+                                }
                             }
-
-                            if (textureToRender == null) {
-                                // Fallback or warning if texture not found for this block
-                                // logger.warn("Texture not found for block ID {} (\'{}\'), skipping render.", blockId, properties.getName());
-                                // Optionally bind a default 'missing' texture here
-                                // For now, we just won't render it if the texture is missing
-                                continue; 
-                            }
-                            
-                            // Bind the specific texture for this block to unit 0
-                            textureToRender.bind(0); 
-                            // The uniform uTexture is already set to 0 outside the loop
-
-                            // Calculate world position of the block's center
-                            // Add 0.5f to center the cube on the block coordinate
-                            float blockWorldX = chunkMinX + x + 0.5f;
-                            float blockWorldY = chunkMinY + y + 0.5f;
-                            float blockWorldZ = chunkMinZ + z + 0.5f;
-
-                            // Calculate model matrix for this block
-                            modelMatrix.identity()
-                                    .translate(blockWorldX, blockWorldY, blockWorldZ);
-                                    // No scaling or rotation needed for basic blocks yet
-                            defaultShaderProgram.setUniform("model", modelMatrix);
-
-                            // Render the cube mesh
-                            cubeMesh.render();
                         }
                     }
                 }
             }
         }
-        // logger.debug("Rendered {}/{} chunks. Total blocks rendered: {}", renderedChunks, totalChunks, renderedBlocks);
-        // defaultShaderProgram.unbind(); // Unbind only if this is the last rendering pass
+        // defaultShaderProgram.unbind(); // Only unbind if no other render passes follow
+    }
+
+    /**
+     * Determines if a specific face of a block is visible.
+     * A face is visible if the block in the direction of the face is transparent.
+     * It's also visible if the neighboring location is outside loaded chunks.
+     *
+     * @param currentChunk The chunk containing the block whose face is being checked.
+     * @param localBlockPosInCurrentChunk The local coordinates (0-15) of the block within its chunk.
+     * @param faceDir The direction of the face being checked (e.g., Direction.UP).
+     * @return true if the face is visible, false otherwise.
+     */
+    private boolean isFaceVisible(Chunk currentChunk, Vec3i localBlockPosInCurrentChunk, Direction faceDir) {
+        Vec3i neighborOffset = faceDir.getOffset();
+        int neighborLocalX = localBlockPosInCurrentChunk.x + neighborOffset.x;
+        int neighborLocalY = localBlockPosInCurrentChunk.y + neighborOffset.y;
+        int neighborLocalZ = localBlockPosInCurrentChunk.z + neighborOffset.z;
+
+        BlockProperties neighborBlockProps;
+
+        if (neighborLocalX >= 0 && neighborLocalX < Chunk.SIZE_X &&
+            neighborLocalY >= 0 && neighborLocalY < Chunk.SIZE_Y &&
+            neighborLocalZ >= 0 && neighborLocalZ < Chunk.SIZE_Z) {
+            // Neighbor is within the same chunk
+            neighborBlockProps = currentChunk.getBlockProperties(new Vec3i(neighborLocalX, neighborLocalY, neighborLocalZ));
+        } else {
+            // Neighbor is in an adjacent chunk
+            Vec3i currentBlockWorldPos = CoordinateUtils.localToWorldCoords(currentChunk.getPosition(), localBlockPosInCurrentChunk);
+            Vec3i neighborBlockWorldPos = new Vec3i(
+                currentBlockWorldPos.x + neighborOffset.x,
+                currentBlockWorldPos.y + neighborOffset.y,
+                currentBlockWorldPos.z + neighborOffset.z
+            );
+
+            ChunkPos neighborChunkPos = CoordinateUtils.worldToChunkCoords(neighborBlockWorldPos);
+            Vec3i localPosInNeighborChunk = CoordinateUtils.worldToLocalCoords(neighborBlockWorldPos);
+
+            Chunk neighborChunk = chunkManager.getChunk(neighborChunkPos);
+
+            if (neighborChunk == null) {
+                return true; // Neighbor chunk not loaded, face is visible (exposed to void)
+            }
+            neighborBlockProps = neighborChunk.getBlockProperties(localPosInNeighborChunk);
+        }
+        // neighborBlockProps is guaranteed by Chunk.getBlockProperties to return AIR if underlying is null
+        return neighborBlockProps.isTransparent();
     }
 
     public void cleanup() {
@@ -411,6 +458,20 @@ public class Renderer {
         if (cubeMesh != null) {
             cubeMesh.cleanup();
             logger.debug("Cleaned up cube mesh.");
+        }
+
+        // Cleanup face meshes
+        if (faceMeshes != null) {
+            for (Map.Entry<Direction, Mesh> entry : faceMeshes.entrySet()) {
+                try {
+                    entry.getValue().cleanup();
+                    logger.debug("Cleaned up face mesh for direction: {}", entry.getKey());
+                } catch (Exception e) {
+                    logger.error("Error cleaning up face mesh for direction: {}", entry.getKey(), e);
+                }
+            }
+            faceMeshes.clear();
+            logger.debug("Cleared face meshes map.");
         }
 
         // Cleanup textures

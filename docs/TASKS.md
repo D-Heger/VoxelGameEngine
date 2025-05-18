@@ -504,69 +504,44 @@
 
 ## Phase 4: Chunk Rendering & Basic Physics (Interaction)
 
-- - [ ] **Task ID:** P4-T1
-  - **Name:** Multithreaded chunk meshing
-  - **Description:** Implement a multithreaded chunk meshing system that takes chunk data and produces vertex/index data suitable for rendering, including culling of faces that are not visible to the player (covered by the face of a another, non transparent block in the same or neighboring chunk). This pipeline will be a separate part of the asynchronous generation process. This task also needs to implement applying the correct textures for the specific faces (**Note** on P3-T4.5), instead of applying the south texture for every face of the block.
+- - [x] **Task ID:** P4-T1
+  - **Name:** Face culling
+  - **Description:** Rework `Renderer.renderChunks()` to use face culling. Faces are culled if they are not visible to the player, meaning the face is blocked by another face of a non-transparent block in the same or a adjacent chunk. If no face of a block is visible, the block is not rendered. This also needs to apply the correct texture for the face, based on the block's metadata. This also needs to handle the case of chunks that are not fully loaded or started generating yet, so that the culling is applied after the chunk is fully loaded and meshed.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
-  - **Dependencies:** P3-T1, P3-T6, `engine-world` module
-  - **Subtasks:**
-    - [ ] **Subtask ID:** P4-T1.1
-      - **Name:** Rework thread pool architecture from P3-T6.1 & P3-T6.2
-      - **Description:** Rework the thread pool architecture from P3-T6.1 & P3-T6.2 to be a more generic and reusable implementation. Search for usage of the current implementation and refactor it to use the new architecture.
-      - **Deliverables:** New thread pool architecture implementation
-    - [ ] **Subtask ID:** P4-T1.2
-      - **Name:** Implement Meshing Task Queue
-      - **Description:** Create a thread-safe priority queue system (similar to P3-T6.3) that orders chunk meshing tasks based on their proximity to the player. Implement methods for adding, retrieving and cancelling tasks, along with queue management to prevent unbounded growth.
-      - **Deliverables:** New meshing task queue implementation
-      - **Implementation Context:** 
-    - [ ] **Subtask ID:** P4-T1.3
-      - **Name:** Implement ChunkMeshGenerator
-      - **Description:** Create a class that takes a `Chunk` object and generates a `ChunkMesh` object. This class will be responsible for taking the chunk data and generating the vertex, index and normal data for the mesh. It will also be responsible for applying the correct textures for the specific faces (**Note** on P3-T4.5), instead of applying the south texture for every face of the block. Data should only be generated for the faces that are visible to the player (not covered by the face of a another, non transparent block in the same or neighboring chunk), and the mesh should be culled accordingly.
-      - **Deliverables:** New chunk mesh generator and chunk mesh implementation
-      - **Implementation Context:** 
-    - [ ] **Subtask ID:** P4-T1.4
-      - **Name:** Create ChunkMeshingTask Implementation
-      - **Description:** Develop a `Runnable` or `Callable` implementation that encapsulates all operations needed to mesh a chunk asynchronously. This includes creating a new `ChunkMesh` object, invoking the appropriate `ChunkMeshGenerator`, updating chunk state, and adding the completed chunk to `ChunkManager`.
-      - **Deliverables:** New chunk meshing task implementation
-      - **Implementation Context:** 
-    - [ ] **Subtask ID:** P4-T1.5
-      - **Name:** Rework Task Completion Notification System
-      - **Description:** Rework the task completion notification system from P3-T6.5 to be a more generic and reusable implementation. Search for usage of the current implementation and refactor it to use the new architecture.
-      - **Deliverables:** New task completion notification system implementation
-      - **Implementation Context:** 
-    - [ ] **Subtask ID:** P4-T1.6
-      - **Name:** Implement Mesh Generation Service
-      - **Description:** Create a high-level service that coordinates between the game systems and the thread pool. Implement methods for requesting chunk meshing with priority levels, checking meshing status, and handling the lifecycle of the meshing subsystem (initialization, shutdown). This will serve as the main API for the rest of the engine.
-      - **Deliverables:** New mesh generation service implementation
-      - **Implementation Context:** 
-    - [ ] **Subtask ID:** P4-T1.7
-      - **Name:** Integrate with Renderer
-      - **Description:** Integrate the mesh generation service with the renderer. This includes updating the renderer to use the new mesh data, and updating the chunk manager to use the new mesh data.
-      - **Deliverables:** Updated renderer and chunk manager implementations
-      - **Implementation Context:** 
+  - **Dependencies:** P3-T9, `engine-renderer` module
+  - **Subtasks:** (none)
+  - **Implementation Context:** Face culling was implemented by modifying `Mesh.java` and `Renderer.java`. In `Mesh.java`, static methods (e.g., `createUpFace`, `createNorthFace`) were added to generate individual 1x1 quad meshes for each of the six block faces, including vertex positions, UV coordinates, and normals; a private helper `createSingleFace` supports this. Texture V coordinates for side faces were adjusted to correct orientation. In `Renderer.java`, a `Map<Direction, Mesh> faceMeshes` now stores these pre-generated face meshes, initialized in `init()` and cleaned in `cleanup()`. The `renderChunks()` method was reworked: for each non-air block, it iterates through its six faces. A new private helper `isFaceVisible(Chunk, Vec3i, Direction)` determines if a face is visible by checking the transparency of the adjacent block (in the same or neighboring chunk, accessed via `ChunkManager` and `BlockRegistry`). If a face is visible (or the neighbor chunk is unloaded), the correct texture for that specific face (from `BlockProperties`) and its corresponding pre-generated mesh are used for rendering, replacing the old `cubeMesh` based rendering for chunks.
 
-- - [ ] **Task ID:** P4-T2
+- - [x] **Task ID:** P4-T2
+  - **Name:** Mesh Optimization
+  - **Description:** Optimize the mesh data structure to reduce memory usage and improve rendering performance by using a more efficient data structure for storing mesh data for a whole chunk instead of each block.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P3-T9, `engine-renderer` module
+  - **Subtasks:** (none)
+  - **Implementation Context:** 
+
+- - [ ] **Task ID:** P4-T3
   - **Name:** Player Entity (`game`)
   - **Description:** Create a `Player` class representing the player in the world, holding position, orientation, and potentially other state.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T2, `game` module
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T3
+- - [ ] **Task ID:** P4-T4
   - **Name:** Basic Player Movement (`game`, `engine-physics`)
   - **Description:** Implement movement logic (walking, jumping) based on input. Integrate basic gravity.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T5, P4-T3, `game`, `engine-physics` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T4
+- - [ ] **Task ID:** P4-T5
   - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement Axis-Aligned Bounding Box (AABB) collision detection between the player entity and world blocks. Prevent player from moving into solid blocks.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T2, P4-3, P4-T4, `engine-physics`, `engine-world`, `game` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T5
+- - [ ] **Task ID:** P4-T6
   - **Name:** Raycasting (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement a raycasting algorithm (e.g., Amanatides & Woo) to determine the block the player is looking at.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
