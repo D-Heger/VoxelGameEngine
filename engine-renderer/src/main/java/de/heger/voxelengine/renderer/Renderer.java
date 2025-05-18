@@ -19,6 +19,9 @@ import de.heger.voxelengine.world.chunk.CoordinateUtils;
 import de.heger.voxelengine.core.math.Vec3i;
 import de.heger.voxelengine.world.chunk.Direction;
 import de.heger.voxelengine.world.chunk.ChunkManager;
+import de.heger.voxelengine.renderer.mesh.ChunkMesh;
+import de.heger.voxelengine.renderer.mesh.ChunkMeshBuilder;
+import de.heger.voxelengine.world.chunk.ChunkMeshState;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -51,9 +54,18 @@ public class Renderer {
     private Map<String, Texture> textureMap; // Stores textures loaded based on BlockRegistry
     private FrustumCuller frustumCuller; // Add FrustumCuller field
 
-    private Map<Direction, Mesh> faceMeshes; // For face culling
+    private Map<Direction, Mesh> faceMeshes; // For face culling - TO BE REMOVED/REPLACED by ChunkMesh
     private ChunkManager chunkManager; // For neighbor chunk access
     private BlockRegistry blockRegistry; // For block properties access
+
+    // P4-T2.6: Cache for active chunk meshes, renderer-side
+    private final Map<ChunkPos, Map<String, ChunkMesh>> activeChunkMeshes = new HashMap<>();
+
+    // P4-T2.7: Performance metrics
+    private long totalIndicesRenderedLastFrame = 0;
+    private int drawCallsLastFrame = 0;
+    private long currentFrameIndices = 0;
+    private int currentFrameDrawCalls = 0;
 
     public Renderer(Window window) {
         this.window = window;
@@ -317,9 +329,14 @@ public class Renderer {
      * @param chunks The list of chunks to render.
      */
     public void renderChunks(Collection<Chunk> chunks) {
-        if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null || faceMeshes.isEmpty() || textureMap.isEmpty() || blockRegistry == null) {
+        if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null /*|| faceMeshes.isEmpty()*/ || textureMap.isEmpty() || blockRegistry == null || chunkManager == null) {
+            // faceMeshes.isEmpty() check removed as it's being replaced
             return;
         }
+
+        // P4-T2.7: Reset per-frame counters
+        currentFrameIndices = 0;
+        currentFrameDrawCalls = 0;
 
         defaultShaderProgram.bind();
         Matrix4f currentViewMatrix = camera.getViewMatrix();
@@ -333,7 +350,7 @@ public class Renderer {
         defaultShaderProgram.setUniform("ambientStrength", 0.6f);
         defaultShaderProgram.setUniform("uTexture", 0); // Tell shader to use texture unit 0
 
-        Matrix4f modelMatrix = new Matrix4f();
+        Matrix4f modelMatrix = new Matrix4f(); // Reused for each chunk
         Matrix4f viewProjectionMatrix = new Matrix4f(camera.getProjectionMatrix()).mul(currentViewMatrix);
 
         if (this.frustumCuller == null) {
@@ -342,60 +359,108 @@ public class Renderer {
             this.frustumCuller.updateViewProjectionMatrix(viewProjectionMatrix);
         }
 
+        Set<ChunkPos> currentlyVisibleAndMeshedChunks = new HashSet<>();
+
         for (Chunk chunk : chunks) {
             if (chunk == null) continue;
 
+            // Frustum Culling
             AABB chunkAABB = AABB.fromChunk(chunk);
             if (!frustumCuller.testAABB(chunkAABB)) {
-                continue;
+                continue; // Skip chunk if not in frustum
             }
 
             ChunkPos chunkPos = chunk.getPosition();
-            Vec3i chunkOriginWorld = CoordinateUtils.chunkOriginToWorldCoords(chunkPos);
+            currentlyVisibleAndMeshedChunks.add(chunkPos);
 
-            for (int y = 0; y < Chunk.SIZE_Y; y++) {
-                for (int z = 0; z < Chunk.SIZE_Z; z++) {
-                    for (int x = 0; x < Chunk.SIZE_X; x++) {
-                        Vec3i localPos = new Vec3i(x, y, z);
-                        BlockProperties currentBlockProps = chunk.getBlockProperties(localPos);
+            // Get or build mesh for the chunk
+            Map<String, ChunkMesh> meshesForChunk = activeChunkMeshes.get(chunkPos);
 
-                        if (currentBlockProps != null && currentBlockProps.getId() != BlockRegistry.AIR.getId()) {
-                            for (Direction faceDir : Direction.values()) {
-                                if (isFaceVisible(chunk, localPos, faceDir)) {
-                                    TextureRef texRef = currentBlockProps.getTexture(faceDir);
-                                    Texture textureToRender = null;
-                                    if (texRef != null && texRef.getName() != null) {
-                                        textureToRender = textureMap.get(texRef.getName());
-                                    }
-
-                                    if (textureToRender == null) {
-                                        // logger.warn("Texture not found for block '{}' face {}, texRef: '{}'. Skipping face.", 
-                                        //             currentBlockProps.getName(), faceDir, (texRef != null ? texRef.getName() : "null"));
-                                        continue; // Skip rendering this face if texture is missing
-                                    }
-                                    textureToRender.bind(0);
-
-                                    Mesh faceMesh = faceMeshes.get(faceDir);
-                                    if (faceMesh == null) { // Should not happen if initialized correctly
-                                        logger.error("Face mesh for direction {} is null!", faceDir);
-                                        continue;
-                                    }
-
-                                    float blockWorldX = chunkOriginWorld.x + x + 0.5f;
-                                    float blockWorldY = chunkOriginWorld.y + y + 0.5f;
-                                    float blockWorldZ = chunkOriginWorld.z + z + 0.5f;
-
-                                    modelMatrix.identity().translation(blockWorldX, blockWorldY, blockWorldZ);
-                                    defaultShaderProgram.setUniform("model", modelMatrix);
-
-                                    faceMesh.render();
-                                }
-                            }
-                        }
+            if (meshesForChunk == null || chunk.getMeshState() == ChunkMeshState.NEEDS_REBUILD) {
+                if (meshesForChunk != null) { // Old meshes exist, clean them up
+                    logger.debug("Chunk {} needs rebuild, cleaning old meshes.", chunkPos);
+                    for (ChunkMesh oldMesh : meshesForChunk.values()) {
+                        oldMesh.cleanup();
                     }
                 }
+                logger.debug("Building mesh for chunk {} (State: {})...", chunkPos, chunk.getMeshState());
+                // Critical section: set state to BUILDING, build, then set to UP_TO_DATE / EMPTY
+                // For now, synchronous build. Asynchronous would need more complex state handling.
+                chunk.setMeshState(ChunkMeshState.BUILDING); // Mark as building
+                meshesForChunk = ChunkMeshBuilder.buildMeshesByTexture(chunk, chunkManager, blockRegistry);
+                activeChunkMeshes.put(chunkPos, meshesForChunk);
+                chunk.setMeshState(meshesForChunk.isEmpty() ? ChunkMeshState.EMPTY : ChunkMeshState.UP_TO_DATE);
+                logger.debug("Finished building mesh for chunk {}, found {} submeshes. New state: {}", 
+                             chunkPos, meshesForChunk.size(), chunk.getMeshState());
+            }
+
+            if (meshesForChunk.isEmpty()) {
+                continue; // Nothing to render for this chunk
+            }
+
+            // Calculate chunk's world origin ONCE for all its sub-meshes
+            Vec3i chunkOriginWorld = CoordinateUtils.chunkOriginToWorldCoords(chunkPos);
+            modelMatrix.identity().translation(chunkOriginWorld.x, chunkOriginWorld.y, chunkOriginWorld.z);
+            // Note: The vertices in ChunkMesh are already relative to chunk origin (0,0,0)
+            // So, translating the model matrix to the chunk's world origin is correct.
+
+            defaultShaderProgram.setUniform("model", modelMatrix);
+
+            // Render each sub-mesh (grouped by texture)
+            for (Map.Entry<String, ChunkMesh> meshEntry : meshesForChunk.entrySet()) {
+                String textureName = meshEntry.getKey();
+                ChunkMesh chunkMeshToRender = meshEntry.getValue();
+
+                if (chunkMeshToRender.isEmpty()) {
+                    continue;
+                }
+
+                Texture textureToRender = textureMap.get(textureName);
+                if (textureToRender == null) {
+                    // logger.warn("Texture '{}' not found for chunk {}, submesh. Using fallback/default?", textureName, chunkPos);
+                    // Optionally: bind a default "missing" texture
+                    // For now, skip rendering this submesh if texture is missing to avoid GL errors or wrong textures.
+                    Texture fallbackTexture = textureMap.get("core:block/dirt"); // Example fallback
+                    if(fallbackTexture == null && !textureMap.isEmpty()) fallbackTexture = textureMap.values().iterator().next();
+                    
+                    if (fallbackTexture != null) {
+                        fallbackTexture.bind(0);
+                    } else {
+                        // logger.error("No fallback texture available for chunk {}, submesh with texture key '{}'", chunkPos, textureName);
+                        continue; // No texture, no render
+                    }
+                } else {
+                    textureToRender.bind(0); // Bind to texture unit 0
+                }
+                
+                chunkMeshToRender.render();
+                // P4-T2.7: Increment performance counters
+                currentFrameIndices += chunkMeshToRender.getIndexCount();
+                currentFrameDrawCalls++;
             }
         }
+        // Removed old rendering logic that iterates individual blocks/faces
+        
+        // After rendering all visible chunks, clean up meshes for chunks that are no longer visible/loaded
+        // but were previously meshed and are still in activeChunkMeshes.
+        // This assumes `chunks` collection contains ALL chunks that *should* be around.
+        // A more robust cleanup might be needed if `chunks` is only a subset of what *could* be loaded.
+        activeChunkMeshes.entrySet().removeIf(entry -> {
+            ChunkPos pos = entry.getKey();
+            if (!currentlyVisibleAndMeshedChunks.contains(pos)) {
+                logger.debug("Evicting and cleaning meshes for chunk {} (no longer visible/loaded).", pos);
+                for (ChunkMesh mesh : entry.getValue().values()) {
+                    mesh.cleanup();
+                }
+                return true; // Remove from activeChunkMeshes
+            }
+            return false;
+        });
+
+        // Update performance counters for the completed frame
+        this.totalIndicesRenderedLastFrame = currentFrameIndices;
+        this.drawCallsLastFrame = currentFrameDrawCalls;
+
         // defaultShaderProgram.unbind(); // Only unbind if no other render passes follow
     }
 
@@ -493,6 +558,17 @@ public class Renderer {
             logger.debug("Cleared texture map.");
         }
 
+        // P4-T2.6: Cleanup active chunk meshes
+        if (activeChunkMeshes != null) {
+            logger.debug("Cleaning up {} cached chunk mesh entries.", activeChunkMeshes.size());
+            for (Map<String, ChunkMesh> subMeshes : activeChunkMeshes.values()) {
+                for (ChunkMesh mesh : subMeshes.values()) {
+                    mesh.cleanup();
+                }
+            }
+            activeChunkMeshes.clear();
+            logger.debug("Cleared active chunk meshes cache.");
+        }
 
         // Cleanup debug callback
         if (debugCallback != null) {
@@ -508,5 +584,14 @@ public class Renderer {
 
     public Camera getCamera() {
         return camera;
+    }
+
+    // P4-T2.7: Getters for performance metrics
+    public long getTotalIndicesRenderedLastFrame() {
+        return totalIndicesRenderedLastFrame;
+    }
+
+    public int getDrawCallsLastFrame() {
+        return drawCallsLastFrame;
     }
 }

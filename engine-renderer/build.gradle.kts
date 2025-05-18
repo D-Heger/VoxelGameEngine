@@ -8,6 +8,8 @@ dependencies {
     implementation(projects.engineAssets)
     implementation(projects.engineWorld)
 
+    implementation(libs.fastutil)
+
     implementation(platform(libs.lwjgl.bom))
     implementation(libs.lwjgl.opengl)
     implementation(libs.lwjgl.glfw)

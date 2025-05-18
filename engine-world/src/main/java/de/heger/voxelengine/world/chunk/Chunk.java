@@ -8,6 +8,8 @@ import de.heger.voxelengine.world.block.BlockProperties; // Added import
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Map; // Required for Map type hint, even if not storing ChunkMesh directly
+// No import from engine-renderer allowed here for ChunkMesh
 
 /**
  * Represents a 16x16x16 segment of the world containing block data.
@@ -43,6 +45,10 @@ public class Chunk {
     // Added for P3-T4.6: Reference to the BlockRegistry instance
     private final BlockRegistry blockRegistry = BlockRegistry.getInstance();
 
+    // Added for P4-T2.4: Mesh state management
+    private volatile ChunkMeshState meshState = ChunkMeshState.NEEDS_REBUILD;
+    // The actual Map<String, ChunkMesh> will be cached renderer-side to avoid circular dependency.
+
     /**
      * Creates a new, empty chunk at the specified position.
      * The block data array is initialized but not populated.
@@ -55,6 +61,7 @@ public class Chunk {
         // Initialize with air blocks (assuming block ID 0 represents air)
         this.blockData = new short[TOTAL_BLOCKS];
         this.state = ChunkState.EMPTY; // Initialize state (P3-T1.4)
+        this.meshState = ChunkMeshState.NEEDS_REBUILD; // New chunks always need a mesh build
         // Neighbors are initially null
     }
 
@@ -63,6 +70,7 @@ public class Chunk {
         this.position = position;
         this.blockData = blockData;
         this.state = ChunkState.GENERATED; // Assume deserialized chunks are generated
+        this.meshState = ChunkMeshState.NEEDS_REBUILD; // Deserialized chunks also need a mesh build
     }
 
     /**
@@ -199,8 +207,7 @@ public class Chunk {
     /**
      * Sets the block ID at the specified local coordinates within this chunk.
      * Coordinates must be within the chunk bounds [0, 15].
-     * Note: This method is not inherently thread-safe during concurrent modification.
-     * Synchronization should be handled externally if needed (e.g., during world generation).
+     * This method also flags this chunk and potentially affected neighbor chunks for mesh rebuild.
      *
      * @param localX The local x-coordinate (0-15).
      * @param localY The local y-coordinate (0-15).
@@ -210,19 +217,42 @@ public class Chunk {
      */
     public void setBlock(int localX, int localY, int localZ, short blockId) {
         int index = CoordinateUtils.localCoordsToIndex(localX, localY, localZ); // Handles bounds checking
-        // Consider thread safety if state change needs atomicity with block change
         if (blockData[index] != blockId) {
             blockData[index] = blockId;
-            // TODO: Mark chunk as modified (for P3-T1.7) - This might involve setting state to MODIFIED
-            // setState(ChunkState.MODIFIED); // Or use a separate boolean flag
+            this.flagForMeshRebuild(); // Flag this chunk
+
+            // Flag neighbors if the block is on a boundary
+            if (localX == 0) {
+                notifyNeighborOfChange(Direction.WEST);
+            } else if (localX == SIZE_X - 1) {
+                notifyNeighborOfChange(Direction.EAST);
+            }
+            if (localY == 0) {
+                notifyNeighborOfChange(Direction.DOWN);
+            } else if (localY == SIZE_Y - 1) {
+                notifyNeighborOfChange(Direction.UP);
+            }
+            if (localZ == 0) {
+                notifyNeighborOfChange(Direction.NORTH);
+            } else if (localZ == SIZE_Z - 1) {
+                notifyNeighborOfChange(Direction.SOUTH);
+            }
+            // TODO: Consider if changing state to MODIFIED is also needed here, separate from mesh state.
+            // For now, primarily focusing on mesh state.
+        }
+    }
+
+    private void notifyNeighborOfChange(Direction direction) {
+        Chunk neighbor = getNeighbor(direction);
+        if (neighbor != null) {
+            neighbor.flagForMeshRebuild();
         }
     }
 
     /**
      * Sets the block ID at the specified local coordinates within this chunk.
      * Coordinates must be within the chunk bounds [0, 15].
-     * Note: This method is not inherently thread-safe during concurrent modification.
-     * Synchronization should be handled externally if needed (e.g., during world generation).
+     * This method also flags this chunk and potentially affected neighbor chunks for mesh rebuild.
      *
      * @param localPos The local coordinates (Vec3i, components 0-15). Must not be null.
      * @param blockId The new block ID to set.
@@ -296,6 +326,41 @@ public class Chunk {
             return;
         }
         this.neighbors[direction.ordinal()] = neighbor;
+    }
+
+    // --- Mesh State Management (P4-T2.4) ---
+
+    /**
+     * Gets the current mesh state of this chunk.
+     * @return The current {@link ChunkMeshState}.
+     */
+    public ChunkMeshState getMeshState() {
+        return meshState;
+    }
+
+    /**
+     * Sets the mesh state of this chunk.
+     * This is typically called by the meshing system after a mesh is built or invalidated.
+     * @param newMeshState The new {@link ChunkMeshState}.
+     */
+    public synchronized void setMeshState(ChunkMeshState newMeshState) {
+        Validate.notNull(newMeshState, "New mesh state cannot be null");
+        this.meshState = newMeshState;
+    }
+
+    /**
+     * Flags this chunk, indicating that its mesh representation needs to be rebuilt.
+     * This method is thread-safe.
+     */
+    public synchronized void flagForMeshRebuild() {
+        // Only transition to NEEDS_REBUILD if not already BUILDING
+        // If it's EMPTY or UP_TO_DATE, it definitely needs rebuild.
+        // If it's already NEEDS_REBUILD, no change.
+        // If it's BUILDING, let the current build process complete; it might pick up the latest changes
+        // or a subsequent check will flag it again. For now, don't interrupt BUILDING.
+        if (this.meshState != ChunkMeshState.BUILDING) { 
+            this.meshState = ChunkMeshState.NEEDS_REBUILD;
+        }
     }
 
     // --- Serialization (P3-T1.6) ---

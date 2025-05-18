@@ -35,7 +35,7 @@ public class GameLoop {
     private static final int INITIAL_WORLD_RADIUS_CHUNKS = 10; // Smaller radius for async testing
 
     // New constants for P3-T7
-    private static final int CHUNK_LOAD_RADIUS = 8;
+    private static final int CHUNK_LOAD_RADIUS = 20;
     private static final int CHUNK_UNLOAD_OFFSET = 1; // Unload if further than LOAD_RADIUS + OFFSET
     private static final double CHUNK_LOAD_CHECK_INTERVAL = 0.5; // seconds, check every half second
 
@@ -58,6 +58,10 @@ public class GameLoop {
     private String originalWindowTitle;
     private int currentFps = 0;
     private int currentUps = 0;
+
+    // P4-T2.7: Performance metrics storage
+    private long lastFrameRenderedIndices = 0;
+    private int lastFrameDrawCalls = 0;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
@@ -486,14 +490,19 @@ public class GameLoop {
                     frames = 0;
                     updates = 0;
 
-                    // Update window title with performance info (P3-T10)
-                    if (this.performanceTrackingHandler != null && window != null) {
-                        double avgGenTime = this.performanceTrackingHandler.getAverageGenerationTimeMillis();
-                        int sampleCount = this.performanceTrackingHandler.getSampleCount();
-                        String perfInfo = String.format("FPS: %d, UPS: %d, Avg Gen Time: %.2f ms (%d samples)",
-                                this.currentFps, this.currentUps, avgGenTime, sampleCount);
-                        window.setTitle(this.originalWindowTitle + " | " + perfInfo);
-                    }
+                    // Update performance metrics for display
+                    lastFrameRenderedIndices = renderer.getTotalIndicesRenderedLastFrame();
+                    lastFrameDrawCalls = renderer.getDrawCallsLastFrame();
+
+                    String perfMetricsString = String.format("FPS: %d, UPS: %d, Avg Gen: %.2fms (%d samples), DrawCalls: %d, Idx: %dk",
+                        this.currentFps,
+                        this.currentUps,
+                        performanceTrackingHandler.getAverageGenerationTimeMillis(),
+                        performanceTrackingHandler.getSampleCount(),
+                        lastFrameDrawCalls,
+                        lastFrameRenderedIndices / 1000
+                    );
+                    window.setTitle(this.originalWindowTitle + " | " + perfMetricsString);
                 }
 
                 // Update chunk loading/unloading (P3-T7)

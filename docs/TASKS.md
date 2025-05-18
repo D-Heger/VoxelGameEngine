@@ -518,34 +518,41 @@
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T9, `engine-renderer` module
   - **Subtasks:**
-    - [ ] **Subtask ID:** P4-T2.1
+    - [x] **Subtask ID:** P4-T2.1
       - **Name:** Design ChunkMesh Class Structure
       - **Description:** Create a dedicated `ChunkMesh` class to represent all visible faces in a chunk as a single optimized mesh. Define the internal data structure to efficiently store vertex data, indices, and texture information for all visible faces.
       - **Deliverables:** `ChunkMesh.java` class with appropriate fields and methods to handle mesh data.
-    - [ ] **Subtask ID:** P4-T2.2
+      - **Implementation Context:** Created `ChunkMesh.java` in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/mesh/`. This class encapsulates VAO, VBO, and EBO for a chunk's geometry. It takes vertex and index arrays in its constructor to set up OpenGL buffers and attribute pointers (position, UV, normal). It includes `render()` and `cleanup()` methods, and an `isEmpty()` flag for meshes with no renderable geometry.
+    - [x] **Subtask ID:** P4-T2.2
       - **Name:** Implement Mesh Building from Culled Faces
       - **Description:** Implement methods to build a complete chunk mesh by analyzing which faces need to be rendered (using the existing face culling logic). The mesh building process should collect all visible faces into a single efficient data structure.
       - **Deliverables:** Methods in `ChunkMesh` to construct mesh data from a chunk, integrating with the existing face culling logic.
-    - [ ] **Subtask ID:** P4-T2.3
+      - **Implementation Context:** Created `ChunkMeshBuilder.java` in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/mesh/`. It has a static `buildMesh(Chunk, ChunkManager, BlockRegistry)` method. This method iterates over blocks in the provided chunk, performs face culling using a helper `isFaceVisible` (similar to the one in `Renderer`), and collects vertex (position, UV, normal) and index data for visible faces into `FloatArrayList` and `IntArrayList`. Vertex positions are offset by block coordinates within the chunk. Finally, it constructs and returns a `ChunkMesh` object. Standard UVs are used per face for now.
+    - [x] **Subtask ID:** P4-T2.3
       - **Name:** Group Mesh Data by Block Type
       - **Description:** Organize the chunk mesh data to group faces by block type or texture. This allows for efficient batch rendering with minimal texture binding changes.
       - **Deliverables:** Data structures and methods in `ChunkMesh` to support grouping by block type.
-    - [ ] **Subtask ID:** P4-T2.4
+      - **Implementation Context:** Modified `ChunkMeshBuilder.java`. The primary build method was renamed to `buildMeshesByTexture` and now returns a `Map<String, ChunkMesh>`. Internally, it uses a `Map<String, MeshData>` (where `MeshData` is a new mutable helper class) to collect vertices and indices for each unique texture name encountered on visible block faces. After processing the chunk, it converts each populated `MeshData` into a `ChunkMesh`. This allows geometry to be grouped by texture, facilitating more efficient rendering later.
+    - [x] **Subtask ID:** P4-T2.4
       - **Name:** Implement Mesh Caching
       - **Description:** Create a system to cache chunk meshes and only rebuild them when necessary (e.g., when blocks in the chunk or adjacent chunks change). Track mesh state (e.g., NEEDS_REBUILD, UP_TO_DATE) in the `Chunk` class.
       - **Deliverables:** Mesh caching system and integration with the chunk state management.
-    - [ ] **Subtask ID:** P4-T2.5
+      - **Implementation Context:** Created `ChunkMeshState.java` enum (`EMPTY`, `UP_TO_DATE`, `NEEDS_REBUILD`, `BUILDING`) in `engine-world`. Modified `Chunk.java` to include a `volatile ChunkMeshState meshState` (defaulting to `NEEDS_REBUILD`). Added `getMeshState()`, `setMeshState()`, and `flagForMeshRebuild()` methods. The `setBlock()` method in `Chunk` now calls `flagForMeshRebuild()` on itself and also on any affected neighboring chunks if the block change occurs on a boundary. Direct storage of `ChunkMesh` objects (from `engine-renderer`) in `Chunk` was avoided to prevent circular dependencies; the actual GL-specific mesh objects will be cached renderer-side by a dedicated system.
+    - [x] **Subtask ID:** P4-T2.5
       - **Name:** Optimize GPU Data Transfer
       - **Description:** Implement efficient buffering strategies to minimize data transfer to the GPU. Consider using buffer objects that can be updated partially when only a portion of the chunk changes.
       - **Deliverables:** Optimized VAO/VBO management for chunk meshes.
-    - [ ] **Subtask ID:** P4-T2.6
+      - **Implementation Context:** Reviewed `ChunkMesh.java`. The current strategy involves creating new `ChunkMesh` objects with immutable data (using `GL_STATIC_DRAW`) when a chunk remesh occurs. Old `ChunkMesh` objects are discarded and cleaned up. This is efficient for full rebuilds. Vertex data (pos, UV, normal) is interleaved. True partial buffer updates (e.g., via `glBufferSubData`) would require a more granular mesh building process capable of generating deltas, which is outside the current scope. The existing `ChunkMesh` implementation is considered sound for its designed purpose of holding static mesh data per instance.
+    - [x] **Subtask ID:** P4-T2.6
       - **Name:** Update Renderer to Use Chunk Meshes
       - **Description:** Refactor the `renderChunks()` method to use the new chunk mesh system instead of rendering individual faces. Implement batched rendering of chunk meshes grouped by texture.
       - **Deliverables:** Updated `Renderer.java` with optimized chunk rendering using the new mesh system.
-    - [ ] **Subtask ID:** P4-T2.7
+      - **Implementation Context:** Refactored `Renderer.java`. Added `activeChunkMeshes` (a `Map<ChunkPos, Map<String, ChunkMesh>>`) to cache generated meshes. The `renderChunks()` method now iterates visible chunks. If a chunk's mesh `NEEDS_REBUILD` or isn't cached, it calls `ChunkMeshBuilder.buildMeshesByTexture()`, cleans up old meshes for that `ChunkPos`, stores the new map of texture-grouped `ChunkMesh` objects in the cache, and updates the chunk's `meshState` to `UP_TO_DATE` or `EMPTY`. Rendering then iterates this map, binding the correct texture and rendering the corresponding `ChunkMesh`. The model matrix is set once per chunk (translation to its world origin). A basic eviction strategy in `renderChunks` cleans up meshes for chunks no longer in the visible set. The main `Renderer.cleanup()` also clears and cleans all cached `ChunkMesh` objects. The old `isFaceVisible` method was removed from `Renderer` as its logic is now in `ChunkMeshBuilder`.
+    - [x] **Subtask ID:** P4-T2.7
       - **Name:** Add Performance Metrics
       - **Description:** Implement tracking for key performance metrics (vertices per chunk, draw calls, FPS with varying view distances) to validate the optimization work and identify bottlenecks.
       - **Deliverables:** Performance measurement system and baseline metrics.
+      - **Implementation Context:** Added `getIndexCount()` to `ChunkMesh.java`. In `Renderer.java`, added fields `totalIndicesRenderedLastFrame` and `drawCallsLastFrame`, along with internal per-frame counters. These are reset at the start of `renderChunks()` and incremented when each `ChunkMesh` is rendered (indices from `getIndexCount()`, draw calls by 1). Getters for these metrics were exposed. In `GameLoop.java`, these values are retrieved from the renderer each second and appended to the window title string, displaying total draw calls and rendered indices (e.g., "Idx: 150k" for 150,000 indices).
 
 - - [ ] **Task ID:** P4-T3
   - **Name:** Player Entity (`game`)
