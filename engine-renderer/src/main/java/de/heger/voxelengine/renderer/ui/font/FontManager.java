@@ -122,10 +122,13 @@ public class FontManager {
     }
 
     public void cleanup() {
-        LOGGER.info("Cleaning up FontManager, {} cached fonts...", fontCache.size());
+        LOGGER.info("Cleaning up FontManager...");
         for (Font font : fontCache.values()) {
-            font.cleanup();
+            if (font != null) {
+                font.cleanup();
+            }
         }
         fontCache.clear();
+        LOGGER.info("FontManager cleanup complete.");
     }
-} 
+}

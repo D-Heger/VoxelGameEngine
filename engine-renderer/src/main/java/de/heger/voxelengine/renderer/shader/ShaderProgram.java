@@ -165,8 +165,8 @@ public class ShaderProgram {
         unbind();
         if (programId != 0) {
             // Shaders are detached in link(), but we can delete them explicitly if needed
-            // if (vertexShaderId != 0) glDeleteShader(vertexShaderId);
-            // if (fragmentShaderId != 0) glDeleteShader(fragmentShaderId);
+            if (vertexShaderId != 0) glDeleteShader(vertexShaderId);
+            if (fragmentShaderId != 0) glDeleteShader(fragmentShaderId);
             glDeleteProgram(programId);
             logger.debug("Deleted shader program with ID: {}", programId);
         }
