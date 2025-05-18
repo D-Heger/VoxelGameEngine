@@ -99,12 +99,8 @@ public class GameLoop {
                 CHUNK_LOAD_RADIUS);
 
         // TODO: Tune these pool sizes based on testing and typical core counts
-        int corePoolSize = Math.max(1, Runtime.getRuntime().availableProcessors() / 2); // Example: Half of available
-                                                                                        // cores
-        int maxPoolSize = Math.max(corePoolSize, Runtime.getRuntime().availableProcessors() - 1); // Example: Most
-                                                                                                  // cores, but leave
-                                                                                                  // one for OS/main
-                                                                                                  // thread
+        int corePoolSize = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+        int maxPoolSize = Math.max(corePoolSize, Runtime.getRuntime().availableProcessors() - 1);
         if (maxPoolSize <= corePoolSize)
             maxPoolSize = corePoolSize + 1; // ensure max > core slightly if low cores
         int keepAliveSeconds = 60;
