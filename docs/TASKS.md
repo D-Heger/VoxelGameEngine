@@ -554,7 +554,7 @@
       - **Deliverables:** Performance measurement system and baseline metrics.
       - **Implementation Context:** Added `getIndexCount()` to `ChunkMesh.java`. In `Renderer.java`, added fields `totalIndicesRenderedLastFrame` and `drawCallsLastFrame`, along with internal per-frame counters. These are reset at the start of `renderChunks()` and incremented when each `ChunkMesh` is rendered (indices from `getIndexCount()`, draw calls by 1). Getters for these metrics were exposed. In `GameLoop.java`, these values are retrieved from the renderer each second and appended to the window title string, displaying total draw calls and rendered indices (e.g., "Idx: 150k" for 150,000 indices).
 
-- - [ ] **Task ID:** P4-T3
+- - [x] **Task ID:** P4-T3
   - **Name:** Rework culling implementation
   - **Description:** Rework existing frustum culling implementation to use the new chunk mesh system, and add occlusion culling.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
