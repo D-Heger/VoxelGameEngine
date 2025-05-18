@@ -581,24 +581,24 @@
       - **Description:** Add wireframe rendering to the renderer, to visualize the chunk meshes. This should be done in a new class `WireframeRenderer` that takes a `ChunkMesh` and renders it in wireframe mode. This should be toggled via a key binding (default: `F3`). Integrate this into the existing renderer's chunk rendering process. Ensure that this causes no opengl errors.
       - **Deliverables:** New `WireframeRenderer` class.
       - **Implementation Context:** Added a new `WireframeRenderer` class that renders a `ChunkMesh` in wireframe mode. This is integrated into the existing renderer's chunk rendering process and toggled via a key binding (default: `F3`) in `GameLoop.java`.
-    - [x] **Subtask ID:** P4-T4.2
-      - **Name:** Integrate nuklear
-      - **Description:** Integrate the Nuklear GUI library (bindings are included in lwjgl).
-      - **Deliverables:** Nuklear integration in libs.toml and build.gradle
-      - **Implementation Context:** Added Nuklear to the `libs.toml` file and the `build.gradle` files for `engine-renderer` and `launcher`.
+    - [ ] **Subtask ID:** P4-T4.2
+      - **Name:** Integrate legui
+      - **Description:** Integrate the legui library (bindings are included in lwjgl).
+      - **Deliverables:** legui integration in libs.toml and build.gradle
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T4.3
-      - **Name:** Add base nuklear UI class
-      - **Description:** Add a base Nuklear UI class that can be used to create a Nuklear UI. This should include a basic layout and a way to add widgets.
-      - **Deliverables:** Base Nuklear UI class.
+      - **Name:** Add base legui UI class
+      - **Description:** Add a base legui UI class that can be used to create a legui UI. This should include a basic layout and a way to add widgets.
+      - **Deliverables:** Base legui UI class.
       - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T4.4
       - **Name:** Add performance display
-      - **Description:** Add a performance display that shows FPS, chunk generation times, and other performance metrics. This should be done using the Nuklear UI library. This needs to be toggelable (F2 by default).
-      - **Deliverables:** Performance display using Nuklear.
+      - **Description:** Add a performance display that shows FPS, chunk generation times, and other performance metrics. This should be done using the legui UI library. This needs to be toggelable (F2 by default).
+      - **Deliverables:** Performance display using legui.
       - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T4.5
       - **Name:** Integrate performance display into game loop
-      - **Description:** Replace the existing performance display with the new Nuklear-based performance display. Ensure that it is updated every frame and displays relevant performance metrics.
+      - **Description:** Replace the existing performance display with the new legui-based performance display. Ensure that it is updated every frame and displays relevant performance metrics.
       - **Deliverables:** Integrated performance display in the game loop.
       - **Implementation Context:** (TBD)
 

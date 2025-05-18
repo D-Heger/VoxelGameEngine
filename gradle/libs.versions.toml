@@ -35,7 +35,6 @@ lwjgl-glfw = { group = "org.lwjgl", name = "lwjgl-glfw" }
 lwjgl-opengl = { group = "org.lwjgl", name = "lwjgl-opengl" }
 lwjgl-stb = { group = "org.lwjgl", name = "lwjgl-stb" }
 # lwjgl-assimp = { group = "org.lwjgl", name = "lwjgl-assimp" }
-lwjgl-nuklear = { group = "org.lwjgl", name = "lwjgl-nuklear" }
 
 [bundles]
 logging = ["slf4j-api", "logback-classic"]

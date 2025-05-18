@@ -14,7 +14,6 @@ dependencies {
     implementation(libs.lwjgl.opengl)
     implementation(libs.lwjgl.glfw)
     implementation(libs.lwjgl.stb)
-    implementation(libs.lwjgl.nuklear)
 
     val lwjglNatives = System.getProperty("os.name")!!.lowercase().let { os ->
         when {
@@ -27,7 +26,6 @@ dependencies {
     testRuntimeOnly("org.lwjgl:lwjgl::$lwjglNatives")
     testRuntimeOnly("org.lwjgl:lwjgl-glfw::$lwjglNatives")
     testRuntimeOnly("org.lwjgl:lwjgl-opengl::$lwjglNatives")
-    testRuntimeOnly("org.lwjgl:lwjgl-nuklear::$lwjglNatives")
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)
