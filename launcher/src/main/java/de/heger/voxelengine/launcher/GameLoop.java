@@ -9,18 +9,13 @@ import de.heger.voxelengine.world.block.BlockRegistry;
 import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkPos;
 import de.heger.voxelengine.world.chunk.ChunkManager;
-import de.heger.voxelengine.world.chunk.Direction;
-import de.heger.voxelengine.world.generation.ChunkGenerator;
 import de.heger.voxelengine.world.generation.NoiseTerrainGenerator;
 import de.heger.voxelengine.world.generation.TerrainGenerator;
 import de.heger.voxelengine.world.generation.thread.ChunkGenerationService;
 import de.heger.voxelengine.world.generation.thread.LoggingTaskResultHandler;
 import de.heger.voxelengine.world.generation.thread.PerformanceTrackingTaskResultHandler;
 import de.heger.voxelengine.world.generation.thread.TaskResultHandler;
-
 import org.lwjgl.glfw.GLFW;
-
-import java.util.Collection;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -29,40 +24,32 @@ import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
 public class GameLoop {
 
     private static final LoggerFacade LOGGER = LoggerFacade.get(GameLoop.class);
-    private static final float TARGET_UPS = 60.0f; // Target updates per second (Increased for smoother input)
-    private static final float TARGET_FPS = 60.0f; // Target frames per second (for timing, not limiting)
-    private static final int MAX_WORLD_HEIGHT_CHUNKS = 16; // Max world height in chunks (16 chunks * 16 blocks/chunk =
-                                                           // 256 blocks)
-    private static final int INITIAL_WORLD_RADIUS_CHUNKS = 10; // Smaller radius for async testing
+    private static final float TARGET_UPS = 60.0f;
+    private static final float TARGET_FPS = 60.0f;
 
-    // New constants for P3-T7
+    private static final int MAX_WORLD_HEIGHT_CHUNKS = 16;
     private static final int CHUNK_LOAD_RADIUS = 16;
     private static final int CHUNK_UNLOAD_OFFSET = 1; // Unload if further than LOAD_RADIUS + OFFSET
-    private static final double CHUNK_LOAD_CHECK_INTERVAL = 0.5; // seconds, check every half second
+    private static final double CHUNK_LOAD_CHECK_INTERVAL = 0.5;
 
     private final Window window;
     private final InputManager inputManager;
-    private final Renderer renderer; // Add Renderer instance
-    private final Camera camera; // Add Camera instance
-    private final ChunkManager chunkManager; // Added for P3-T3.7
-    private final BlockRegistry blockRegistry; // Added for P3-T4
-    private final ChunkGenerator chunkGenerator; // OLD: Added for P3-T5.6 - Will be unused for initial world gen
-    private ChunkGenerationService chunkGenerationService; // NEW: For async generation (P3-T6.9)
+    private final Renderer renderer;
+    private final Camera camera;
+    private final ChunkManager chunkManager;
+    private final BlockRegistry blockRegistry;
+    private ChunkGenerationService chunkGenerationService;
     private boolean running = false;
 
-    // New fields for P3-T7
-    private ChunkPos lastCameraXZChunkPos = null; // Stores the XZ chunk position of the camera from the last update.
+    private ChunkPos lastCameraXZChunkPos = null;
     private double chunkLoadCheckTimer = 0.0;
 
-    // New fields for P3-T10 (Performance Display)
     private PerformanceTrackingTaskResultHandler performanceTrackingHandler;
     private String originalWindowTitle;
     private int currentFps = 0;
-    private int currentUps = 0;    // P4-T2.7: Performance metrics storage
+    private int currentUps = 0;
     private long lastFrameRenderedIndices = 0;
     private int lastFrameDrawCalls = 0;
-    
-    // P4-T3.2: Occlusion culling stats
     private int lastFrameOcclusionCulledChunks = 0;
 
     private boolean wasF3Pressed = false;
@@ -98,21 +85,10 @@ public class GameLoop {
         camera.setViewDistance(viewDistance);
         LOGGER.info("Renderer initialized with view distance: {}", viewDistance);
 
-        // OLD Synchronous ChunkGenerator setup (P3-T5.5 / P3-T5.6)
-        // Will be replaced by async service for initial world gen, but can be kept for
-        // other tools/tests
-        TerrainGenerator flatTerrainGenerator = new NoiseTerrainGenerator(12345); // Default to noise for old generator
-                                                                                  // too
-        this.chunkGenerator = new ChunkGenerator(flatTerrainGenerator);
-        LOGGER.info("OLD Synchronous ChunkGenerator initialized.");
 
-        // NEW Asynchronous ChunkGenerationService setup (P3-T6.6 / P3-T6.9)
-        TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337); // Seed for the main async generator
-        // TaskResultHandler resultHandler = new LoggingTaskResultHandler(); // Old
-        // handler
-        TaskResultHandler loggingHandler = new LoggingTaskResultHandler(); // Keep logging
-        this.performanceTrackingHandler = new PerformanceTrackingTaskResultHandler(loggingHandler); // Wrap with perf
-                                                                                                    // tracker
+        TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337);
+        TaskResultHandler loggingHandler = new LoggingTaskResultHandler();
+        this.performanceTrackingHandler = new PerformanceTrackingTaskResultHandler(loggingHandler);
 
         // Determine dynamic queue capacity based on CHUNK_LOAD_RADIUS
         int horizontalDim = (CHUNK_LOAD_RADIUS * 2) + 1;
@@ -148,242 +124,10 @@ public class GameLoop {
         GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
         LOGGER.info("Mouse cursor captured.");
 
-        // P3-T2.3: Initialize test chunks
-        // initTestWorld(); // Call the original test world
-        // initStressTestWorld(); // Call the stress test world
-
-        // P3-T5.6: Initialize procedural world (OLD synchronous way)
-        // initProceduralWorld(INITIAL_WORLD_RADIUS_CHUNKS);
-        // NEW Asynchronous way (P3-T6.9) - This is now replaced by dynamic loading in
-        // updateChunkLoading
-        // initAsyncProceduralWorld(INITIAL_WORLD_RADIUS_CHUNKS);
-
         // Initialize lastCameraXZChunkPos to ensure the first load check runs
         this.lastCameraXZChunkPos = new ChunkPos(Integer.MIN_VALUE, 0, Integer.MIN_VALUE);
 
         LOGGER.info("Game loop initialized.");
-    }
-
-    // P3-T3.7: Refactored method to use ChunkManager for chunk management
-    private void initTestWorld() {
-        LOGGER.info("Initializing test world with ChunkManager...");
-
-        // --- Chunk (0,0,0): Flat layer ---
-        ChunkPos pos000 = new ChunkPos(0, 0, 0);
-        Chunk chunk000 = new Chunk(pos000);
-        LOGGER.debug("Populating chunk (0,0,0) with a flat layer...");
-        for (int x = 0; x < Chunk.SIZE_X; x++) {
-            for (int z = 0; z < Chunk.SIZE_Z; z++) {
-                chunk000.setBlock(x, 0, z, blockRegistry.getId("core:block/dirt"));
-            }
-        }
-        chunkManager.addChunk(chunk000);
-
-        // --- Chunk (1,0,0): Pyramid ---
-        ChunkPos pos100 = new ChunkPos(1, 0, 0);
-        Chunk chunk100 = new Chunk(pos100);
-        LOGGER.debug("Populating chunk (1,0,0) with a pyramid...");
-        int centerX = Chunk.SIZE_X / 2;
-        int centerZ = Chunk.SIZE_Z / 2;
-        int maxHalfWidth = Math.min(Chunk.SIZE_X / 2, Chunk.SIZE_Z / 2) - 1;
-        int pyramidHeight = Math.min(Chunk.SIZE_Y, maxHalfWidth + 1);
-        LOGGER.debug("Building pyramid in chunk (1,0,0) with height {} and max base halfWidth {}", pyramidHeight,
-                maxHalfWidth);
-        for (int y = 0; y < pyramidHeight; y++) {
-            int currentHalfWidth = maxHalfWidth - y;
-            if (currentHalfWidth < 0)
-                continue;
-            int minX = centerX - currentHalfWidth;
-            int maxX = centerX + currentHalfWidth;
-            int minZ = centerZ - currentHalfWidth;
-            int maxZ = centerZ + currentHalfWidth;
-            for (int x = minX; x <= maxX; x++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    if (x >= 0 && x < Chunk.SIZE_X && z >= 0 && z < Chunk.SIZE_Z) {
-                        chunk100.setBlock(x, y, z, blockRegistry.getId("core:block/stone"));
-                    }
-                }
-            }
-        }
-        chunkManager.addChunk(chunk100);
-
-        // --- Chunk (0,0,1): Checkerboard Floor ---
-        ChunkPos pos001 = new ChunkPos(0, 0, 1);
-        Chunk chunk001 = new Chunk(pos001);
-        LOGGER.debug("Populating chunk (0,0,1) with a checkerboard floor...");
-        for (int x = 0; x < Chunk.SIZE_X; x++) {
-            for (int z = 0; z < Chunk.SIZE_Z; z++) {
-                if ((x + z) % 2 == 0) { // Place block if sum of coords is even
-                    chunk001.setBlock(x, 0, z, blockRegistry.getId("core:block/dirt"));
-                }
-            }
-        }
-        chunkManager.addChunk(chunk001);
-
-        // --- Chunk (-1,0,0): Hollow Box ---
-        ChunkPos posN100 = new ChunkPos(-1, 0, 0);
-        Chunk chunkN100 = new Chunk(posN100);
-        LOGGER.debug("Populating chunk (-1,0,0) with a hollow box...");
-        int boxHeight = Chunk.SIZE_Y / 2; // Make a half-height box
-        for (int y = 0; y < boxHeight; y++) {
-            for (int x = 0; x < Chunk.SIZE_X; x++) {
-                for (int z = 0; z < Chunk.SIZE_Z; z++) {
-                    // Place block if it's on the floor (y=0) or on the walls (x=0, x=max, z=0,
-                    // z=max)
-                    // or on the ceiling (y=boxHeight-1)
-                    boolean isWall = (x == 0 || x == Chunk.SIZE_X - 1 || z == 0 || z == Chunk.SIZE_Z - 1);
-                    boolean isFloor = (y == 0);
-                    boolean isCeiling = (y == boxHeight - 1);
-
-                    if (isFloor || isCeiling || isWall) {
-                        chunkN100.setBlock(x, y, z, blockRegistry.getId("core:block/dirt"));
-                    }
-                }
-            }
-        }
-        chunkManager.addChunk(chunkN100);
-
-        // Set up neighbor references - must use getChunk to ensure we're working with
-        // the references stored in the ChunkManager
-        LOGGER.debug("Setting up chunk neighbor references...");
-        // chunk000 neighbors
-        chunk000 = chunkManager.getChunk(pos000); // Get reference from ChunkManager
-        chunk100 = chunkManager.getChunk(pos100);
-        chunk001 = chunkManager.getChunk(pos001);
-        chunkN100 = chunkManager.getChunk(posN100);
-
-        chunk000.setNeighbor(Direction.EAST, chunk100);
-        chunk000.setNeighbor(Direction.SOUTH, chunk001);
-        chunk000.setNeighbor(Direction.WEST, chunkN100);
-
-        // chunk100 neighbors
-        chunk100.setNeighbor(Direction.WEST, chunk000);
-
-        // chunk001 neighbors
-        chunk001.setNeighbor(Direction.NORTH, chunk000);
-
-        // chunkN100 neighbors
-        chunkN100.setNeighbor(Direction.EAST, chunk000);
-
-        // Validate neighbor references
-        LOGGER.debug("Validating neighbor references...");
-        if (chunk000.getNeighbor(Direction.EAST) == chunk100 &&
-                chunk100.getNeighbor(Direction.WEST) == chunk000) {
-            LOGGER.debug("Neighbor validation passed between (0,0,0) and (1,0,0)");
-        }
-
-        // --- Create a tower of 16 chunks far away ---
-        LOGGER.debug("Creating tower of chunks at position (3,0,3)...");
-        Chunk previousChunk = null;
-
-        // Create 16 chunks stacked vertically
-        for (int y = 0; y < 16; y++) {
-            ChunkPos towerPos = new ChunkPos(3, y, 3);
-            Chunk chunk = new Chunk(towerPos);
-
-            // Fill the chunk completely with blocks
-            for (int localY = 0; localY < Chunk.SIZE_Y; localY++) {
-                for (int localX = 0; localX < Chunk.SIZE_X; localX++) {
-                    for (int localZ = 0; localZ < Chunk.SIZE_Z; localZ++) {
-                        chunk.setBlock(localX, localY, localZ, blockRegistry.getId("core:block/grass"));
-                    }
-                }
-            }
-
-            // Add to chunk manager
-            chunkManager.addChunk(chunk);
-
-            // Set up vertical neighbors
-            if (previousChunk != null) {
-                // Connect this chunk with the one below it
-                chunk.setNeighbor(Direction.DOWN, previousChunk);
-                previousChunk.setNeighbor(Direction.UP, chunk);
-            }
-
-            previousChunk = chunk;
-        }
-
-        LOGGER.debug("Tower of chunks created and filled");
-
-        LOGGER.info("Test world initialized with {} chunks.", chunkManager.getLoadedChunkCount());
-    }
-
-    // P3-T3.7: Refactored method to use ChunkManager for stress test world
-    private void initStressTestWorld() {
-        LOGGER.info("Initializing stress test world with ChunkManager (16x16x16 chunks)...");
-        final int gridDim = 4; // Dimension of the chunk grid (4x4x4)
-        int totalChunks = gridDim * gridDim * gridDim;
-        LOGGER.debug("Creating {} total chunks...", totalChunks);
-
-        long startTime = System.nanoTime();
-        int chunksCreated = 0;
-
-        for (int cx = 0; cx < gridDim; cx++) {
-            for (int cy = 0; cy < gridDim; cy++) {
-                for (int cz = 0; cz < gridDim; cz++) {
-                    ChunkPos pos = new ChunkPos(cx, cy, cz);
-                    Chunk chunk = new Chunk(pos);
-
-                    // Fill the chunk completely with blocks
-                    for (int localX = 0; localX < Chunk.SIZE_X; localX++) {
-                        for (int localY = 0; localY < Chunk.SIZE_Y; localY++) {
-                            for (int localZ = 0; localZ < Chunk.SIZE_Z; localZ++) {
-                                chunk.setBlock(localX, localY, localZ, blockRegistry.getId("core:block/dirt"));
-                            }
-                        }
-                    }
-
-                    // Add to the ChunkManager
-                    chunkManager.addChunk(chunk);
-                    chunksCreated++;
-
-                    // Basic progress logging to avoid flooding
-                    if (chunksCreated % 10 == 0) {
-                        LOGGER.debug("Created {}/{} chunks...", chunksCreated, totalChunks);
-                    }
-                }
-            }
-        }
-
-        long endTime = System.nanoTime();
-        double durationSeconds = (endTime - startTime) / 1_000_000_000.0;
-
-        LOGGER.info("Stress test world initialized with {} chunks in {:.2f} seconds.",
-                chunkManager.getLoadedChunkCount(), durationSeconds);
-
-        // Note: Neighbor linking is skipped for this stress test to focus on
-        // creation/rendering load.
-    }
-
-    /**
-     * Initializes a procedural world by generating chunks in a square area around
-     * the origin (0,Y,0)
-     * and vertically up to {@link #MAX_WORLD_HEIGHT_CHUNKS}.
-     * 
-     * @param worldRadiusChunks The radius of the world to generate in chunks
-     *                          horizontally (X and Z axes).
-     *                          For example, a radius of 0 generates 1 chunk column
-     *                          (0,Y,0).
-     *                          A radius of 1 generates 9 chunk columns (-1 to 1 for
-     *                          X and Z).
-     *                          A radius of 2 generates 25 chunk columns (-2 to 2
-     *                          for X and Z).
-     */
-    private void initProceduralWorld(int worldRadiusChunks) {
-        LOGGER.info(
-                "Initializing procedural world with radius: {} chunks (Total {}x{} area horizontally, {} chunks high)...",
-                worldRadiusChunks, (worldRadiusChunks * 2) + 1, (worldRadiusChunks * 2) + 1, MAX_WORLD_HEIGHT_CHUNKS);
-        int chunksGenerated = 0;
-        for (int cx = -worldRadiusChunks; cx <= worldRadiusChunks; cx++) {
-            for (int cz = -worldRadiusChunks; cz <= worldRadiusChunks; cz++) {
-                for (int cy = 0; cy < MAX_WORLD_HEIGHT_CHUNKS; cy++) { // Loop for vertical chunks
-                    ChunkPos pos = new ChunkPos(cx, cy, cz);
-                    this.chunkGenerator.generateChunk(pos);
-                    chunksGenerated++;
-                }
-            }
-        }
-        LOGGER.info("Procedural world initialization complete. Generated {} chunks.", chunksGenerated);
     }
 
     /**
@@ -557,15 +301,6 @@ public class GameLoop {
 
         // Placeholder for other game logic updates (physics, AI, etc.)
         // LOGGER.trace("Update tick (delta: {})", deltaTime);
-
-        // Check if window was resized and update projection matrix
-        // TODO: Implement a more robust resize event system later
-        // For now, we can check if the aspect ratio changed significantly,
-        // but it's better handled via callbacks or flags.
-        // if (Math.abs(window.getAspectRatio() - lastAspectRatio) > 0.01f) {
-        // renderer.updateProjectionMatrix();
-        // lastAspectRatio = window.getAspectRatio();
-        // }
     }
 
     private void render() {
