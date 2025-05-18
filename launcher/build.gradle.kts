@@ -19,6 +19,7 @@ dependencies {
     implementation(libs.bundles.lwjgl.core)
     implementation(libs.lwjgl.stb)
     // implementation(libs.lwjgl.openal)
+    implementation(libs.lwjgl.nuklear)
 
     val lwjglNatives = System.getProperty("os.name")!!.lowercase().let { os ->
         when {
@@ -34,6 +35,7 @@ dependencies {
     runtimeOnly("org.lwjgl:lwjgl-opengl::$lwjglNatives")
     runtimeOnly("org.lwjgl:lwjgl-stb::$lwjglNatives")
     // runtimeOnly("org.lwjgl:lwjgl-jemalloc::$lwjglNatives")
+    runtimeOnly("org.lwjgl:lwjgl-nuklear::$lwjglNatives")
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)

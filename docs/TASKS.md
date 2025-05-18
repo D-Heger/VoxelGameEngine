@@ -581,11 +581,11 @@
       - **Description:** Add wireframe rendering to the renderer, to visualize the chunk meshes. This should be done in a new class `WireframeRenderer` that takes a `ChunkMesh` and renders it in wireframe mode. This should be toggled via a key binding (default: `F3`). Integrate this into the existing renderer's chunk rendering process. Ensure that this causes no opengl errors.
       - **Deliverables:** New `WireframeRenderer` class.
       - **Implementation Context:** Added a new `WireframeRenderer` class that renders a `ChunkMesh` in wireframe mode. This is integrated into the existing renderer's chunk rendering process and toggled via a key binding (default: `F3`) in `GameLoop.java`.
-    - [ ] **Subtask ID:** P4-T4.2
+    - [x] **Subtask ID:** P4-T4.2
       - **Name:** Integrate nuklear
       - **Description:** Integrate the Nuklear GUI library (bindings are included in lwjgl).
       - **Deliverables:** Nuklear integration in libs.toml and build.gradle
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** Added Nuklear to the `libs.toml` file and the `build.gradle` files for `engine-renderer` and `launcher`.
     - [ ] **Subtask ID:** P4-T4.3
       - **Name:** Add base nuklear UI class
       - **Description:** Add a base Nuklear UI class that can be used to create a Nuklear UI. This should include a basic layout and a way to add widgets.
