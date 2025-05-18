@@ -126,55 +126,6 @@ public class GameLoop {
         LOGGER.info("Game loop initialized.");
     }
 
-    /**
-     * Initializes a procedural world by ASYNCHRONOUSLY requesting chunks
-     * in a square area around the origin (0,Y,0)
-     * and vertically up to {@link #MAX_WORLD_HEIGHT_CHUNKS}.
-     * 
-     * @param worldRadiusChunks The radius of the world to generate in chunks
-     *                          horizontally.
-     */
-    // This method is no longer called for initial world generation due to P3-T7
-    // dynamic loading.
-    // It can be kept for testing or other purposes if needed.
-    @SuppressWarnings("unused") // Mark as unused if it's no longer called
-    private void initAsyncProceduralWorld(int worldRadiusChunks) {
-        LOGGER.info(
-                "Requesting ASYNCHRONOUS procedural world generation with radius: {} chunks (Total {}x{} area horizontally, {} chunks high)...",
-                worldRadiusChunks, (worldRadiusChunks * 2) + 1, (worldRadiusChunks * 2) + 1, MAX_WORLD_HEIGHT_CHUNKS);
-        int chunksRequested = 0;
-        int requestFailed = 0;
-
-        // Priority: For initial load, a simple constant priority is fine.
-        // Chunks closer to the player/center could get higher priority (lower number).
-        // Example: Priority can be based on distance from (0,y,0) for initial load.
-        // int basePriority = 1000;
-
-        for (int cx = -worldRadiusChunks; cx <= worldRadiusChunks; cx++) {
-            for (int cz = -worldRadiusChunks; cz <= worldRadiusChunks; cz++) {
-                for (int cy = 0; cy < MAX_WORLD_HEIGHT_CHUNKS; cy++) {
-                    ChunkPos pos = new ChunkPos(cx, cy, cz);
-                    // Simple priority: lower Y levels, or closer to 0,0 horizontal get slightly
-                    // higher priority.
-                    int priority = 1000 + (MAX_WORLD_HEIGHT_CHUNKS - 1 - cy) + (Math.abs(cx) + Math.abs(cz));
-                    boolean requested = this.chunkGenerationService.requestChunkGeneration(pos, priority);
-                    if (requested) {
-                        chunksRequested++;
-                    } else {
-                        requestFailed++;
-                    }
-                }
-            }
-        }
-        if (requestFailed > 0) {
-            LOGGER.warn(
-                    "Asynchronous procedural world initialization: {} chunks requested, {} requests failed (e.g. already loaded/queued, or queue full).",
-                    chunksRequested, requestFailed);
-        } else {
-            LOGGER.info("Asynchronous procedural world initialization complete. Requested {} chunks.", chunksRequested);
-        }
-    }
-
     public void run() {
         LOGGER.info("Starting game loop...");
         running = true;

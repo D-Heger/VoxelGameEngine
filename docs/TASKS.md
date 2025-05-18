@@ -582,18 +582,8 @@
       - **Deliverables:** New `WireframeRenderer` class.
       - **Implementation Context:** Added a new `WireframeRenderer` class that renders a `ChunkMesh` in wireframe mode. This is integrated into the existing renderer's chunk rendering process and toggled via a key binding (default: `F3`) in `GameLoop.java`.
     - [ ] **Subtask ID:** P4-T4.2
-      - **Name:** Add ui and text rendering
-      - **Description:** Integrate a performant ui and text rendering library.
-      - **Deliverables:** Changed gradle dependencies.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T4.3
-      - **Name:** Create an example ui
-      - **Description:** Create an example ui with a button and a text field.
-      - **Deliverables:** Example ui.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T4.4
       - **Name:** Rework performance display
-      - **Description:** Rework the performance display to be an overlay on the screen, instead of updating the window title.
+      - **Description:** Rework the performance display to be an overlay on the screen, instead of updating the window title, utilizing nuklear java bindings included in lwjgl.
       - **Deliverables:** Reworked performance display.
       - **Implementation Context:** (TBD)
 
