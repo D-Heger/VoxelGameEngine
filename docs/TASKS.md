@@ -602,9 +602,9 @@
       - **Deliverables:** Integrated performance display in the game loop.
       - **Implementation Context:** The new `PerformanceDisplay` (implemented in P4-T4.4) was directly integrated into `GameLoop.java`. The previous performance display mechanism (updating the window title) was removed. The `PerformanceDisplay` is updated with fresh metrics each second within the game loop and rendered each frame via the `UIManager`. The F2 key correctly toggles its visibility.
 
-- - [ ] **Task ID:** P4-T5
-  - **Name:** Extend & refine custom ui implementation
-  - **Description:** Refine the custom ui implementation, adding more elements and making interactions possible.
+- - [x] **Task ID:** P4-T5
+  - **Name:** Extend  custom ui implementation
+  - **Description:** Extend the custom ui implementation, adding more elements and making interactions possible.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P4-T4, `engine-renderer` module
   - **Subtasks:**
@@ -640,27 +640,49 @@
       - **Implementation Context:** Created a `PauseMenu` class in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/ui/displays/`. It extends `UIElement` and uses a `BoxElement` for background. It also includes a `ButtonElement` for the continue and quit buttons. The menu is integrated into the `GameLoop` and handles the escape key to toggle its visibility.
 
 - - [ ] **Task ID:** P4-T6
+  - **Name:** Refine custom ui implementation
+  - **Description:** Refine the custom ui implementation by offering a more complex layouting system and quality of life features.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P4-T5, `engine-renderer` module
+  - **Subtasks:**
+    - [ ] **Subtask ID:** P4-T6.1
+      - **Name:** Add a more complex layouting system
+      - **Description:** Add a more complex layouting system to the ui, so that ui elements can be positioned relative to each other and to the screen. This should include a layout manager that can be used to position elements in a grid, a flow layout, or other layouts. This should also include a way to set the size of the elements relative to the screen size.
+      - **Deliverables:** More complex layouting system.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.2
+      - **Name:** Add debug visualisation for the layouting to make it easier to use.
+      - **Description:** Implement a debug overlay that shows the boundaries and positions of UI elements in the layout. This should help developers understand how elements are positioned and sized within the layout system.
+      - **Deliverables:** Debug visualisation overlay.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.3
+      - **Name:** Add quality of life features
+      - **Description:** Add quality of life features to the layouting system, such as functions to position elements at the center, right/left, top/bottom and other anchor points. This should also include optional auto-sizing of elements according to their content (if the element has text) and auto-sizing of text inside an element.
+      - **Deliverables:** Quality of life features.
+      - **Implementation Context:** (none)
+
+- - [ ] **Task ID:** P4-T7
   - **Name:** Player Entity (`game`)
   - **Description:** Create a `Player` class representing the player in the world, holding position, orientation, and potentially other state.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T2, `game` module
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T7
+- - [ ] **Task ID:** P4-T8
   - **Name:** Basic Player Movement (`game`, `engine-physics`)
   - **Description:** Implement movement logic (walking, jumping) based on input. Integrate basic gravity.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T5, P4-T3, `game`, `engine-physics` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T8
+- - [ ] **Task ID:** P4-T9
   - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement Axis-Aligned Bounding Box (AABB) collision detection between the player entity and world blocks. Prevent player from moving into solid blocks.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T2, P4-3, P4-T4, `engine-physics`, `engine-world`, `game` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T9
+- - [ ] **Task ID:** P4-T10
   - **Name:** Raycasting (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement a raycasting algorithm (e.g., Amanatides & Woo) to determine the block the player is looking at.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
