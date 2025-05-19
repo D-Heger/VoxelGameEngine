@@ -29,6 +29,7 @@ public class TextElement extends UIElement {
     private String text;
     private Font font;
     private Vector4f color;
+    private float scale;
 
     private int vaoId = -1, vboId = -1, eboId = -1;
     private int indexCount = 0; // Number of indices
@@ -36,10 +37,15 @@ public class TextElement extends UIElement {
     private final Matrix4f modelMatrix = new Matrix4f();
 
     public TextElement(String text, Font font, Vector2f position, Vector4f color) {
+        this(text, font, position, color, 1.0f);
+    }
+
+    public TextElement(String text, Font font, Vector2f position, Vector4f color, float scale) {
         super(position, new Vector2f(0, 0)); 
         this.text = text;
         this.font = font;
         this.color = color;
+        this.scale = scale;
         if (font == null) {
             LOGGER.warn("TextElement created with null font for text: {}", text);
         }
@@ -79,8 +85,19 @@ public class TextElement extends UIElement {
         this.color = color;
     }
 
+    public float getScale() {
+        return scale;
+    }
+
+    public void setScale(float scale) {
+        if (this.scale != scale && scale > 0) {
+            this.scale = scale;
+            buildMesh();
+        }
+    }
+
     private void buildMesh() {
-        if (font == null || text == null || text.isEmpty()) {
+        if (font == null || text == null || text.isEmpty() || scale <= 0) {
             cleanupMesh(); 
             this.size.set(0,0);
             return;
@@ -96,7 +113,7 @@ public class TextElement extends UIElement {
         FloatBuffer verticesBuffer = null;
         IntBuffer indicesBuffer = null;
         float calculatedWidth = 0;
-        float calculatedHeight = font.getLineHeight(); // Use line height for vertical alignment and clarity
+        float calculatedHeight = font.getLineHeight() * scale; // Use line height for vertical alignment and clarity, scaled
 
         STBTTBakedChar.Buffer charData = font.getBakedCharData();
         int atlasW = font.getAtlasWidth();
@@ -141,24 +158,24 @@ public class TextElement extends UIElement {
                 float final_y1 = q.y1();
 
                 // Top-left
-                verticesBuffer.put(q.x0()).put(final_y0).put(q.s0()).put(q.t0());
+                verticesBuffer.put(q.x0() * scale).put(final_y0 * scale).put(q.s0()).put(q.t0());
                 // Bottom-left
-                verticesBuffer.put(q.x0()).put(final_y1).put(q.s0()).put(q.t1());
+                verticesBuffer.put(q.x0() * scale).put(final_y1 * scale).put(q.s0()).put(q.t1());
                 // Bottom-right
-                verticesBuffer.put(q.x1()).put(final_y1).put(q.s1()).put(q.t1());
+                verticesBuffer.put(q.x1() * scale).put(final_y1 * scale).put(q.s1()).put(q.t1());
                 // Top-right
-                verticesBuffer.put(q.x1()).put(final_y0).put(q.s1()).put(q.t0());
+                verticesBuffer.put(q.x1() * scale).put(final_y0 * scale).put(q.s1()).put(q.t0());
 
                 int baseIndex = i * 4;
                 indicesBuffer.put(baseIndex + 0).put(baseIndex + 1).put(baseIndex + 2);
                 indicesBuffer.put(baseIndex + 0).put(baseIndex + 2).put(baseIndex + 3);
             }
-            calculatedWidth = xPos.get(0); 
+            calculatedWidth = xPos.get(0) * scale; 
             // The actual height of rendered text might be different from font.getLineHeight() if some chars are taller.
             // For simplicity, using font.getLineHeight(). A more accurate way would be to track min/max Y of rendered quads.
             // STBTTBakedChar yoff and yoff2 can give bbox. We used y0 and y1 from GetBakedQuad.
             // Height should be max(y1) - min(y0) over all quads, or more simply, font line height.
-            calculatedHeight = font.getLineHeight();
+            calculatedHeight = font.getLineHeight() * scale; // Re-affirm scaled height
         }
 
         verticesBuffer.flip();

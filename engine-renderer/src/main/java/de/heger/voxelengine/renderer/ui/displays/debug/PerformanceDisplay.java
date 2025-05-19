@@ -17,7 +17,7 @@ public class PerformanceDisplay {
     private final UIManager uiManager;
     private final Font font;
     private final Vector4f textColor = new Vector4f(1.0f, 1.0f, 1.0f, 1.0f); // White
-    private final float fontSize = 16f; // Nominal font size, actual line height comes from font object
+    private final float textScale = 0.4f; // Scale factor for the text elements
     private final float lineSpacing = 2f; // Additional spacing between lines of text (on top of font's own linegap)
     private final float textBlockPadding = 5.0f; // Padding around the text block inside the background box
 
@@ -46,28 +46,30 @@ public class PerformanceDisplay {
 
     public void init() {
         // These are the start coordinates for the TextElements themselves (their baselines)
-        float firstTextBaselineY = 20.0f + font.getAscent(); // Adjust so 20.0 is the visual top
+        float visualTextTopY = 20.0f; // Desired Y coordinate for the top of the first line of text
         float textX = 10.0f;
+
+        float scaledAscent = font.getAscent() * textScale;
+        float scaledLineHeight = font.getLineHeight() * textScale;
+
+        float firstTextBaselineY = visualTextTopY + scaledAscent; 
 
         int numTextElements = 11; // Number of performance text lines
 
         // Calculate dimensions for the text block content itself
-        float textContentWidth = 0;
         // Estimate max text width. A more accurate way would be to render all text once, get max width.
-        // For now, using a fixed estimate that was previously implicitly used by boxWidth.
-        float estimatedMaxTextStringWidth = 230f;
-        textContentWidth = estimatedMaxTextStringWidth; 
+        float estimatedMaxTextStringWidthAtScale1 = 440f; // Estimated width if scale were 1.0
+        float textContentWidth = estimatedMaxTextStringWidthAtScale1 * textScale; 
 
         // Height of the text block content from the top of the first line to bottom of the last line
-        float textContentHeight = (numTextElements * font.getLineHeight()) + ((numTextElements - 1) * lineSpacing);
-        if (numTextElements == 1) textContentHeight = font.getLineHeight();
+        float textContentHeight = (numTextElements * scaledLineHeight) + ((numTextElements - 1) * lineSpacing);
+        if (numTextElements == 1) textContentHeight = scaledLineHeight;
 
         // Background Box positioning and sizing
         // Box top-left X: textX is where text starts, so box is textX - padding
         float boxX = textX - textBlockPadding;
-        // Box top-left Y: firstTextBaselineY is baseline of first line. Top of text is firstTextBaselineY - font.getAscent().
-        // So box top is (firstTextBaselineY - font.getAscent()) - textBlockPadding.
-        float boxY = (firstTextBaselineY - font.getAscent()) - textBlockPadding;
+        // Box top-left Y: based on the visual top of the text content area
+        float boxY = visualTextTopY - textBlockPadding;
         
         float boxWidth = textContentWidth + (2 * textBlockPadding);
         float boxHeight = textContentHeight + (2 * textBlockPadding);
@@ -80,25 +82,25 @@ public class PerformanceDisplay {
         float currentTextBaselineY = firstTextBaselineY;
 
         fpsText = createTextElement("FPS: -", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         upsText = createTextElement("UPS: -", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         avgChunkGenTimeText = createTextElement("Avg Gen Time: - ms (0)", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         drawCallsText = createTextElement("Draw Calls: -", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         renderedIndicesText = createTextElement("Rendered Indices: -", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         occlusionCulledText = createTextElement("Occlusion Culled Chunks: -", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         frustumCulledText = createTextElement("Frustum Culled Chunks: -", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         totalLoadedChunksText = createTextElement("Loaded Chunks: -", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         activeMeshesText = createTextElement("Active Meshes: -", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         generationQueueText = createTextElement("Gen Queue: -", textX, currentTextBaselineY);
-        currentTextBaselineY += font.getLineHeight() + lineSpacing;
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         activeGenThreadsText = createTextElement("Active Gen Threads: -", textX, currentTextBaselineY);
 
         // Set initial visibility
@@ -106,7 +108,7 @@ public class PerformanceDisplay {
     }
 
     private TextElement createTextElement(String initialText, float x, float y) {
-        TextElement textElement = new TextElement(initialText, font, new Vector2f(x, y), textColor);
+        TextElement textElement = new TextElement(initialText, font, new Vector2f(x, y), textColor, textScale);
         textElements.add(textElement);
         uiManager.addElement(textElement);
         return textElement;
