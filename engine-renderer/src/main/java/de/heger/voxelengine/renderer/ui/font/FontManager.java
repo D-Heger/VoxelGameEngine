@@ -17,9 +17,9 @@ public class FontManager {
     private final Map<String, Font> fontCache = new HashMap<>();
 
     // Default font properties
-    public static final String DEFAULT_FONT_NAME = "OpenSans-Regular";
+    public static final String DEFAULT_FONT_NAME = "Roboto-Regular";
     public static final String DEFAULT_FONT_PATH = "fonts/" + DEFAULT_FONT_NAME + ".ttf";
-    public static final float DEFAULT_FONT_SIZE = 48f;
+    public static final float DEFAULT_FONT_SIZE = 64f;
     public static final int DEFAULT_ATLAS_WIDTH = 4096;
     public static final int DEFAULT_ATLAS_HEIGHT = 4096;
     public static final int DEFAULT_FIRST_CHAR = 32; // ASCII space

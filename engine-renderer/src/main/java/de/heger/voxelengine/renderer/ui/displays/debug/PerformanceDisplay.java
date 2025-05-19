@@ -17,7 +17,7 @@ public class PerformanceDisplay {
     private final UIManager uiManager;
     private final Font font;
     private final Vector4f textColor = new Vector4f(1.0f, 1.0f, 1.0f, 1.0f); // White
-    private final float textScale = 0.4f; // Scale factor for the text elements
+    private final float textScale = 0.3f; // Scale factor for the text elements
     private final float lineSpacing = 2f; // Additional spacing between lines of text (on top of font's own linegap)
     private final float textBlockPadding = 5.0f; // Padding around the text block inside the background box
 
@@ -58,7 +58,7 @@ public class PerformanceDisplay {
 
         // Calculate dimensions for the text block content itself
         // Estimate max text width. A more accurate way would be to render all text once, get max width.
-        float estimatedMaxTextStringWidthAtScale1 = 440f; // Estimated width if scale were 1.0
+        float estimatedMaxTextStringWidthAtScale1 = 680f; // Estimated width if scale were 1.0
         float textContentWidth = estimatedMaxTextStringWidthAtScale1 * textScale; 
 
         // Height of the text block content from the top of the first line to bottom of the last line

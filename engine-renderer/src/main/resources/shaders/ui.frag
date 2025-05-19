@@ -17,7 +17,7 @@ void main() {
         float gamma = 2.2;
         float correctedAlpha = pow(alphaFromTexture, 1.0 / gamma);
         // Optionally, use smoothstep for a soft edge
-        correctedAlpha = smoothstep(0.05, 0.95, correctedAlpha);
+        correctedAlpha = smoothstep(0.4, 0.95, correctedAlpha);
         // Final color is uColor, with alpha modulated by texture's alpha and uAlpha
         finalColor = vec4(uColor.rgb, uColor.a * correctedAlpha * uAlpha);
     } else {
