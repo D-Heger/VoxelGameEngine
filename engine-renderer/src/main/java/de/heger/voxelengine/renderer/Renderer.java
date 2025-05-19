@@ -8,7 +8,6 @@ import de.heger.voxelengine.renderer.camera.Camera;
 import de.heger.voxelengine.renderer.culling.AABB;
 import de.heger.voxelengine.renderer.culling.FrustumCuller;
 import de.heger.voxelengine.renderer.culling.OcclusionCuller;
-import de.heger.voxelengine.renderer.mesh.Mesh;
 import de.heger.voxelengine.renderer.shader.ShaderProgram;
 import de.heger.voxelengine.renderer.texture.Texture;
 import de.heger.voxelengine.world.block.BlockProperties;
@@ -18,13 +17,11 @@ import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkPos;
 import de.heger.voxelengine.world.chunk.CoordinateUtils;
 import de.heger.voxelengine.core.math.Vec3i;
-import de.heger.voxelengine.world.chunk.Direction;
 import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.renderer.mesh.ChunkMesh;
 import de.heger.voxelengine.renderer.mesh.ChunkMeshBuilder;
 import de.heger.voxelengine.world.chunk.ChunkMeshState;
 import de.heger.voxelengine.renderer.debug.WireframeRenderer;
-import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -32,12 +29,9 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.opengl.GLUtil;
 import org.lwjgl.system.Callback;
-
-import static org.lwjgl.glfw.GLFW.glfwGetTime;
 import static org.lwjgl.opengl.GL11.*;
 
 import java.util.Collection;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -55,41 +49,38 @@ public class Renderer {
     private Callback debugCallback;
     private ShaderProgram defaultShaderProgram;
     private Camera camera;
-    private Mesh cubeMesh; // Keep for testing for now
     private TextureLoader textureLoader;
-    private Map<String, Texture> textureMap; // Stores textures loaded based on BlockRegistry
-    private FrustumCuller frustumCuller; // Add FrustumCuller field
-    private OcclusionCuller occlusionCuller; // Add OcclusionCuller field for occlusion culling
+    private Map<String, Texture> textureMap;
+    private FrustumCuller frustumCuller;
+    private OcclusionCuller occlusionCuller;
 
-    private Map<Direction, Mesh> faceMeshes; // For face culling - TO BE REMOVED/REPLACED by ChunkMesh
-    private ChunkManager chunkManager; // For neighbor chunk access
-    private BlockRegistry blockRegistry; // For block properties access
+    private ChunkManager chunkManager;
+    private BlockRegistry blockRegistry;
 
-    // P4-T4.1: Wireframe rendering support
     private WireframeRenderer wireframeRenderer;
     private boolean wireframeMode = false;
 
-    // P4-T2.6: Cache for active chunk meshes, renderer-side
     private final Map<ChunkPos, Map<String, ChunkMesh>> activeChunkMeshes = new HashMap<>();
+    private final Map<ChunkPos, AABB> chunkAABBCache = new HashMap<>();
 
-    // P4-T2.7: Performance metrics
     private int totalIndicesRenderedLastFrame = 0;
     private int drawCallsLastFrame = 0;
     private int occlusionCulledChunksLastFrame = 0;
-    private int frustumCulledChunksLastFrame = 0; // Added for frustum culling stats
+    private int frustumCulledChunksLastFrame = 0;
 
-    private static final boolean USE_OCCLUSION_CULLING = true; // Or from config
+    private final Matrix4f viewProjectionMatrixForCulling = new Matrix4f();
+
+    private static final boolean USE_OCCLUSION_CULLING = true;
 
     public Renderer(Window window) {
         this.window = window;
         this.camera = new Camera();
         this.textureLoader = new TextureLoader();
         this.textureMap = new HashMap<>();
-        this.faceMeshes = new EnumMap<>(Direction.class); // Initialize faceMeshes map
-        this.chunkManager = ChunkManager.getInstance(); // Get ChunkManager instance
-        this.blockRegistry = BlockRegistry.getInstance(); // Get BlockRegistry instance
-        this.occlusionCuller = new OcclusionCuller(); // Initialize occlusion culler
-        this.wireframeRenderer = new WireframeRenderer(); // Initialize wireframe renderer
+        this.chunkManager = ChunkManager.getInstance();
+        this.blockRegistry = BlockRegistry.getInstance();
+        this.occlusionCuller = new OcclusionCuller();
+        this.wireframeRenderer = new WireframeRenderer();
     }
 
     public void init() {
@@ -148,24 +139,6 @@ public class Renderer {
             throw new RuntimeException("Failed to initialize block textures", e);
         }
 
-        // Initialize simple cube mesh (now uses UVs) - Keep for testing
-        cubeMesh = Mesh.createCube();
-
-        // Initialize face meshes for face culling
-        logger.info("Initializing face meshes for culling...");
-        try {
-            faceMeshes.put(Direction.UP, Mesh.createUpFace());
-            faceMeshes.put(Direction.DOWN, Mesh.createDownFace());
-            faceMeshes.put(Direction.NORTH, Mesh.createNorthFace());
-            faceMeshes.put(Direction.SOUTH, Mesh.createSouthFace());
-            faceMeshes.put(Direction.WEST, Mesh.createWestFace());
-            faceMeshes.put(Direction.EAST, Mesh.createEastFace());
-            logger.info("Face meshes initialized.");
-        } catch (Exception e) {
-            logger.error("Failed to initialize face meshes", e);
-            throw new RuntimeException("Failed to initialize face meshes", e);
-        }
-
         logger.info("OpenGL context initialized successfully.");
     }
 
@@ -183,8 +156,8 @@ public class Renderer {
                 }
             }
         }
-         // Add air texture explicitly if needed, though air usually isn't rendered
-         // uniqueTextureNames.add("core:block/air"); // Example if air had a texture
+        // Add air texture explicitly if needed, though air usually isn't rendered
+        // uniqueTextureNames.add("core:block/air"); // Example if air had a texture
 
         logger.debug("Found {} unique texture names to load: {}", uniqueTextureNames.size(), uniqueTextureNames);
 
@@ -195,7 +168,8 @@ public class Renderer {
                 continue;
             }
 
-            // Derive resource path from name (e.g., "core:block/dirt" -> "textures/block/dirt.png")
+            // Derive resource path from name (e.g., "core:block/dirt" ->
+            // "textures/block/dirt.png")
             // This assumes a convention: namespace:type/name -> textures/type/name.png
             String resourcePath = deriveTextureResourcePath(textureName);
             if (resourcePath == null) {
@@ -211,7 +185,8 @@ public class Renderer {
                     textureMap.put(textureName, texture);
                     logger.info("Loaded texture: '{}'", textureName);
                 } else {
-                    logger.error("Failed to load texture data for '{}' from path '{}'. Check resource path and file.", textureName, resourcePath);
+                    logger.error("Failed to load texture data for '{}' from path '{}'. Check resource path and file.",
+                            textureName, resourcePath);
                     // Optionally: Load a default "missing" texture instead
                     // textureMap.put(textureName, getMissingTexture());
                 }
@@ -226,26 +201,28 @@ public class Renderer {
     /**
      * Derives the resource path for a texture based on its registry name.
      * Example: "core:block/dirt" -> "textures/block/dirt.png"
+     * 
      * @param textureName The texture name from the registry.
      * @return The resource path string, or null if derivation fails.
      */
     private String deriveTextureResourcePath(String textureName) {
         if (textureName == null || !textureName.contains(":")) {
-            logger.warn("Texture name '{}' is null or missing namespace separator ':'. Cannot derive path.", textureName);
+            logger.warn("Texture name '{}' is null or missing namespace separator ':'. Cannot derive path.",
+                    textureName);
             return null;
         }
         // Assuming format "namespace:type/name"
         String[] parts = textureName.split(":", 2);
         if (parts.length < 2 || !parts[1].contains("/")) {
-             logger.warn("Texture name '{}' does not match expected format 'namespace:type/name'. Cannot derive path.", textureName);
-             return null;
+            logger.warn("Texture name '{}' does not match expected format 'namespace:type/name'. Cannot derive path.",
+                    textureName);
+            return null;
         }
 
         String typeAndName = parts[1]; // e.g., "block/dirt"
         // Construct path: "textures/" + type + "/" + name + ".png"
         return "textures/" + typeAndName + ".png";
     }
-
 
     private void loadShaders() throws Exception {
         logger.info("Loading default shader program...");
@@ -279,64 +256,6 @@ public class Renderer {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
 
-    // Example render method (will be expanded later) - Modified to use textureMap
-    public void render() {
-         // Check if resources are initialized
-         if (defaultShaderProgram != null && cubeMesh != null && !textureMap.isEmpty()) {
-             defaultShaderProgram.bind();
-
-             // Set camera-based uniforms
-             Matrix4f viewMatrix = camera.getViewMatrix();
-             defaultShaderProgram.setUniform("projection", camera.getProjectionMatrix());
-             defaultShaderProgram.setUniform("view", viewMatrix);
-
-             // Set lighting uniforms
-             defaultShaderProgram.setUniform("lightDir", new Vector3f(-0.5f, -1.0f, -0.5f)); // Sunlight direction
-             defaultShaderProgram.setUniform("lightColor", new Vector3f(1.0f, 0.95f, 0.8f)); // Slightly warm sunlight
-             defaultShaderProgram.setUniform("ambientColor", new Vector3f(0.4f, 0.5f, 0.6f)); // Slightly blue-tinted ambient
-             defaultShaderProgram.setUniform("ambientStrength", 0.6f); // Increased ambient strength
-
-             // Compute rotating model matrix for test cube
-             double time = glfwGetTime();
-             Matrix4f modelMatrix = new Matrix4f()
-                     .identity()
-                     .rotateY((float)(time * Math.toRadians(50.0f))); // Rotate around Y
-                     // .rotateX((float)(time * Math.toRadians(20.0f))); // Optional: Add X rotation
-             defaultShaderProgram.setUniform("model", modelMatrix);
-
-             // --- Use a texture from the map for the test cube ---
-             // Try to get dirt, fallback to the first available texture if dirt isn't loaded
-             Texture textureToRender = textureMap.get("core:block/dirt");
-             if (textureToRender == null && !textureMap.isEmpty()) {
-                 // Fallback to the first texture in the map if dirt is missing
-                 Texture fallbackTexture = textureMap.values().iterator().next();
-                 logger.warn("Texture 'core:block/dirt' not found, rendering test cube with fallback: {}",
-                           textureMap.entrySet().stream().filter(entry -> entry.getValue() == fallbackTexture).findFirst().map(Map.Entry::getKey).orElse("Unknown"));
-                 textureToRender = fallbackTexture;
-             }
-
-             if (textureToRender != null) {
-                 // Bind texture to texture unit 0
-                 textureToRender.bind(0);
-                 // Tell shader to use texture unit 0 for uTexture sampler
-                 defaultShaderProgram.setUniform("uTexture", 0);
-
-                 // Render the mesh
-                 cubeMesh.render();
-             } else {
-                  logger.error("No textures available to render the test cube.");
-             }
-
-
-             // Unbind shader (optional, good practice)
-             defaultShaderProgram.unbind();
-             // Unbind texture (less common, binding 0 is safer if needed)
-             // glBindTexture(GL_TEXTURE_2D, 0);
-         } else {
-             logger.warn("Attempted to render before resources (shader, mesh, textures) were fully initialized.");
-         }
-    }
-
     /**
      * Renders the blocks within the given list of chunks. (P3-T2.4, P3-T2.5)
      * This is a basic implementation rendering a separate cube for each block.
@@ -344,14 +263,15 @@ public class Renderer {
      * @param chunks The list of chunks to render.
      */
     public void renderChunks(Collection<Chunk> chunks) {
-        if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null || textureMap.isEmpty() || blockRegistry == null || chunkManager == null) {
+        if (chunks == null || chunks.isEmpty() || defaultShaderProgram == null || textureMap.isEmpty()
+                || blockRegistry == null || chunkManager == null) {
             return;
         }
 
         drawCallsLastFrame = 0;
         totalIndicesRenderedLastFrame = 0;
-        frustumCulledChunksLastFrame = 0; 
-        occlusionCulledChunksLastFrame = 0; 
+        frustumCulledChunksLastFrame = 0;
+        occlusionCulledChunksLastFrame = 0;
 
         defaultShaderProgram.bind();
         Matrix4f currentViewMatrix = camera.getViewMatrix();
@@ -366,53 +286,65 @@ public class Renderer {
         defaultShaderProgram.setUniform("uTexture", 0); // Tell shader to use texture unit 0
 
         Matrix4f modelMatrix = new Matrix4f(); // Reused for each chunk
-        Matrix4f viewProjectionMatrix = new Matrix4f(camera.getProjectionMatrix()).mul(currentViewMatrix);
+        // OLD: Matrix4f viewProjectionMatrix = new
+        // Matrix4f(camera.getProjectionMatrix()).mul(currentViewMatrix);
+        // NEW: Reuse member field to avoid allocations
+        viewProjectionMatrixForCulling.set(camera.getProjectionMatrix());
+        viewProjectionMatrixForCulling.mul(currentViewMatrix);
 
         if (this.frustumCuller == null) {
-            this.frustumCuller = new FrustumCuller(viewProjectionMatrix);
+            this.frustumCuller = new FrustumCuller(viewProjectionMatrixForCulling);
         } else {
-            this.frustumCuller.updateViewProjectionMatrix(viewProjectionMatrix);
+            this.frustumCuller.updateViewProjectionMatrix(viewProjectionMatrixForCulling);
         }
 
         Set<ChunkPos> currentlyVisibleAndMeshedChunks = new HashSet<>();
 
         // Apply frustum culling first to create a list of potentially visible chunks
         Set<Chunk> chunksInFrustum = new HashSet<>();
-        
-        for (Chunk chunk : chunks) {
-            if (chunk == null) continue;
 
-            AABB chunkAABB = AABB.fromChunk(chunk);
+        for (Chunk chunk : chunks) {
+            if (chunk == null)
+                continue;
+
+            AABB chunkAABB = chunkAABBCache.get(chunk.getPosition());
+            if (chunkAABB == null) {
+                chunkAABB = AABB.fromChunk(chunk);
+                chunkAABBCache.put(chunk.getPosition(), chunkAABB);
+            }
+
             if (!frustumCuller.testAABB(chunkAABB)) {
-                frustumCulledChunksLastFrame++; 
-                continue; 
+                frustumCulledChunksLastFrame++;
+                continue;
             }
             chunksInFrustum.add(chunk);
         }
-        
+
         Collection<Chunk> visibleChunks;
         if (occlusionCuller != null && USE_OCCLUSION_CULLING) {
             List<Chunk> sortedChunksInFrustum = new ArrayList<>(chunksInFrustum);
-            final Vector3f cameraPos = camera.getPosition(); 
+            final Vector3f cameraPos = camera.getPosition();
             sortedChunksInFrustum.sort(Comparator.comparingDouble(chunk -> {
                 Vec3i worldPos = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
                 // Use Chunk.SIZE_X for cubic chunk dimensions
-                return cameraPos.distanceSquared(worldPos.x + Chunk.SIZE_X / 2f, worldPos.y + Chunk.SIZE_Y / 2f, worldPos.z + Chunk.SIZE_Z / 2f);
+                return cameraPos.distanceSquared(worldPos.x + Chunk.SIZE_X / 2f, worldPos.y + Chunk.SIZE_Y / 2f,
+                        worldPos.z + Chunk.SIZE_Z / 2f);
             }));
 
             visibleChunks = occlusionCuller.filterOccludedChunks(
-                sortedChunksInFrustum, 
-                camera.getPosition(),
-                camera.getFront(),
-                (occludedCount) -> this.occlusionCulledChunksLastFrame = occludedCount // Corrected lambda usage based on new signature
+                    sortedChunksInFrustum,
+                    camera.getPosition(),
+                    camera.getFront(),
+                    (occludedCount) -> this.occlusionCulledChunksLastFrame = occludedCount // Corrected lambda usage
+                                                                                           // based on new signature
             );
         } else {
-            visibleChunks = chunksInFrustum; 
+            visibleChunks = chunksInFrustum;
         }
-        
+
         // Track occlusion culling statistics
         occlusionCulledChunksLastFrame = chunksInFrustum.size() - visibleChunks.size();
-        
+
         // Process and render the visible chunks
         for (Chunk chunk : visibleChunks) {
             ChunkPos chunkPos = chunk.getPosition();
@@ -429,14 +361,16 @@ public class Renderer {
                     }
                 }
                 logger.debug("Building mesh for chunk {} (State: {})...", chunkPos, chunk.getMeshState());
-                // Critical section: set state to BUILDING, build, then set to UP_TO_DATE / EMPTY
-                // For now, synchronous build. Asynchronous would need more complex state handling.
+                // Critical section: set state to BUILDING, build, then set to UP_TO_DATE /
+                // EMPTY
+                // For now, synchronous build. Asynchronous would need more complex state
+                // handling.
                 chunk.setMeshState(ChunkMeshState.BUILDING); // Mark as building
                 meshesForChunk = ChunkMeshBuilder.buildMeshesByTexture(chunk, chunkManager, blockRegistry);
                 activeChunkMeshes.put(chunkPos, meshesForChunk);
                 chunk.setMeshState(meshesForChunk.isEmpty() ? ChunkMeshState.EMPTY : ChunkMeshState.UP_TO_DATE);
-                logger.debug("Finished building mesh for chunk {}, found {} submeshes. New state: {}", 
-                             chunkPos, meshesForChunk.size(), chunk.getMeshState());
+                logger.debug("Finished building mesh for chunk {}, found {} submeshes. New state: {}",
+                        chunkPos, meshesForChunk.size(), chunk.getMeshState());
             }
 
             if (meshesForChunk.isEmpty()) {
@@ -462,22 +396,26 @@ public class Renderer {
 
                 Texture textureToRender = textureMap.get(textureName);
                 if (textureToRender == null) {
-                    // logger.warn("Texture '{}' not found for chunk {}, submesh. Using fallback/default?", textureName, chunkPos);
+                    // logger.warn("Texture '{}' not found for chunk {}, submesh. Using
+                    // fallback/default?", textureName, chunkPos);
                     // Optionally: bind a default "missing" texture
-                    // For now, skip rendering this submesh if texture is missing to avoid GL errors or wrong textures.
+                    // For now, skip rendering this submesh if texture is missing to avoid GL errors
+                    // or wrong textures.
                     Texture fallbackTexture = textureMap.get("core:block/dirt"); // Example fallback
-                    if(fallbackTexture == null && !textureMap.isEmpty()) fallbackTexture = textureMap.values().iterator().next();
-                    
+                    if (fallbackTexture == null && !textureMap.isEmpty())
+                        fallbackTexture = textureMap.values().iterator().next();
+
                     if (fallbackTexture != null) {
                         fallbackTexture.bind(0);
                     } else {
-                        // logger.error("No fallback texture available for chunk {}, submesh with texture key '{}'", chunkPos, textureName);
+                        // logger.error("No fallback texture available for chunk {}, submesh with
+                        // texture key '{}'", chunkPos, textureName);
                         continue; // No texture, no render
                     }
                 } else {
                     textureToRender.bind(0); // Bind to texture unit 0
                 }
-                
+
                 if (wireframeMode) {
                     wireframeRenderer.render(chunkMeshToRender);
                 } else {
@@ -489,11 +427,13 @@ public class Renderer {
             }
         }
         // Removed old rendering logic that iterates individual blocks/faces
-        
-        // After rendering all visible chunks, clean up meshes for chunks that are no longer visible/loaded
+
+        // After rendering all visible chunks, clean up meshes for chunks that are no
+        // longer visible/loaded
         // but were previously meshed and are still in activeChunkMeshes.
         // This assumes `chunks` collection contains ALL chunks that *should* be around.
-        // A more robust cleanup might be needed if `chunks` is only a subset of what *could* be loaded.
+        // A more robust cleanup might be needed if `chunks` is only a subset of what
+        // *could* be loaded.
         activeChunkMeshes.entrySet().removeIf(entry -> {
             ChunkPos pos = entry.getKey();
             if (!currentlyVisibleAndMeshedChunks.contains(pos)) {
@@ -501,63 +441,18 @@ public class Renderer {
                 for (ChunkMesh mesh : entry.getValue().values()) {
                     mesh.cleanup();
                 }
+                // P4-T5.2: Also remove from AABB cache
+                AABB removedAABB = chunkAABBCache.remove(pos);
+                if (removedAABB != null) {
+                    logger.debug("Removed AABB for chunk {} from cache.", pos);
+                }
                 return true; // Remove from activeChunkMeshes
             }
             return false;
         });
 
-        // defaultShaderProgram.unbind(); // Only unbind if no other render passes follow
-    }
-
-    /**
-     * Determines if a specific face of a block is visible.
-     * A face is visible if the block in the direction of the face is transparent.
-     * It's also visible if the neighboring location is outside loaded chunks.
-     *
-     * @param currentChunk The chunk containing the block whose face is being checked.
-     * @param localBlockPosInCurrentChunk The local coordinates (0-15) of the block within its chunk.
-     * @param faceDir The direction of the face being checked (e.g., Direction.UP).
-     * @return true if the face is visible, false otherwise.
-     */
-    private boolean isFaceVisible(Chunk currentChunk, Vec3i localBlockPosInCurrentChunk, Direction faceDir) {
-        Vec3i neighborOffset = faceDir.getOffset();
-        int neighborLocalX = localBlockPosInCurrentChunk.x + neighborOffset.x;
-        int neighborLocalY = localBlockPosInCurrentChunk.y + neighborOffset.y;
-        int neighborLocalZ = localBlockPosInCurrentChunk.z + neighborOffset.z;
-        // Cull downward faces at world bottom (y < 0)
-        int worldNeighborY = currentChunk.getPosition().y * Chunk.SIZE_Y + neighborLocalY;
-        if (faceDir == Direction.DOWN && worldNeighborY < 0) {
-            return false;
-        }
-
-        BlockProperties neighborBlockProps;
-
-        if (neighborLocalX >= 0 && neighborLocalX < Chunk.SIZE_X &&
-            neighborLocalY >= 0 && neighborLocalY < Chunk.SIZE_Y &&
-            neighborLocalZ >= 0 && neighborLocalZ < Chunk.SIZE_Z) {
-            // Neighbor is within the same chunk
-            neighborBlockProps = currentChunk.getBlockProperties(neighborLocalX, neighborLocalY, neighborLocalZ);
-        } else {
-            // Neighbor is in an adjacent chunk
-            Vec3i currentBlockWorldPos = CoordinateUtils.localToWorldCoords(currentChunk.getPosition(), localBlockPosInCurrentChunk);
-            Vec3i neighborBlockWorldPos = new Vec3i(
-                currentBlockWorldPos.x + neighborOffset.x,
-                currentBlockWorldPos.y + neighborOffset.y,
-                currentBlockWorldPos.z + neighborOffset.z
-            );
-
-            ChunkPos neighborChunkPos = CoordinateUtils.worldToChunkCoords(neighborBlockWorldPos);
-            Vec3i localPosInNeighborChunk = CoordinateUtils.worldToLocalCoords(neighborBlockWorldPos);
-
-            Chunk neighborChunk = chunkManager.getChunk(neighborChunkPos);
-
-            if (neighborChunk == null) {
-                return true; // Neighbor chunk not loaded, face is visible (exposed to void)
-            }
-            neighborBlockProps = neighborChunk.getBlockProperties(localPosInNeighborChunk);
-        }
-        // neighborBlockProps is guaranteed by Chunk.getBlockProperties to return AIR if underlying is null
-        return neighborBlockProps.isTransparent();
+        // defaultShaderProgram.unbind(); // Only unbind if no other render passes
+        // follow
     }
 
     public void cleanup() {
@@ -567,26 +462,6 @@ public class Renderer {
         if (defaultShaderProgram != null) {
             defaultShaderProgram.cleanup();
             logger.debug("Cleaned up default shader program.");
-        }
-
-        // Cleanup meshes
-        if (cubeMesh != null) {
-            cubeMesh.cleanup();
-            logger.debug("Cleaned up cube mesh.");
-        }
-
-        // Cleanup face meshes
-        if (faceMeshes != null) {
-            for (Map.Entry<Direction, Mesh> entry : faceMeshes.entrySet()) {
-                try {
-                    entry.getValue().cleanup();
-                    logger.debug("Cleaned up face mesh for direction: {}", entry.getKey());
-                } catch (Exception e) {
-                    logger.error("Error cleaning up face mesh for direction: {}", entry.getKey(), e);
-                }
-            }
-            faceMeshes.clear();
-            logger.debug("Cleared face meshes map.");
         }
 
         // Cleanup textures
@@ -615,6 +490,12 @@ public class Renderer {
             logger.debug("Cleared active chunk meshes cache.");
         }
 
+        // P4-T5.2: Clear AABB cache
+        if (chunkAABBCache != null) {
+            chunkAABBCache.clear();
+            logger.debug("Cleared chunk AABB cache.");
+        }
+
         // Cleanup debug callback
         if (debugCallback != null) {
             debugCallback.free();
@@ -626,7 +507,7 @@ public class Renderer {
             occlusionCuller.clearOpaqueCache();
             logger.debug("Cleared occlusion culler cache.");
         }
-        
+
         // Destroy OpenGL context? Usually handled by Window class on close.
         // GL.destroy(); // Don't call this here, Window manages context lifetime
 
@@ -668,6 +549,7 @@ public class Renderer {
 
     /**
      * Checks if wireframe mode is currently enabled.
+     * 
      * @return true if wireframe mode is enabled, false otherwise.
      */
     public boolean isWireframeMode() {
@@ -677,6 +559,7 @@ public class Renderer {
     /**
      * Releases any renderer-specific resources associated with a chunk,
      * primarily its meshes.
+     * 
      * @param chunkPos The position of the chunk whose resources are to be released.
      */
     public void releaseChunkResources(ChunkPos chunkPos) {
@@ -686,6 +569,11 @@ public class Renderer {
             for (ChunkMesh mesh : meshesForChunk.values()) {
                 mesh.cleanup(); // Assumes ChunkMesh has a cleanup method for VBO/VAO
             }
+        }
+        // P4-T5.2: Also remove from AABB cache
+        AABB removedAABB = chunkAABBCache.remove(chunkPos);
+        if (removedAABB != null) {
+            logger.debug("Removed AABB for chunk {} from cache.", chunkPos);
         }
     }
 }
