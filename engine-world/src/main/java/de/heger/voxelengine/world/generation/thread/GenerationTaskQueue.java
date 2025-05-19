@@ -1,6 +1,7 @@
 package de.heger.voxelengine.world.generation.thread;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
+import de.heger.voxelengine.world.generation.tasks.ChunkGenerationTask;
 
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;

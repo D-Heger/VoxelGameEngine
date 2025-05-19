@@ -16,7 +16,7 @@ import de.heger.voxelengine.world.chunk.ChunkPos;
 import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.world.generation.NoiseTerrainGenerator;
 import de.heger.voxelengine.world.generation.TerrainGenerator;
-import de.heger.voxelengine.world.generation.thread.ChunkGenerationService;
+import de.heger.voxelengine.world.generation.service.ChunkGenerationService;
 import de.heger.voxelengine.world.generation.thread.LoggingTaskResultHandler;
 import de.heger.voxelengine.world.generation.thread.PerformanceTrackingTaskResultHandler;
 import de.heger.voxelengine.world.generation.thread.TaskResultHandler;

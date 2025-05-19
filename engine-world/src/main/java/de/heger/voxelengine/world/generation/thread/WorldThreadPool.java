@@ -237,7 +237,7 @@ public class WorldThreadPool {
          * Constructs a NamedThreadFactory.
          * @param poolName The base name for threads created by this factory.
          */
-        NamedThreadFactory(String poolName) {
+        public NamedThreadFactory(String poolName) {
             this.group = Thread.currentThread().getThreadGroup();
             this.namePrefix = poolName + "-thread-";
         }

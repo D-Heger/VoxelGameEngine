@@ -3,6 +3,7 @@ package de.heger.voxelengine.world.generation.thread;
 import de.heger.voxelengine.core.logging.LoggerFacade;
 import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkManager;
+import de.heger.voxelengine.world.generation.tasks.ChunkGenerationTask;
 
 public class LoggingTaskResultHandler implements TaskResultHandler {
 

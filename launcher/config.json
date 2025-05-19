@@ -1,8 +1,8 @@
 {
   "windowTitle" : "Voxel Game Engine - Phase 4",
-  "width" : 1280,
-  "height" : 720,
+  "width" : 1920,
+  "height" : 1080,
   "vsync" : false,
-  "fullscreen" : false,
+  "fullscreen" : true,
   "viewDistance" : 400.0
 }

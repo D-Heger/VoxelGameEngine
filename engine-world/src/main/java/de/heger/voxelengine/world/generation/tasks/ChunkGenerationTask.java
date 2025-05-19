@@ -1,4 +1,4 @@
-package de.heger.voxelengine.world.generation.thread;
+package de.heger.voxelengine.world.generation.tasks;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
 import de.heger.voxelengine.core.math.Vec3i;
@@ -8,6 +8,7 @@ import de.heger.voxelengine.world.chunk.ChunkPos;
 import de.heger.voxelengine.world.chunk.ChunkState;
 import de.heger.voxelengine.world.chunk.Direction;
 import de.heger.voxelengine.world.generation.TerrainGenerator;
+import de.heger.voxelengine.world.generation.thread.TaskResultHandler;
 
 import java.util.Objects;
 

@@ -1,10 +1,14 @@
-package de.heger.voxelengine.world.generation.thread;
+package de.heger.voxelengine.world.generation.service;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
 import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.world.chunk.ChunkPos;
 import de.heger.voxelengine.world.generation.TerrainGenerator;
+import de.heger.voxelengine.world.generation.tasks.ChunkGenerationTask;
+import de.heger.voxelengine.world.generation.thread.GenerationTaskQueue;
+import de.heger.voxelengine.world.generation.thread.TaskResultHandler;
+import de.heger.voxelengine.world.generation.thread.WorldThreadPool;
 
 import java.util.Collections;
 import java.util.Objects;

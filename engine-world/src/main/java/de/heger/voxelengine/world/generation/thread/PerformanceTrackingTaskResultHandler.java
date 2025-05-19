@@ -1,6 +1,7 @@
 package de.heger.voxelengine.world.generation.thread;
 
 import de.heger.voxelengine.world.chunk.Chunk;
+import de.heger.voxelengine.world.generation.tasks.ChunkGenerationTask;
 
 import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
