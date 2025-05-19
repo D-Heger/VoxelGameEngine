@@ -98,7 +98,8 @@ public class Texture {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
         // For fonts, GL_LINEAR can look smoother than GL_NEAREST
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); 
+        // Using mipmaps for potentially better quality when minified.
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
         // Upload texture data - STB bakeFontBitmap produces 1-channel (alpha) bitmap
@@ -106,8 +107,8 @@ public class Texture {
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Ensure correct alignment for single channel
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, pixelData);
 
-        // No mipmaps needed or desired for font atlases typically.
-        // If you wanted mipmaps: glGenerateMipmap(GL_TEXTURE_2D); 
+        // Generate mipmaps for the font atlas
+        glGenerateMipmap(GL_TEXTURE_2D);
         
         glPixelStorei(GL_UNPACK_ALIGNMENT, 4); // Restore default alignment
 
