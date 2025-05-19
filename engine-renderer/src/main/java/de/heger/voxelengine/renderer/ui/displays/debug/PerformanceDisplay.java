@@ -3,6 +3,7 @@ package de.heger.voxelengine.renderer.ui.displays.debug;
 import de.heger.voxelengine.renderer.ui.UIManager;
 import de.heger.voxelengine.renderer.ui.elements.TextElement;
 import de.heger.voxelengine.renderer.ui.elements.BoxElement;
+import de.heger.voxelengine.renderer.ui.elements.ButtonElement;
 import de.heger.voxelengine.renderer.ui.font.Font;
 
 import org.joml.Vector2f;
@@ -37,6 +38,7 @@ public class PerformanceDisplay {
     private TextElement activeMeshesText;
     private TextElement generationQueueText;
     private TextElement activeGenThreadsText;
+    private ButtonElement buttonElement;
 
 
     public PerformanceDisplay(UIManager uiManager, Font font) {
@@ -102,6 +104,7 @@ public class PerformanceDisplay {
         generationQueueText = createTextElement("Gen Queue: -", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
         activeGenThreadsText = createTextElement("Active Gen Threads: -", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
 
         // Set initial visibility
         setVisible(this.visible);
