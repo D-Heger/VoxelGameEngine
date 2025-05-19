@@ -96,7 +96,7 @@ public class TextElement extends UIElement {
         FloatBuffer verticesBuffer = null;
         IntBuffer indicesBuffer = null;
         float calculatedWidth = 0;
-        float calculatedHeight = font.getLineHeight();
+        float calculatedHeight = font.getLineHeight(); // Use line height for vertical alignment and clarity
 
         STBTTBakedChar.Buffer charData = font.getBakedCharData();
         int atlasW = font.getAtlasWidth();

@@ -19,9 +19,9 @@ public class FontManager {
     // Default font properties
     public static final String DEFAULT_FONT_NAME = "OpenSans-Regular";
     public static final String DEFAULT_FONT_PATH = "fonts/" + DEFAULT_FONT_NAME + ".ttf";
-    public static final float DEFAULT_FONT_SIZE = 16f;
-    public static final int DEFAULT_ATLAS_WIDTH = 512;
-    public static final int DEFAULT_ATLAS_HEIGHT = 512;
+    public static final float DEFAULT_FONT_SIZE = 48f;
+    public static final int DEFAULT_ATLAS_WIDTH = 4096;
+    public static final int DEFAULT_ATLAS_HEIGHT = 4096;
     public static final int DEFAULT_FIRST_CHAR = 32; // ASCII space
     public static final int DEFAULT_NUM_CHARS = 95;  // Space to Tidlde (ASCII 32-126)
 

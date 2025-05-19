@@ -54,6 +54,7 @@ public class Font {
 
             stbtt_GetFontVMetrics(fontInfo, pAscent, pDescent, pLineGap);
             this.scale = stbtt_ScaleForPixelHeight(fontInfo, fontSize);
+            // Use precise metrics for vertical alignment
             ascent = Math.round(pAscent.get(0) * scale);
             descent = Math.round(pDescent.get(0) * scale);
             lineGap = Math.round(pLineGap.get(0) * scale);
