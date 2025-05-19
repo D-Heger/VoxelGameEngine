@@ -2,7 +2,6 @@ package de.heger.voxelengine.renderer.ui;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
 import de.heger.voxelengine.platform.Window;
-import de.heger.voxelengine.renderer.ui.font.FontManager;
 
 import org.joml.Matrix4f;
 
@@ -17,14 +16,12 @@ public class UIRenderer {
 
     private final List<UIElement> elements;
     private final UIShader uiShader;
-    private final FontManager fontManager; // May not be strictly needed here if elements get fonts from it
     private final Matrix4f projectionMatrix;
 
     private float currentGlobalAlpha = 1.0f;
 
-    public UIRenderer(Window window, FontManager fontManager) throws IOException {
+    public UIRenderer(Window window) throws IOException {
         this.elements = new ArrayList<>();
-        this.fontManager = fontManager;
         try {
             this.uiShader = new UIShader();
         } catch (IOException e) {

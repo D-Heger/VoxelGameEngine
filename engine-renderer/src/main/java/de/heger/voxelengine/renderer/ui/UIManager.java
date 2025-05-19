@@ -24,7 +24,7 @@ public class UIManager {
         }
         try {
             fontManager = new FontManager(); // Loads default font
-            uiRenderer = new UIRenderer(window, fontManager);
+            uiRenderer = new UIRenderer(window);
             initialized = true;
             LOGGER.info("UIManager initialized successfully.");
         } catch (IOException e) {
