@@ -124,7 +124,7 @@ public class TextElement extends UIElement {
                     continue;
                 }
 
-                STBTTAlignedQuad q = STBTTAlignedQuad.mallocStack(stack);
+                STBTTAlignedQuad q = STBTTAlignedQuad.malloc(stack);
                 // Note: stbtt_GetBakedQuad advances xpos and ypos internally.
                 // It treats y as top-down, so yoff is typically positive downwards.
                 stbtt_GetBakedQuad(charData, atlasW, atlasH, charIndexInBakedBuffer, xPos, yPos, q, false); // false for non-power-of-two textures

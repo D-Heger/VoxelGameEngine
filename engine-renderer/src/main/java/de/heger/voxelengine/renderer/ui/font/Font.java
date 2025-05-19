@@ -4,8 +4,6 @@ import de.heger.voxelengine.renderer.texture.Texture;
 
 import org.lwjgl.stb.STBTTBakedChar;
 import org.lwjgl.stb.STBTTFontinfo;
-import org.lwjgl.stb.STBTTPackedchar;
-import org.lwjgl.stb.STBTTPackContext;
 import org.lwjgl.system.MemoryStack;
 
 import java.nio.ByteBuffer;
@@ -14,7 +12,6 @@ import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.stb.STBTruetype.*;
 
 public class Font {
