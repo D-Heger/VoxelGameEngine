@@ -618,16 +618,16 @@
       - **Description:** Enhance the clarity and readability by improving the text rendering. This should involve using a higher resolution font atlas, antialiasing, more precise glyph metrics, and other techniques.
       - **Deliverables:** Enhanced text rendering.
       - **Implementation Context:** Using a higher resolution font atlas, antialiasing and smooth step function for the text.
-    - [ ] **Subtask ID:** P4-T5.3
+    - [x] **Subtask ID:** P4-T5.3
       - **Name:** Add mouse interaction support
       - **Description:** Add mouse interaction support to the ui, so that future ui elements can be clicked, scrolled and hovered over.
       - **Deliverables:** Mouse interaction support.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T5.4
+      - **Implementation Context:** Added support for mouse interaction to the `UIManager` and `UIElement` classes and adjustments to the `InputManager` to support it. Integrated into the `GameLoop`.
+    - [x] **Subtask ID:** P4-T5.4
       - **Name:** Add text input support
       - **Description:** Add text input support to the ui, so that future ui elements can be typed into.
       - **Deliverables:** Text input support.
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** Added support for text input to the `UIManager` and `UIElement` classes and adjustments to the `InputManager` to support it. Integrated into the `GameLoop`.
     - [ ] **Subtask ID:** P4-T5.5
       - **Name:** Add a button element to the ui.
       - **Description:** Add a button element to the ui, that can trigger effects with onclick and onhover.

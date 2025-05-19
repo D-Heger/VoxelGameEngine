@@ -228,7 +228,7 @@ public class Window {
                 return;
             }
 
-            GLFWImage.Buffer imageBuffer = GLFWImage.mallocStack(1, stack);
+            GLFWImage.Buffer imageBuffer = GLFWImage.malloc(1, stack);
             GLFWImage glfwImage = imageBuffer.get(0); // Get the GLFWImage struct from the buffer
             glfwImage.width(w.get(0));
             glfwImage.height(h.get(0));
@@ -290,4 +290,6 @@ public class Window {
             }
         }
     }
+
+    
 }

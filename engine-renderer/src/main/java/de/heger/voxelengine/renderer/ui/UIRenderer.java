@@ -6,7 +6,6 @@ import de.heger.voxelengine.platform.Window;
 import org.joml.Matrix4f;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.lwjgl.opengl.GL11.*;
@@ -14,14 +13,12 @@ import static org.lwjgl.opengl.GL11.*;
 public class UIRenderer {
     private static final LoggerFacade LOGGER = LoggerFacade.get(UIRenderer.class);
 
-    private final List<UIElement> elements;
     private final UIShader uiShader;
     private final Matrix4f projectionMatrix;
 
     private float currentGlobalAlpha = 1.0f;
 
     public UIRenderer(Window window) throws IOException {
-        this.elements = new ArrayList<>();
         try {
             this.uiShader = new UIShader();
         } catch (IOException e) {
@@ -45,20 +42,6 @@ public class UIRenderer {
         LOGGER.debug("UIRenderer projection matrix updated for screen size: {}x{}", width, height);
     }
 
-    public void addElement(UIElement element) {
-        if (element != null && !elements.contains(element)) {
-            elements.add(element);
-        }
-    }
-
-    public void removeElement(UIElement element) {
-        elements.remove(element);
-    }
-
-    public void clearElements() {
-        elements.clear();
-    }
-
     public UIShader getUIShader() {
         return uiShader;
     }
@@ -71,8 +54,8 @@ public class UIRenderer {
         this.currentGlobalAlpha = Math.max(0.0f, Math.min(1.0f, alpha));
     }
 
-    public void render() {
-        if (elements.isEmpty()) {
+    public void render(List<UIElement> elementsToRender) {
+        if (elementsToRender == null || elementsToRender.isEmpty()) {
             return;
         }
 
@@ -96,7 +79,7 @@ public class UIRenderer {
         uiShader.bind();
         uiShader.loadProjectionMatrix(projectionMatrix);
 
-        for (UIElement element : elements) {
+        for (UIElement element : elementsToRender) {
             if (element.isVisible()) {
                 // The element's render method will set its own model matrix, color, alpha, texture
                 element.render(this); 
@@ -118,8 +101,9 @@ public class UIRenderer {
         //if(cullFaceEnabled) glEnable(GL_CULL_FACE);
     }
     
-    public void updateElements(float deltaTime) {
-        for (UIElement element : elements) {
+    public void updateElements(List<UIElement> elementsToUpdate, float deltaTime) {
+        if (elementsToUpdate == null) return;
+        for (UIElement element : elementsToUpdate) {
             if (element.isVisible()) {
                 element.update(deltaTime);
             }
@@ -131,9 +115,7 @@ public class UIRenderer {
         if (uiShader != null) {
             uiShader.cleanup();
         }
-        for (UIElement element : elements) {
-            element.cleanup(); // Ensure individual elements are cleaned up
-        }
-        elements.clear();
+        // Elements are no longer managed here, so no loop to clear/cleanup elements
+        // elements.clear(); // To be removed
     }
 } 

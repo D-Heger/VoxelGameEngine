@@ -150,7 +150,22 @@ public class GameLoop {
                 lastLoopTime = now;
                 accumulator += delta;
 
+                // Set cursor state based on UI focus before polling events
+                if (uiManager != null && uiManager.isInitialized()) {
+                    if (uiManager.uiHasFocus()) {
+                        GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+                    } else {
+                        GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
+                    }
+                }
+
                 inputManager.update();
+                
+                if (uiManager != null && uiManager.isInitialized()) {
+                    uiManager.processInput(inputManager, window);
+                    uiManager.processKeyboardInput(inputManager);
+                }
+
                 input();
 
                 while (accumulator >= timeU) {
@@ -219,17 +234,21 @@ public class GameLoop {
         }
         wasF2Pressed = isF2Pressed;
 
-        if (inputManager.isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
-            running = false;
-            LOGGER.info("Escape key pressed, stopping loop.");
-            return; // Exit early if closing
-        }
+        if (uiManager != null && uiManager.isInitialized() && uiManager.uiHasFocus()) {
+            // Potentially, some keys like Escape for closing a menu might still be processed here
+            // or handled by the UI itself via a focused element.
+        } else {
+            if (inputManager.isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
+                running = false;
+                LOGGER.info("Escape key pressed, stopping loop.");
+                return; // Exit early if closing
+            }
 
-        // Process camera mouse look
-        double deltaX = inputManager.getDeltaMouseX();
-        double deltaY = inputManager.getDeltaMouseY();
-        if (deltaX != 0 || deltaY != 0) {
-            camera.processMouseMovement(deltaX, deltaY);
+            double deltaX = inputManager.getDeltaMouseX();
+            double deltaY = inputManager.getDeltaMouseY();
+            if (deltaX != 0 || deltaY != 0) {
+                camera.processMouseMovement(deltaX, deltaY);
+            }
         }
     }
 
@@ -239,7 +258,11 @@ public class GameLoop {
             updateChunkLoading();
             chunkLoadCheckTimer = 0.0;
         }
-        camera.processKeyboard(inputManager, deltaTime);
+        if (uiManager != null && uiManager.isInitialized() && uiManager.uiHasFocus()) {
+            // UI has focus, game world movement might be paused
+        } else {
+            camera.processKeyboard(inputManager, deltaTime);
+        }
     }
 
     private void render() {
