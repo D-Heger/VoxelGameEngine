@@ -19,6 +19,12 @@ public class Texture {
     private final int width;
     private final int height;
 
+    /**
+     * Creates a new texture from the provided TextureData. This constructor is used for blocks.
+     *
+     * @param textureData The TextureData containing the pixel data and metadata for the texture.
+     * @throws IllegalArgumentException if textureData is null or its data buffer is null.
+     */
     public Texture(TextureData textureData) {
         if (textureData == null || textureData.data() == null) {
             throw new IllegalArgumentException("TextureData and its data buffer cannot be null.");
@@ -34,7 +40,7 @@ public class Texture {
         // Set texture parameters - Use NEAREST for pixelated look
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE); // Or GL_REPEAT
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE); // Or GL_REPEAT
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST); // Use mipmaps with nearest filtering
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         // Determine OpenGL format based on channels
@@ -86,7 +92,14 @@ public class Texture {
         LOGGER.info("Created OpenGL texture ID: {} ({}x{})", textureId, width, height);
     }
 
-    // New constructor for raw grayscale pixel data (e.g., font atlas)
+    /**
+     * Creates a new texture from raw pixel data. This constructor is used for font atlases.
+     *
+     * @param width The width of the texture.
+     * @param height The height of the texture.
+     * @param pixelData The pixel data as a ByteBuffer, expected to be in a single channel format (e.g., alpha).
+     * @throws IllegalArgumentException if pixelData is null or has insufficient capacity.
+     */
     public Texture(int width, int height, java.nio.ByteBuffer pixelData) {
         this.width = width;
         this.height = height;
@@ -125,7 +138,7 @@ public class Texture {
         glActiveTexture(GL_TEXTURE0 + textureUnit);
         glBindTexture(GL_TEXTURE_2D, textureId);
     }
-
+    
     public void unbind() {
         // Unbinding specific unit is tricky, usually just bind 0 to the active unit
         // or rely on the next texture bind to replace it.
