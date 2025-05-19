@@ -69,8 +69,8 @@ public class ButtonElement extends UIElement {
         textElement.setText(this.text);
         textElement.setFont(this.font);
         textElement.setScale(this.textScale);
-        // TextElement's size is based on its content and scale. Its position is baseline.
-        // For Button, TextElement's y-position will be relative to button's top-left.
+        // TextElement's size is based on its content and scale.
+        // Its position, when set via textElement.setPosition(), is used as the top-left corner for its bounding box.
 
         if (autoSize) {
             float textWidth = textElement.getSize().x;
@@ -87,22 +87,18 @@ public class ButtonElement extends UIElement {
         // Since it's a child visually filling the button, its local position is (0,0)
         // This is handled when rendering by setting its absolute position.
 
-        // Position textElement centered within the button
+        // Position textElement centered within the button.
+        // This is achieved by calculating the top-left position (textLocalX, textTopY)
+        // for the textElement's bounding box, such that its center aligns with the center of the button.
+        // This assumes textElement.setPosition(x,y) sets the top-left of its bounding box,
+        // and textElement.getSize() returns the dimensions (width, height) of this bounding box.
         float textLocalX = (this.size.x - textElement.getSize().x) / 2.0f;
-        // TextElement's y-position is its baseline. For centering, we want top of text to be paddingVertical from top of button.
-        // float textLocalY = paddingVertical; // This would be top of text. TextElement expects baseline.
-        // If textElement.getSize().y is its height, then its local top-left would be:
         float textTopY = (this.size.y - textElement.getSize().y) / 2.0f;
-        // TextElement's constructor takes baseline. Its internal buildMesh uses yPos=0 as baseline.
-        // To position it via setPosition (which for TextElement means baseline):
-        // The TextElement itself renders glyphs relative to its 'position' being the baseline.
-        // If textElement.position is (localX, localY), localY should be the baseline Y.
-        // Font ascent is distance from baseline to top.
-        // For now, let TextElement be positioned such that its bounding box is centered.
-        // Its setPosition method takes the top-left for its bounding box essentially, not baseline.
-        // Recheck TextElement: `modelMatrix.identity().translate(position.x, position.y, 0);` - position is top-left.
-        // So, textElement.setPosition(textLocalX, textTopY) is correct for its top-left.
-        textElement.setPosition(textLocalX, textTopY); // Set local position for the text block
+        
+        // Set the local top-left position for the text block.
+        // The TextElement's rendering logic (modelMatrix.translate(position.x, position.y, 0))
+        // confirms that its 'position' is treated as the top-left origin.
+        textElement.setPosition(textLocalX, textTopY);
     }
 
     private void updateAppearance() {
@@ -283,14 +279,8 @@ public class ButtonElement extends UIElement {
         }
 
         if (textElement != null && textElement.isVisible() && this.text != null && !this.text.isEmpty()) {
-            // textElement's local position is calculated for centering by updateLayout().
-            // Its screen position is button's screen position + textElement's local position.
-            // Note: textElement.getPosition() returns its current local position from updateLayout.
-            float textScreenX = this.position.x + textElement.getPosition().x;
-            float textScreenY = this.position.y + textElement.getPosition().y;
-            
-            textElement.setPosition(textScreenX, textScreenY); // Set absolute screen position for rendering
-            // textElement's size is inherent from its content and scale.
+            textElement.setPosition(this.position.x + this.size.x/8, this.position.y + this.size.y/1.25f);
+            textElement.setSize(this.size);
             textElement.setAlpha(this.alpha * renderer.getCurrentAlpha());
             textElement.render(renderer);
         }

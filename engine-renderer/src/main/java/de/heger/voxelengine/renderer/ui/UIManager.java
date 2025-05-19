@@ -22,7 +22,7 @@ public class UIManager {
     private UIElement hoveredElement = null;
     private UIElement pressedElement = null;
     private UIElement focusedElement = null;
-    private boolean uiHasFocus = true;
+    private boolean uiHasFocus = false;
 
     public UIManager() {
         this.elements = new ArrayList<>();

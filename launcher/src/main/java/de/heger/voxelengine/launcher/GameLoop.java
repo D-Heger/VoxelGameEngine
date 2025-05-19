@@ -7,6 +7,7 @@ import de.heger.voxelengine.renderer.Renderer;
 import de.heger.voxelengine.renderer.camera.Camera;
 import de.heger.voxelengine.renderer.ui.UIManager;
 import de.heger.voxelengine.renderer.ui.displays.debug.PerformanceDisplay;
+import de.heger.voxelengine.renderer.ui.elements.PauseMenu;
 import de.heger.voxelengine.renderer.ui.font.Font;
 import de.heger.voxelengine.renderer.ui.font.FontManager;
 import de.heger.voxelengine.world.block.BlockRegistry;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F2;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
 
 public class GameLoop {
 
@@ -56,9 +58,13 @@ public class GameLoop {
 
     private boolean wasF3Pressed = false;
     private boolean wasF2Pressed = false;
+    private boolean wasEscapePressed = false;
 
     private UIManager uiManager;
     private PerformanceDisplay performanceDisplay;
+    private boolean performanceDisplayWasVisible = true;
+    private PauseMenu pauseMenu;
+    private boolean isPaused = false;
     private PerformanceDisplay.PerformanceData performanceData;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
@@ -95,6 +101,18 @@ public class GameLoop {
                 performanceDisplay = new PerformanceDisplay(uiManager, defaultFont);
                 performanceDisplay.init();
                 performanceDisplay.setVisible(true);
+                performanceDisplayWasVisible = true;
+            }
+
+            if (defaultFont != null) {
+                pauseMenu = new PauseMenu(uiManager, window, defaultFont);
+                pauseMenu.setOnContinueAction(this::togglePauseState);
+                pauseMenu.setOnQuitAction(() -> {
+                    running = false;
+                    LOGGER.info("Quit action from pause menu.");
+                });
+            } else {
+                LOGGER.error("Default font not available, PauseMenu cannot be created.");
             }
         }
         performanceData = new PerformanceDisplay.PerformanceData();
@@ -135,6 +153,8 @@ public class GameLoop {
         LOGGER.info("Starting game loop...");
         running = true;
 
+        updateChunkLoading();
+
         double lastLoopTime = GLFW.glfwGetTime();
         double accumulator = 0.0;
         double timeU = 1.0 / TARGET_UPS;
@@ -149,15 +169,6 @@ public class GameLoop {
                 double delta = now - lastLoopTime;
                 lastLoopTime = now;
                 accumulator += delta;
-
-                // Set cursor state based on UI focus before polling events
-                if (uiManager != null && uiManager.isInitialized()) {
-                    if (uiManager.uiHasFocus()) {
-                        GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
-                    } else {
-                        GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
-                    }
-                }
 
                 inputManager.update();
                 
@@ -227,23 +238,21 @@ public class GameLoop {
 
         boolean isF2Pressed = inputManager.isKeyPressed(GLFW_KEY_F2);
         if (isF2Pressed && !wasF2Pressed) {
-            if (performanceDisplay != null) {
+            if (performanceDisplay != null && !isPaused) {
                 performanceDisplay.toggleVisibility();
+                performanceDisplayWasVisible = performanceDisplay.isVisible();
                 LOGGER.debug("Performance display visibility toggled to: {}", performanceDisplay.isVisible());
             }
         }
         wasF2Pressed = isF2Pressed;
 
-        if (uiManager != null && uiManager.isInitialized() && uiManager.uiHasFocus()) {
-            // Potentially, some keys like Escape for closing a menu might still be processed here
-            // or handled by the UI itself via a focused element.
-        } else {
-            if (inputManager.isKeyPressed(GLFW.GLFW_KEY_ESCAPE)) {
-                running = false;
-                LOGGER.info("Escape key pressed, stopping loop.");
-                return; // Exit early if closing
-            }
+        boolean isEscapePressed = inputManager.isKeyPressed(GLFW_KEY_ESCAPE);
+        if (isEscapePressed && !wasEscapePressed) {
+            togglePauseState();
+        }
+        wasEscapePressed = isEscapePressed;
 
+        if (!isPaused && (uiManager == null || !uiManager.isInitialized() || !uiManager.uiHasFocus())) {
             double deltaX = inputManager.getDeltaMouseX();
             double deltaY = inputManager.getDeltaMouseY();
             if (deltaX != 0 || deltaY != 0) {
@@ -258,10 +267,15 @@ public class GameLoop {
             updateChunkLoading();
             chunkLoadCheckTimer = 0.0;
         }
-        if (uiManager != null && uiManager.isInitialized() && uiManager.uiHasFocus()) {
-            // UI has focus, game world movement might be paused
-        } else {
-            camera.processKeyboard(inputManager, deltaTime);
+
+        if (!isPaused) {
+            if (uiManager != null && uiManager.isInitialized() && uiManager.uiHasFocus()) {
+                // UI has focus (e.g. a text input in a future menu), game world movement might be paused
+                // This case should ideally not happen if isPaused is true and handles focus.
+                // However, if a different UI element (not pause menu) takes focus, this might be relevant.
+            } else {
+                camera.processKeyboard(inputManager, deltaTime);
+            }
         }
     }
 
@@ -280,6 +294,9 @@ public class GameLoop {
 
         if (performanceDisplay != null) {
             performanceDisplay.cleanup();
+        }
+        if (pauseMenu != null) {
+            pauseMenu.cleanup();
         }
         if (uiManager != null && uiManager.isInitialized()) {
             uiManager.cleanup();
@@ -395,6 +412,30 @@ public class GameLoop {
             if (actualUnloads > 0) {
                 LOGGER.debug("Successfully unloaded {} chunks. {} were requested for unload.", actualUnloads,
                         chunksToUnload.size());
+            }
+        }
+    }
+
+    private void togglePauseState() {
+        isPaused = !isPaused;
+        LOGGER.info("Pause state toggled to: {}", isPaused);
+        if (uiManager != null && uiManager.isInitialized()) {
+            uiManager.setUiHasFocus(isPaused);
+            if (isPaused) {
+                if (pauseMenu != null) pauseMenu.show();
+                if (performanceDisplay != null) {
+                    // Store current visibility and then hide
+                    performanceDisplayWasVisible = performanceDisplay.isVisible();
+                    performanceDisplay.setVisible(false);
+                }
+                GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+            } else {
+                if (pauseMenu != null) pauseMenu.hide();
+                if (performanceDisplay != null) {
+                    // Restore previous visibility
+                    performanceDisplay.setVisible(performanceDisplayWasVisible);
+                }
+                GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
             }
         }
     }

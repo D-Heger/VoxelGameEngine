@@ -633,11 +633,11 @@
       - **Description:** Add a button element to the ui, that can trigger effects with onclick and onhover.
       - **Deliverables:** Button element.
       - **Implementation Context:** Created `ButtonElement.java` in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/ui/elements/`. It extends `UIElement` and uses a `BoxElement` for background and `TextElement` for its label. It handles mouse hover, press, and disabled states, changing appearance accordingly. An `onClickAction` (Runnable) is executed on click. Child element positions are updated in the `render` method to ensure correct placement relative to the button's screen position.
-    - [ ] **Subtask ID:** P4-T5.6
+    - [x] **Subtask ID:** P4-T5.6
       - **Name:** Add a pause menu
       - **Description:** Add a pause menu to the ui. This menu should pause movement interactions, so that the user can not move in the game anymore. The whole screen should be covered by a colored box element and the performance display should be turned off. A button should be added to quit the game and another button to continue the game. The pause menu should be opened and closed by pressing the escape button. This also includes removing the window close upon pressing escape and integrating this menu into GameLoop.
       - **Deliverables:** Pause menu with its requirements.
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** Created a `PauseMenu` class in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/ui/displays/`. It extends `UIElement` and uses a `BoxElement` for background. It also includes a `ButtonElement` for the continue and quit buttons. The menu is integrated into the `GameLoop` and handles the escape key to toggle its visibility.
 
 - - [ ] **Task ID:** P4-T6
   - **Name:** Player Entity (`game`)
