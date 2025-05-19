@@ -603,27 +603,54 @@
       - **Implementation Context:** The new `PerformanceDisplay` (implemented in P4-T4.4) was directly integrated into `GameLoop.java`. The previous performance display mechanism (updating the window title) was removed. The `PerformanceDisplay` is updated with fresh metrics each second within the game loop and rendered each frame via the `UIManager`. The F2 key correctly toggles its visibility.
 
 - - [ ] **Task ID:** P4-T5
+  - **Name:** Extend & refine custom ui implementation
+  - **Description:** Refine the custom ui implementation by improving its rendering performance, adding more elements and making interactions possible.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P4-T4, `engine-renderer` module
+  - **Subtasks:**
+    - [x] **Subtask ID:** P4-T5.1
+      - **Name:** Add box element
+      - **Description:** Add a box element to the ui.
+      - **Deliverables:** Box element.
+      - **Implementation Context:** Created `BoxElement.java` in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/ui/elements/`. This class extends `UIElement` and represents a rectangular box with a background color. It includes properties for position, size, color, and visibility. The `render()` method uses the `UIShader` to draw the box on the screen. The box element is designed to be flexible and reusable for various UI components.
+    - [ ] **Subtask ID:** P4-T5.2
+      - **Name:** Add mouse interaction support
+      - **Description:** Add mouse interaction support to the ui, so that the ui elements can be clicked, scrolled and hovered over.
+      - **Deliverables:** Mouse interaction support.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T5.3
+      - **Name:** Add text input support
+      - **Description:** Add text input support to the ui, so that the ui elements can be typed into.
+      - **Deliverables:** Text input support.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T5.4
+      - **Name:** Add a pause menu
+      - **Description:** Add a pause menu to the ui, so that the game can be paused and the player can see the performance display and a button to resume the game.
+      - **Deliverables:** Pause menu.
+      - **Implementation Context:** (TBD)
+
+- - [ ] **Task ID:** P4-T6
   - **Name:** Player Entity (`game`)
   - **Description:** Create a `Player` class representing the player in the world, holding position, orientation, and potentially other state.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T2, `game` module
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T6
+- - [ ] **Task ID:** P4-T7
   - **Name:** Basic Player Movement (`game`, `engine-physics`)
   - **Description:** Implement movement logic (walking, jumping) based on input. Integrate basic gravity.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T5, P4-T3, `game`, `engine-physics` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T7
+- - [ ] **Task ID:** P4-T8
   - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement Axis-Aligned Bounding Box (AABB) collision detection between the player entity and world blocks. Prevent player from moving into solid blocks.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T2, P4-3, P4-T4, `engine-physics`, `engine-world`, `game` modules
   - **Subtasks:** (none)
 
-- - [ ] **Task ID:** P4-T8
+- - [ ] **Task ID:** P4-T9
   - **Name:** Raycasting (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement a raycasting algorithm (e.g., Amanatides & Woo) to determine the block the player is looking at.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
