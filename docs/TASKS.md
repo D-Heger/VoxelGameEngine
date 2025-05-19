@@ -615,7 +615,7 @@
       - **Implementation Context:** Created `BoxElement.java` in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/ui/elements/`. This class extends `UIElement` and represents a rectangular box with a background color. It includes properties for position, size, color, and visibility. The `render()` method uses the `UIShader` to draw the box on the screen. The box element is designed to be flexible and reusable for various UI components.
     - [ ] **Subtask ID:** P4-T5.2
       - **Name:** Improve text rendering by making the font clearer
-      - **Description:** Enhance the clarity and readability of the text rendered in the UI using anti-aliasing and other techniques.
+      - **Description:** Enhance the clarity and readability by improving the text rendering. This should involve using a higher resolution font atlas, antialiasing, more precise glyph metrics, and other techniques.
       - **Deliverables:** Enhanced text rendering.
       - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T5.3
