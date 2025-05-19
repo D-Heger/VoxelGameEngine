@@ -570,7 +570,7 @@
       - **Deliverables:** New `OcclusionCuller` class.
       - **Implementation Context:** Implemented occlusion culling in the `engine-renderer` module by creating a new `OcclusionCuller` class that works alongside the existing `FrustumCuller`. The new class implements a distance-based occlusion culling algorithm that identifies potentially hidden chunks by calculating line-of-sight occlusion. The `Renderer.renderChunks()` method was updated to apply occlusion culling after frustum culling, resulting in a two-stage culling process. First, chunks outside the view frustum are discarded, then chunks likely occluded by other opaque chunks are removed. Performance statistics for occlusion culling were added to the window title display in `GameLoop`, showing the number of chunks skipped due to occlusion. The implementation delivers significant rendering optimizations in dense scenes. The occlusion culling strategy uses a combination of distance sorting (nearest chunks first) and ray-based occlusion testing, with special handling for underground chunks which are more likely to fully occlude other chunks.
 
-- - [ ] **Task ID:** P4-T4
+- - [x] **Task ID:** P4-T4
   - **Name:** Add debug utilities
   - **Description:** Add debug utilities, including wireframe rendering and a rework of the performance display.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
