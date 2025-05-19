@@ -248,6 +248,9 @@ public class Renderer {
         defaultShaderProgram.createUniform("lightColor");
         defaultShaderProgram.createUniform("ambientColor");
         defaultShaderProgram.createUniform("ambientStrength");
+        defaultShaderProgram.createUniform("viewPos");
+        defaultShaderProgram.createUniform("specularStrength");
+        defaultShaderProgram.createUniform("shininess");
         logger.debug("Created uniforms for default shader program.");
     }
 
@@ -284,6 +287,11 @@ public class Renderer {
         defaultShaderProgram.setUniform("ambientColor", new Vector3f(0.4f, 0.5f, 0.6f));
         defaultShaderProgram.setUniform("ambientStrength", 0.6f);
         defaultShaderProgram.setUniform("uTexture", 0); // Tell shader to use texture unit 0
+
+        // Set new lighting uniforms
+        defaultShaderProgram.setUniform("viewPos", camera.getPosition());
+        defaultShaderProgram.setUniform("specularStrength", 0.5f); // Example value
+        defaultShaderProgram.setUniform("shininess", 32.0f);      // Example value
 
         Matrix4f modelMatrix = new Matrix4f(); // Reused for each chunk
         // OLD: Matrix4f viewProjectionMatrix = new

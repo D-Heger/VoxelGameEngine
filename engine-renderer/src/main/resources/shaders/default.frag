@@ -12,6 +12,9 @@ uniform vec3 lightDir; // Directional light direction (normalized)
 uniform vec3 lightColor; // Light color
 uniform vec3 ambientColor; // Ambient light color
 uniform float ambientStrength; // Ambient light strength
+uniform vec3 viewPos; // Camera position in world space
+uniform float specularStrength; // Intensity of the specular highlight
+uniform float shininess; // Shininess factor for specular highlight
 
 void main()
 {
@@ -29,7 +32,18 @@ void main()
     float diff = max(dot(normal, lightDirection), 0.0);
     vec3 diffuse = diff * lightColor;
     
+    // Calculate specular lighting (Blinn-Phong)
+    vec3 viewDir = normalize(viewPos - vFragPos);
+    vec3 halfwayDir = normalize(lightDirection + viewDir);
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+    vec3 specular = specularStrength * spec * lightColor; // Specular highlight is also affected by light color
+    
     // Combine lighting with texture
-    vec3 result = (ambient + diffuse) * texColor.rgb;
+    vec3 result = (ambient + diffuse + specular) * texColor.rgb;
+
+    // Apply gamma correction
+    float gamma = 1.05;
+    result = pow(result, vec3(1.0/gamma));
+
     FragColor = vec4(result, texColor.a);
 }
