@@ -41,9 +41,5 @@ void main()
     // Combine lighting with texture
     vec3 result = (ambient + diffuse + specular) * texColor.rgb;
 
-    // Apply gamma correction
-    float gamma = 1.05;
-    result = pow(result, vec3(1.0/gamma));
-
     FragColor = vec4(result, texColor.a);
 }
