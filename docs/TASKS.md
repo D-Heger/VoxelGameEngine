@@ -614,19 +614,29 @@
       - **Deliverables:** Box element.
       - **Implementation Context:** Created `BoxElement.java` in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/ui/elements/`. This class extends `UIElement` and represents a rectangular box with a background color. It includes properties for position, size, color, and visibility. The `render()` method uses the `UIShader` to draw the box on the screen. The box element is designed to be flexible and reusable for various UI components.
     - [ ] **Subtask ID:** P4-T5.2
-      - **Name:** Add mouse interaction support
-      - **Description:** Add mouse interaction support to the ui, so that the ui elements can be clicked, scrolled and hovered over.
-      - **Deliverables:** Mouse interaction support.
+      - **Name:** Improve text rendering by making the font clearer
+      - **Description:** Enhance the clarity and readability of the text rendered in the UI using anti-aliasing and other techniques.
+      - **Deliverables:** Enhanced text rendering.
       - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T5.3
-      - **Name:** Add text input support
-      - **Description:** Add text input support to the ui, so that the ui elements can be typed into.
-      - **Deliverables:** Text input support.
+      - **Name:** Add mouse interaction support
+      - **Description:** Add mouse interaction support to the ui, so that future ui elements can be clicked, scrolled and hovered over.
+      - **Deliverables:** Mouse interaction support.
       - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T5.4
+      - **Name:** Add text input support
+      - **Description:** Add text input support to the ui, so that future ui elements can be typed into.
+      - **Deliverables:** Text input support.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T5.5
+      - **Name:** Add a button element to the ui.
+      - **Description:** Add a button element to the ui, that can trigger effects with onclick and onhover.
+      - **Deliverables:** Button element.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T5.6
       - **Name:** Add a pause menu
-      - **Description:** Add a pause menu to the ui, so that the game can be paused and the player can see the performance display and a button to resume the game.
-      - **Deliverables:** Pause menu.
+      - **Description:** Add a pause menu to the ui. This menu should pause movement interactions, so that the user can not move in the game anymore. The whole screen should be covered by a colored box element and the performance display should be turned off. A button should be added to quit the game and another button to continue the game. The pause menu should be opened and closed by pressing the escape button. This also includes removing the window close upon pressing escape and integrating this menu into GameLoop.
+      - **Deliverables:** Pause menu with its requirements.
       - **Implementation Context:** (TBD)
 
 - - [ ] **Task ID:** P4-T6

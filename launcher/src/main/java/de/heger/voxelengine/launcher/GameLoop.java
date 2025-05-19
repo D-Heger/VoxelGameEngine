@@ -6,7 +6,7 @@ import de.heger.voxelengine.platform.Window;
 import de.heger.voxelengine.renderer.Renderer;
 import de.heger.voxelengine.renderer.camera.Camera;
 import de.heger.voxelengine.renderer.ui.UIManager;
-import de.heger.voxelengine.renderer.ui.debug.PerformanceDisplay;
+import de.heger.voxelengine.renderer.ui.displays.debug.PerformanceDisplay;
 import de.heger.voxelengine.renderer.ui.font.Font;
 import de.heger.voxelengine.renderer.ui.font.FontManager;
 import de.heger.voxelengine.world.block.BlockRegistry;

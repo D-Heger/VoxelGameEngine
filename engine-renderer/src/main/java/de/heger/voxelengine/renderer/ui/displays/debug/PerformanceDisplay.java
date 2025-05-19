@@ -1,4 +1,4 @@
-package de.heger.voxelengine.renderer.ui.debug;
+package de.heger.voxelengine.renderer.ui.displays.debug;
 
 import de.heger.voxelengine.renderer.ui.UIManager;
 import de.heger.voxelengine.renderer.ui.elements.TextElement;

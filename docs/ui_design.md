@@ -2,7 +2,8 @@
 
 ## 1. Overview
 
-This document outlines the design for a basic custom UI system for the Voxel Game Engine. The initial focus is on providing simple text rendering and basic layout capabilities, primarily to support a debug overlay like a performance monitor. Interaction is out of scope for the initial version.
+This document outlines the design for a basic custom UI system for the Voxel Game Engine. The initial focusThi## 9. Mouse Interaction Support (P4-T5.2) design provides a foundation for the required UI capabilities.
+is on providing simple text rendering and basic layout capabilities, primarily to support a debug overlay like a performance monitor. Interaction is out of scope for the initial version.
 
 The UI system will operate in screen space using a 2D orthographic projection.
 
@@ -152,4 +153,157 @@ The UI system will reside primarily within the `engine-renderer` module, possibl
 -   **P4-T4.4 (Add performance display):** The performance display will be implemented using `TextElement`s, managed by the `UIRenderer` or `UIManager`. The font rendering and basic positioning are key.
 -   **P4-T4.5 (Integrate performance display):** This task will involve creating instances of the UI elements defined here and adding them to the `UIRenderer` to be drawn.
 
-This design provides a foundation for the required UI capabilities. 
+This design provides a foundation for the required UI capabilities.
+
+# 9. Mouse Interaction Support (P4-T5.2)
+
+This section outlines the plan for adding mouse interaction support to the UI system, which will enable UI elements to respond to mouse clicks, hover states, and scrolling events.
+
+## 9.1. Core Event System
+
+The interaction system will be built around a set of event classes that capture and propagate mouse interactions through the UI hierarchy.
+
+### 9.1.1. Event Classes
+
+- **`MouseEvent` (Abstract Base Class):**
+  - **Properties:**
+    - `Vec2f screenPosition`: Position in screen coordinates.
+    - `long timestamp`: Time when the event occurred.
+    - `boolean consumed`: Flag to mark if an event has been handled.
+  - **Methods:**
+    - `consume()`: Mark the event as consumed to prevent further propagation.
+    - `isConsumed()`: Check if the event has been consumed.
+
+- **`MouseButtonEvent` (Extends `MouseEvent`):**
+  - **Properties:**
+    - `int button`: The mouse button (LEFT, RIGHT, MIDDLE, etc.).
+    - `ButtonAction action`: Enum for PRESS, RELEASE, CLICK (synthetic event).
+    - `int clickCount`: For tracking double/triple clicks.
+
+- **`MouseMoveEvent` (Extends `MouseEvent`):**
+  - **Properties:**
+    - `Vec2f previousPosition`: Previous mouse position for calculating delta.
+    - `Vec2f delta`: Change in position since last move.
+
+- **`MouseScrollEvent` (Extends `MouseEvent`):**
+  - **Properties:**
+    - `float scrollX`: Horizontal scroll amount.
+    - `float scrollY`: Vertical scroll amount.
+
+### 9.1.2. Listener Interface
+
+- **`MouseListener` Interface:**
+  - **Methods:**
+    - `boolean onMouseButton(MouseButtonEvent event)`: Called on button press/release/click.
+    - `boolean onMouseMove(MouseMoveEvent event)`: Called when mouse moves over element.
+    - `boolean onMouseScroll(MouseScrollEvent event)`: Called when scrolling over element.
+    - `void onMouseEnter()`: Called when mouse enters an element's bounds.
+    - `void onMouseLeave()`: Called when mouse leaves an element's bounds.
+  - Return `true` from event handlers to indicate the event was consumed.
+
+## 9.2. Enhancements to UIElement
+
+The `UIElement` class will be extended to support mouse interaction:
+
+- **New Properties:**
+  - `boolean interactive`: Flag to indicate if element responds to mouse events.
+  - `boolean hovered`: Current hover state.
+  - `boolean pressed`: Tracks if the element is currently pressed (mouse down).
+  - `List<MouseListener> listeners`: Optional list of external listeners.
+
+- **New Methods:**
+  - `boolean isMouseOver(Vec2f screenPos)`: Tests if the point is within element bounds.
+  - Event handling methods implementing `MouseListener` interface.
+  - `addMouseListener(MouseListener listener)`: Add external listener.
+  - `removeMouseListener(MouseListener listener)`: Remove external listener.
+
+## 9.3. Input Management
+
+The existing `InputManager` in the `engine-platform` module needs to be enhanced:
+
+- **Additional State Tracking:**
+  - Precise mouse press/release events (not just held state).
+  - Mouse position changes between frames.
+  - Scroll wheel deltas.
+
+- **New Methods:**
+  - `boolean isMouseButtonPressedThisFrame(int button)`: Detect single-frame press.
+  - `boolean isMouseButtonReleasedThisFrame(int button)`: Detect single-frame release.
+  - `Vec2f getMousePositionDelta()`: Get change in position since last frame.
+  - `Vec2f getScrollDelta()`: Get scroll wheel movement since last frame.
+
+## 9.4. Event Dispatching in UIManager
+
+The `UIManager` class will handle event dispatching:
+
+- **State Tracking:**
+  - `UIElement hoveredElement`: Currently hovered element.
+  - `UIElement pressedElement`: Element on which mouse was pressed down.
+
+- **Event Processing in Update Method:**
+  1. **Hover Detection:**
+     - Iterate visible elements (top-to-bottom).
+     - For each element, check `isMouseOver()`.
+     - Manage hover state changes and trigger `onMouseEnter()`/`onMouseLeave()`.
+  
+  2. **Button Event Dispatching:**
+     - On mouse down: Find element under cursor, set as pressedElement, call `onMouseButton()`.
+     - On mouse up: If pressedElement exists, call its `onMouseButton()` method.
+     - If mouse down and up on same element, generate click event.
+  
+  3. **Mouse Move Event Dispatching:**
+     - If mouse moved, send `MouseMoveEvent` to hoveredElement.
+  
+  4. **Mouse Scroll Event Dispatching:**
+     - If scroll occurred, send `MouseScrollEvent` to hoveredElement.
+
+## 9.5. Element-Specific Interaction Implementation
+
+Each concrete UI element class will implement interaction behavior:
+
+- **BoxElement:**
+  - Visual feedback for hover/press states (color changes).
+  - Event forwarding to child elements if used as container.
+
+- **TextElement:**
+  - Optional hover/click effects (color changes, etc.).
+  - Support for text selection in future iterations.
+
+- **Button Element** (New):
+  - Extends BoxElement with click handling.
+  - Callback mechanism for click actions.
+  - Visual states (normal, hovered, pressed).
+
+## 9.6. Implementation Phases
+
+1. **Phase 1 - Core Event System:**
+   - Create event classes and listener interface.
+   - Enhance InputManager for precise mouse event tracking.
+
+2. **Phase 2 - UIElement Enhancements:**
+   - Add interaction properties and methods to UIElement.
+   - Implement isMouseOver and basic event handling.
+
+3. **Phase 3 - UIManager Event Dispatching:**
+   - Implement event routing and state tracking in UIManager.
+   - Add Z-order for proper event targeting.
+
+4. **Phase 4 - Interactive Elements:**
+   - Implement hover/press visual feedback in BoxElement.
+   - Implement basic Button element.
+   - Add test cases in GameLoop.
+
+5. **Phase 5 - Testing and Refinement:**
+   - Validate event propagation and visual feedback.
+   - Ensure proper event handling with overlapping elements.
+   - Test performance impact of interaction logic.
+
+## 9.7. Future Enhancements (Out of Scope for P4-T5.2)
+
+- Event bubbling through element hierarchy.
+- Drag and drop support.
+- Focus management for keyboard navigation.
+- Complex hit testing for non-rectangular elements.
+- Touch input support.
+
+This design extends the existing UI system to support mouse interaction while maintaining the clean separation of concerns established in the original design.
