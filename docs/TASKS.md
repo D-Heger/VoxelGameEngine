@@ -604,7 +604,7 @@
 
 - - [ ] **Task ID:** P4-T5
   - **Name:** Extend & refine custom ui implementation
-  - **Description:** Refine the custom ui implementation by improving its rendering performance, adding more elements and making interactions possible.
+  - **Description:** Refine the custom ui implementation, adding more elements and making interactions possible.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P4-T4, `engine-renderer` module
   - **Subtasks:**
