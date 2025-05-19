@@ -117,7 +117,7 @@ public class GameLoop {
         }
         performanceData = new PerformanceDisplay.PerformanceData();
 
-        TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337);
+        TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337, 50, 40);
         TaskResultHandler loggingHandler = new LoggingTaskResultHandler();
         this.performanceTrackingHandler = new PerformanceTrackingTaskResultHandler(loggingHandler);
 
