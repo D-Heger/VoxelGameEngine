@@ -9,10 +9,6 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SeekableByteChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,8 +17,8 @@ public class FontManager {
     private final Map<String, Font> fontCache = new HashMap<>();
 
     // Default font properties
-    public static final String DEFAULT_FONT_NAME = "Roboto-Regular";
-    public static final String DEFAULT_FONT_PATH = "fonts/Roboto-Regular.ttf"; // Relative to classpath resources
+    public static final String DEFAULT_FONT_NAME = "OpenSans-Regular";
+    public static final String DEFAULT_FONT_PATH = "fonts/" + DEFAULT_FONT_NAME + ".ttf";
     public static final float DEFAULT_FONT_SIZE = 16f;
     public static final int DEFAULT_ATLAS_WIDTH = 512;
     public static final int DEFAULT_ATLAS_HEIGHT = 512;
@@ -87,7 +83,6 @@ public class FontManager {
     // Helper method to load a resource file into a ByteBuffer
     private ByteBuffer ioResourceToByteBuffer(String resource, int bufferSize) throws IOException {
         LOGGER.debug("Attempting to load resource: {}", resource);
-        Path path = null;
         ByteBuffer buffer;
 
         try (InputStream source = FontManager.class.getClassLoader().getResourceAsStream(resource)) {
