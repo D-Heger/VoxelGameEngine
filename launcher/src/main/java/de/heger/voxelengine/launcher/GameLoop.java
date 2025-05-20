@@ -52,6 +52,9 @@ public class GameLoop {
     private ChunkPos lastCameraXZChunkPos = null;
     private double chunkLoadCheckTimer = 0.0;
 
+    private static final float DAY_NIGHT_CYCLE_DURATION_SECONDS = 600.0f; // 10 minutes
+    private double gameTimeInSeconds = DAY_NIGHT_CYCLE_DURATION_SECONDS * 0.5; // Start at midday
+
     private PerformanceTrackingTaskResultHandler performanceTrackingHandler;
     private int currentFps = 0;
     private int currentUps = 0;
@@ -96,7 +99,8 @@ public class GameLoop {
             Font defaultFont = actualFontManager.getDefaultFont();
 
             if (defaultFont == null) {
-                LOGGER.error("Default font not available from UIManager's FontManager. Performance display cannot be created.");
+                LOGGER.error(
+                        "Default font not available from UIManager's FontManager. Performance display cannot be created.");
             } else {
                 performanceDisplay = new PerformanceMenu(uiManager, defaultFont);
                 performanceDisplay.init();
@@ -124,19 +128,20 @@ public class GameLoop {
         int horizontalDim = (CHUNK_LOAD_RADIUS * 2) + 1;
         int calculatedMaxTasks = horizontalDim * horizontalDim * MAX_WORLD_HEIGHT_CHUNKS;
         int queueCapacity = Math.max(256, (int) (calculatedMaxTasks * 1.5));
-        LOGGER.info("Calculated ChunkGenerationService queue capacity: {} for CHUNK_LOAD_RADIUS {}", queueCapacity, CHUNK_LOAD_RADIUS);
+        LOGGER.info("Calculated ChunkGenerationService queue capacity: {} for CHUNK_LOAD_RADIUS {}", queueCapacity,
+                CHUNK_LOAD_RADIUS);
 
         int corePoolSize = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
         int maxPoolSize = Math.max(corePoolSize, Runtime.getRuntime().availableProcessors() - 1);
-        if (maxPoolSize <= corePoolSize) maxPoolSize = corePoolSize + 1;
+        if (maxPoolSize <= corePoolSize)
+            maxPoolSize = corePoolSize + 1;
         int keepAliveSeconds = 60;
 
         this.chunkGenerationService = new ChunkGenerationService(
                 noiseTerrainGen,
                 this.performanceTrackingHandler,
                 corePoolSize, maxPoolSize, keepAliveSeconds,
-                queueCapacity
-        );
+                queueCapacity);
         LOGGER.info("ChunkGenerationService initialized.");
         LOGGER.info("Generating {} initial chunks", (CHUNK_LOAD_RADIUS * 2 + 1)
                 * (CHUNK_LOAD_RADIUS * 2 + 1) * MAX_WORLD_HEIGHT_CHUNKS);
@@ -171,7 +176,7 @@ public class GameLoop {
                 accumulator += delta;
 
                 inputManager.update();
-                
+
                 if (uiManager != null && uiManager.isInitialized()) {
                     uiManager.processInput(inputManager, window);
                     uiManager.processKeyboardInput(inputManager);
@@ -184,11 +189,11 @@ public class GameLoop {
                     accumulator -= timeU;
                     updates++;
                 }
-                
+
                 if (uiManager != null && uiManager.isInitialized()) {
                     uiManager.update((float) delta);
-                    if (performanceDisplay != null && performanceDisplay.isVisible()){
-                         performanceDisplay.update(performanceData);
+                    if (performanceDisplay != null && performanceDisplay.isVisible()) {
+                        performanceDisplay.update(performanceData);
                     }
                 }
 
@@ -262,17 +267,26 @@ public class GameLoop {
     }
 
     private void update(float deltaTime) {
-        chunkLoadCheckTimer += deltaTime;
-        if (chunkLoadCheckTimer >= CHUNK_LOAD_CHECK_INTERVAL) {
-            updateChunkLoading();
-            chunkLoadCheckTimer = 0.0;
-        }
-
         if (!isPaused) {
+            chunkLoadCheckTimer += deltaTime;
+            if (chunkLoadCheckTimer >= CHUNK_LOAD_CHECK_INTERVAL) {
+                updateChunkLoading();
+                chunkLoadCheckTimer = 0.0;
+            }
+
+            // Update game time for day/night cycle
+            gameTimeInSeconds += deltaTime;
+            float normalizedTimeOfDay = (float) (gameTimeInSeconds % DAY_NIGHT_CYCLE_DURATION_SECONDS)
+                    / DAY_NIGHT_CYCLE_DURATION_SECONDS;
+            if (renderer != null) {
+                renderer.updateTimeOfDay(normalizedTimeOfDay);
+            }
             if (uiManager != null && uiManager.isInitialized() && uiManager.uiHasFocus()) {
-                // UI has focus (e.g. a text input in a future menu), game world movement might be paused
+                // UI has focus (e.g. a text input in a future menu), game world movement might
+                // be paused
                 // This case should ideally not happen if isPaused is true and handles focus.
-                // However, if a different UI element (not pause menu) takes focus, this might be relevant.
+                // However, if a different UI element (not pause menu) takes focus, this might
+                // be relevant.
             } else {
                 camera.processKeyboard(inputManager, deltaTime);
             }
@@ -282,7 +296,7 @@ public class GameLoop {
     private void render() {
         renderer.clear();
         renderer.renderChunks(chunkManager.getAllLoadedChunks());
-        
+
         if (uiManager != null && uiManager.isInitialized()) {
             uiManager.render();
         }
@@ -314,8 +328,8 @@ public class GameLoop {
 
         if (chunkManager != null) {
             List<ChunkPos> positionsToClear = chunkManager.getAllLoadedChunks().stream()
-                                                .map(Chunk::getPosition)
-                                                .collect(Collectors.toList());
+                    .map(Chunk::getPosition)
+                    .collect(Collectors.toList());
             for (ChunkPos pos : positionsToClear) {
                 chunkManager.removeChunk(pos);
             }
@@ -377,7 +391,8 @@ public class GameLoop {
             }
         }
         if (chunksRequestedThisCycle > 0) {
-            LOGGER.debug("Requested {} new chunks for generation. {} were already loaded/queued in radius.", chunksRequestedThisCycle, chunksAlreadyManagedThisCycle);
+            LOGGER.debug("Requested {} new chunks for generation. {} were already loaded/queued in radius.",
+                    chunksRequestedThisCycle, chunksAlreadyManagedThisCycle);
         }
 
         List<Chunk> currentlyLoadedChunks = List.copyOf(chunkManager.getAllLoadedChunks());
@@ -422,7 +437,8 @@ public class GameLoop {
         if (uiManager != null && uiManager.isInitialized()) {
             uiManager.setUiHasFocus(isPaused);
             if (isPaused) {
-                if (pauseMenu != null) pauseMenu.show();
+                if (pauseMenu != null)
+                    pauseMenu.show();
                 if (performanceDisplay != null) {
                     // Store current visibility and then hide
                     performanceDisplayWasVisible = performanceDisplay.isVisible();
@@ -430,7 +446,8 @@ public class GameLoop {
                 }
                 GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
             } else {
-                if (pauseMenu != null) pauseMenu.hide();
+                if (pauseMenu != null)
+                    pauseMenu.hide();
                 if (performanceDisplay != null) {
                     // Restore previous visibility
                     performanceDisplay.setVisible(performanceDisplayWasVisible);

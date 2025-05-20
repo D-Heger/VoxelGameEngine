@@ -72,7 +72,19 @@ public class Renderer {
 
     private static final boolean USE_OCCLUSION_CULLING = true;
 
-    private final Vector3f FOG_COLOR = new Vector3f(0.5f, 0.6f, 0.7f);
+    private float currentTimeOfDay = 0.5f; // 0.0 (midnight) to 1.0 (next midnight), 0.5 is midday
+
+    // Define light properties for key times
+    private final Vector3f middayLightColor = new Vector3f(1.0f, 0.95f, 0.8f);
+    private final Vector3f midnightLightColor = new Vector3f(0.05f, 0.05f, 0.15f); // Bluish moonlight
+    private final float middayAmbientStrength = 0.8f;
+    private final float midnightAmbientStrength = 0.15f;
+    private final Vector3f middayAmbientColor = new Vector3f(0.6f, 0.6f, 0.6f);
+    private final Vector3f midnightAmbientColor = new Vector3f(0.05f, 0.05f, 0.1f);
+
+    // Define fog colors for key times
+    private final Vector3f middayFogColor = new Vector3f(0.5f, 0.6f, 0.7f);
+    private final Vector3f midnightFogColor = new Vector3f(0.0f, 0.0f, 0.05f);
 
     public Renderer(Window window) {
         this.window = window;
@@ -103,7 +115,10 @@ public class Renderer {
             logger.warn("OpenGL debug output not available.");
         }
 
-        glClearColor(FOG_COLOR.x, FOG_COLOR.y, FOG_COLOR.z, 1.0f); // Use fog color for background
+        // Initial clear color, will be updated by fog in shader / dynamic clear later if needed
+        Vector3f initialFogColor = new Vector3f();
+        interpolateVector3f(middayFogColor, midnightFogColor, (float) (Math.sin(this.currentTimeOfDay * Math.PI)), initialFogColor);
+        glClearColor(initialFogColor.x, initialFogColor.y, initialFogColor.z, 1.0f);
 
         // Enable depth testing
         glEnable(GL_DEPTH_TEST);
@@ -250,8 +265,6 @@ public class Renderer {
         defaultShaderProgram.createUniform("ambientColor");
         defaultShaderProgram.createUniform("ambientStrength");
         defaultShaderProgram.createUniform("viewPos");
-        defaultShaderProgram.createUniform("specularStrength");
-        defaultShaderProgram.createUniform("shininess");
 
         // Fog uniforms
         defaultShaderProgram.createUniform("fogColor");
@@ -278,6 +291,27 @@ public class Renderer {
             return;
         }
 
+        // Calculate time-based light intensity (0 at midnight, 1 at midday)
+        float lightIntensityFactor = (float) Math.sin(this.currentTimeOfDay * Math.PI);
+        // Ensure factor is clamped between 0 and 1, as sin can go slightly outside due to precision with PI.
+        lightIntensityFactor = Math.max(0.0f, Math.min(1.0f, lightIntensityFactor));
+
+        // Interpolate light properties
+        Vector3f currentLightColor = new Vector3f();
+        interpolateVector3f(midnightLightColor, middayLightColor, lightIntensityFactor, currentLightColor);
+
+        float currentAmbientStrength = midnightAmbientStrength + (middayAmbientStrength - midnightAmbientStrength) * lightIntensityFactor;
+        
+        Vector3f currentAmbientColor = new Vector3f();
+        interpolateVector3f(midnightAmbientColor, middayAmbientColor, lightIntensityFactor, currentAmbientColor);
+
+        Vector3f currentFogColor = new Vector3f();
+        interpolateVector3f(midnightFogColor, middayFogColor, lightIntensityFactor, currentFogColor);
+        
+        // Update glClearColor for the background, in case fog doesn't reach infinity
+        // This is often done if there's no skybox and fog is the primary background.
+        glClearColor(currentFogColor.x, currentFogColor.y, currentFogColor.z, 1.0f);
+
         drawCallsLastFrame = 0;
         totalIndicesRenderedLastFrame = 0;
         frustumCulledChunksLastFrame = 0;
@@ -290,21 +324,19 @@ public class Renderer {
 
         // Set lighting uniforms
         defaultShaderProgram.setUniform("lightDir", new Vector3f(-0.5f, -1.0f, -0.5f));
-        defaultShaderProgram.setUniform("lightColor", new Vector3f(1.0f, 0.95f, 0.8f));
-        defaultShaderProgram.setUniform("ambientColor", new Vector3f(0.4f, 0.5f, 0.6f));
-        defaultShaderProgram.setUniform("ambientStrength", 0.6f);
+        defaultShaderProgram.setUniform("lightColor", currentLightColor);
+        defaultShaderProgram.setUniform("ambientColor", currentAmbientColor);
+        defaultShaderProgram.setUniform("ambientStrength", currentAmbientStrength);
         defaultShaderProgram.setUniform("uTexture", 0); // Tell shader to use texture unit 0
 
         // Set new lighting uniforms
         defaultShaderProgram.setUniform("viewPos", camera.getPosition());
-        defaultShaderProgram.setUniform("specularStrength", 0.5f); // Example value
-        defaultShaderProgram.setUniform("shininess", 32.0f);      // Example value
 
         // Set fog uniforms
         float cameraViewDistance = camera.getViewDistance();
         float fogStartDistance = cameraViewDistance * 0.60f;
 
-        defaultShaderProgram.setUniform("fogColor", FOG_COLOR);
+        defaultShaderProgram.setUniform("fogColor", currentFogColor);
         defaultShaderProgram.setUniform("fogStart", fogStartDistance);
         defaultShaderProgram.setUniform("fogEnd", cameraViewDistance);
 
@@ -598,5 +630,17 @@ public class Renderer {
         if (removedAABB != null) {
             logger.debug("Removed AABB for chunk {} from cache.", chunkPos);
         }
+    }
+
+    // Method to update time of day
+    public void updateTimeOfDay(float timeOfDay) {
+        this.currentTimeOfDay = timeOfDay % 1.0f; // Ensure it wraps around 0-1
+    }
+
+    // Helper for interpolation
+    private void interpolateVector3f(Vector3f start, Vector3f end, float factor, Vector3f result) {
+        result.x = start.x + (end.x - start.x) * factor;
+        result.y = start.y + (end.y - start.y) * factor;
+        result.z = start.z + (end.z - start.z) * factor;
     }
 }

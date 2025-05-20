@@ -13,8 +13,6 @@ uniform vec3 lightColor; // Light color
 uniform vec3 ambientColor; // Ambient light color
 uniform float ambientStrength; // Ambient light strength
 uniform vec3 viewPos; // Camera position in world space
-uniform float specularStrength; // Intensity of the specular highlight
-uniform float shininess; // Shininess factor for specular highlight
 
 // Fog Uniforms
 uniform vec3 fogColor;
@@ -38,13 +36,13 @@ void main()
     vec3 diffuse = diff * lightColor;
     
     // Calculate specular lighting (Blinn-Phong)
-    vec3 viewDir = normalize(viewPos - vFragPos);
-    vec3 halfwayDir = normalize(lightDirection + viewDir);
-    float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
-    vec3 specular = specularStrength * spec * lightColor; // Specular highlight is also affected by light color
+    // vec3 viewDir = normalize(viewPos - vFragPos);
+    // vec3 halfwayDir = normalize(lightDirection + viewDir);
+    // float spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+    // vec3 specular = specularStrength * spec * lightColor; // Specular highlight is also affected by light color
     
     // Combine lighting with texture
-    vec3 result = (ambient + diffuse + specular) * texColor.rgb;
+    vec3 result = (ambient + diffuse) * texColor.rgb;
 
     // --- Fog Calculation ---
     // Calculate distance from camera (viewPos) to the fragment's world position (vFragPos)
