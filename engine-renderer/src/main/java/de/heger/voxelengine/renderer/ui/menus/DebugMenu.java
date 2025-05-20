@@ -1,4 +1,4 @@
-package de.heger.voxelengine.renderer.ui.menus.debug;
+package de.heger.voxelengine.renderer.ui.menus;
 
 import de.heger.voxelengine.renderer.ui.UIManager;
 import de.heger.voxelengine.renderer.ui.elements.TextElement;
@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class PerformanceMenu {
+public class DebugMenu {
 
     private final UIManager uiManager;
     private final Font font;
@@ -42,7 +42,7 @@ public class PerformanceMenu {
     private TextElement timeOfDayText;
 
 
-    public PerformanceMenu(UIManager uiManager, Font font) {
+    public DebugMenu(UIManager uiManager, Font font) {
         this.uiManager = uiManager;
         this.font = font;
     }
@@ -121,7 +121,7 @@ public class PerformanceMenu {
         return textElement;
     }
 
-    public void update(PerformanceData data) {
+    public void update(DebugData data) {
         if (!visible) {
             return;
         }
@@ -179,7 +179,7 @@ public class PerformanceMenu {
     }
 
     // Static inner class or a new file for PerformanceData
-    public static class PerformanceData {
+    public static class DebugData {
         public int fps;
         public int ups;
         public double avgChunkGenTime;
@@ -197,6 +197,6 @@ public class PerformanceMenu {
 
 
         // Builder or constructor for convenience
-        public PerformanceData() {} // Default constructor
+        public DebugData() {} // Default constructor
     }
 } 

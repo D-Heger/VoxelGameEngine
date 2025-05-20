@@ -8,8 +8,8 @@ import de.heger.voxelengine.renderer.camera.Camera;
 import de.heger.voxelengine.renderer.ui.UIManager;
 import de.heger.voxelengine.renderer.ui.font.Font;
 import de.heger.voxelengine.renderer.ui.font.FontManager;
+import de.heger.voxelengine.renderer.ui.menus.DebugMenu;
 import de.heger.voxelengine.renderer.ui.menus.PauseMenu;
-import de.heger.voxelengine.renderer.ui.menus.debug.PerformanceMenu;
 import de.heger.voxelengine.world.block.BlockRegistry;
 import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkPos;
@@ -69,11 +69,11 @@ public class GameLoop {
     private boolean wasEscapePressed = false;
 
     private UIManager uiManager;
-    private PerformanceMenu performanceDisplay;
+    private DebugMenu performanceDisplay;
     private boolean performanceDisplayWasVisible = true;
     private PauseMenu pauseMenu;
     private boolean isPaused = false;
-    private PerformanceMenu.PerformanceData performanceData;
+    private DebugMenu.DebugData performanceData;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
@@ -107,7 +107,7 @@ public class GameLoop {
                 LOGGER.error(
                         "Default font not available from UIManager's FontManager. Performance display cannot be created.");
             } else {
-                performanceDisplay = new PerformanceMenu(uiManager, defaultFont);
+                performanceDisplay = new DebugMenu(uiManager, defaultFont);
                 performanceDisplay.init();
                 performanceDisplay.setVisible(true);
                 performanceDisplayWasVisible = true;
@@ -124,7 +124,7 @@ public class GameLoop {
                 LOGGER.error("Default font not available, PauseMenu cannot be created.");
             }
         }
-        performanceData = new PerformanceMenu.PerformanceData();
+        performanceData = new DebugMenu.DebugData();
 
         TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337, 50, 40);
         TaskResultHandler loggingHandler = new LoggingTaskResultHandler();
