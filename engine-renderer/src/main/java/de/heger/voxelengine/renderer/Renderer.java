@@ -300,9 +300,12 @@ public class Renderer {
         defaultShaderProgram.setUniform("shininess", 32.0f);      // Example value
 
         // Set fog uniforms
+        float cameraViewDistance = camera.getViewDistance();
+        float fogStartDistance = cameraViewDistance * 0.75f;
+
         defaultShaderProgram.setUniform("fogColor", new Vector3f(0.5f, 0.6f, 0.7f)); // A greyish-blue fog
-        defaultShaderProgram.setUniform("fogStart", 192.0f); // Start fog at 128 units (e.g., 12 chunks away) , 32 units per chunk
-        defaultShaderProgram.setUniform("fogEnd", 256.0f); // Full fog at 256 units (e.g., 16 chunks away)
+        defaultShaderProgram.setUniform("fogStart", fogStartDistance);
+        defaultShaderProgram.setUniform("fogEnd", cameraViewDistance);
 
         Matrix4f modelMatrix = new Matrix4f(); // Reused for each chunk
         // OLD: Matrix4f viewProjectionMatrix = new

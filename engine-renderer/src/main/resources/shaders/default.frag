@@ -46,10 +46,19 @@ void main()
     // Combine lighting with texture
     vec3 result = (ambient + diffuse + specular) * texColor.rgb;
 
-    // Calculate fog
+    // --- Fog Calculation ---
+    // Calculate distance from camera (viewPos) to the fragment's world position (vFragPos)
     float dist = length(vFragPos - viewPos);
+    // Calculate fogFactor: a value between 0.0 (no fog) and 1.0 (full fog).
+    // smoothstep provides a smooth transition from no fog to full fog between fogStart and fogEnd distances.
+    // - If dist < fogStart, fogFactor is 0.0.
+    // - If dist > fogEnd, fogFactor is 1.0.
+    // - If fogStart <= dist <= fogEnd, fogFactor transitions smoothly from 0.0 to 1.0.
     float fogFactor = smoothstep(fogStart, fogEnd, dist); // Linear fog: 0 (no fog) to 1 (full fog)
 
+    // Mix the original fragment color with the fogColor based on fogFactor.
+    // mix(x, y, a) returns x * (1.0 - a) + y * a
+    // So, if fogFactor is 0, finalColor is result. If fogFactor is 1, finalColor is fogColor.
     vec3 finalColorWithFog = mix(result, fogColor, fogFactor);
 
     FragColor = vec4(finalColorWithFog, texColor.a);

@@ -21,8 +21,11 @@ public class Camera {
     private float movementSpeed = 5.0f; // Units per second
     private float mouseSensitivity = 0.1f;
     private float viewDistance = 200.0f; // Default view distance
+    private float fov = 45.0f; // Default field of view in degrees
     private Matrix4f projectionMatrix;
     private float aspectRatio = 16.0f / 9.0f; // Default aspect ratio
+
+    private static final float SPRINT_MULTIPLIER = 5.0f;
 
     public Camera() {
         this(new Vector3f(0.0f, 80.0f, 0.0f)); // Default position
@@ -61,10 +64,15 @@ public class Camera {
         updateProjectionMatrix();
     }
 
+    public void setFov(float fov) {
+        this.fov = fov;
+        updateProjectionMatrix();
+    }
+
     private void updateProjectionMatrix() {
         // FOV (field of view), aspect ratio, near plane, far plane
         projectionMatrix = new Matrix4f().perspective(
-            (float) Math.toRadians(45.0f), // FOV
+            (float) Math.toRadians(this.fov), // FOV
             aspectRatio,
             0.1f, // Near plane
             viewDistance // Far plane (view distance)
@@ -74,7 +82,7 @@ public class Camera {
     public void processKeyboard(InputManager inputManager, float deltaTime) {
         float velocity = movementSpeed * deltaTime;
         if (inputManager.isKeyPressed(GLFW_KEY_LEFT_CONTROL)) {
-            velocity *= 5;
+            velocity *= SPRINT_MULTIPLIER;
         }
         if (inputManager.isKeyPressed(GLFW_KEY_W)) {
             position.add(new Vector3f(front).mul(velocity));
@@ -144,5 +152,21 @@ public class Camera {
 
     public float getPitch() {
         return pitch;
+    }
+
+    public float getFov() {
+        return fov;
+    }
+
+    public float getViewDistance() {
+        return viewDistance;
+    }
+
+    public void setMovementSpeed(float movementSpeed) {
+        this.movementSpeed = movementSpeed;
+    }
+
+    public void setMouseSensitivity(float mouseSensitivity) {
+        this.mouseSensitivity = mouseSensitivity;
     }
 }
