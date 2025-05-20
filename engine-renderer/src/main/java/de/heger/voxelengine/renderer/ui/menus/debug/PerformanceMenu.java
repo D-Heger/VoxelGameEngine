@@ -38,7 +38,7 @@ public class PerformanceMenu {
     private TextElement activeMeshesText;
     private TextElement generationQueueText;
     private TextElement activeGenThreadsText;
-    private ButtonElement buttonElement;
+    private TextElement timeOfDayText;
 
 
     public PerformanceMenu(UIManager uiManager, Font font) {
@@ -56,7 +56,7 @@ public class PerformanceMenu {
 
         float firstTextBaselineY = visualTextTopY + scaledAscent; 
 
-        int numTextElements = 11; // Number of performance text lines
+        int numTextElements = 12; // Increased for the new time display
 
         // Calculate dimensions for the text block content itself
         // Estimate max text width. A more accurate way would be to render all text once, get max width.
@@ -105,6 +105,7 @@ public class PerformanceMenu {
         currentTextBaselineY += scaledLineHeight + lineSpacing;
         activeGenThreadsText = createTextElement("Active Gen Threads: -", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
+        timeOfDayText = createTextElement("Time: --:--", textX, currentTextBaselineY);
 
         // Set initial visibility
         setVisible(this.visible);
@@ -132,6 +133,15 @@ public class PerformanceMenu {
         activeMeshesText.setText(String.format(Locale.US, "Active Meshes: %d", data.activeMeshes));
         generationQueueText.setText(String.format(Locale.US, "Gen Queue: %d", data.generationQueueSize));
         activeGenThreadsText.setText(String.format(Locale.US, "Active Gen Threads: %d", data.activeGenerationThreads));
+
+        // Update time of day text
+        if (timeOfDayText != null) {
+            float normalizedTime = data.normalizedTimeOfDay;
+            int totalMinutesInDay = (int) (normalizedTime * 24 * 60);
+            int hours = (totalMinutesInDay / 60) % 24;
+            int minutes = totalMinutesInDay % 60;
+            timeOfDayText.setText(String.format(Locale.US, "Time: %02d:%02d", hours, minutes));
+        }
     }
 
 
@@ -179,6 +189,7 @@ public class PerformanceMenu {
         public int activeMeshes;
         public int generationQueueSize;
         public int activeGenerationThreads;
+        public float normalizedTimeOfDay;
 
 
         // Builder or constructor for convenience

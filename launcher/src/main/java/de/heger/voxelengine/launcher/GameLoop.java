@@ -55,6 +55,8 @@ public class GameLoop {
     private static final float DAY_NIGHT_CYCLE_DURATION_SECONDS = 600.0f; // 10 minutes
     private double gameTimeInSeconds = DAY_NIGHT_CYCLE_DURATION_SECONDS * 0.5; // Start at midday
 
+    private float currentNormalizedTimeOfDay = 0.5f; // To store the latest calculated normalized time
+
     private PerformanceTrackingTaskResultHandler performanceTrackingHandler;
     private int currentFps = 0;
     private int currentUps = 0;
@@ -225,6 +227,7 @@ public class GameLoop {
                         performanceData.generationQueueSize = chunkGenerationService.getPendingTaskCount();
                         performanceData.activeGenerationThreads = chunkGenerationService.getActiveWorkerCount();
                     }
+                    performanceData.normalizedTimeOfDay = this.currentNormalizedTimeOfDay; // Pass the time to performance data
                 }
             }
         } catch (Exception e) {
@@ -276,10 +279,9 @@ public class GameLoop {
 
             // Update game time for day/night cycle
             gameTimeInSeconds += deltaTime;
-            float normalizedTimeOfDay = (float) (gameTimeInSeconds % DAY_NIGHT_CYCLE_DURATION_SECONDS)
-                    / DAY_NIGHT_CYCLE_DURATION_SECONDS;
+            this.currentNormalizedTimeOfDay = (float) (gameTimeInSeconds % DAY_NIGHT_CYCLE_DURATION_SECONDS) / DAY_NIGHT_CYCLE_DURATION_SECONDS;
             if (renderer != null) {
-                renderer.updateTimeOfDay(normalizedTimeOfDay);
+                renderer.updateTimeOfDay(this.currentNormalizedTimeOfDay);
             }
             if (uiManager != null && uiManager.isInitialized() && uiManager.uiHasFocus()) {
                 // UI has focus (e.g. a text input in a future menu), game world movement might
