@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F2;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_F4;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
 
 public class GameLoop {
@@ -54,6 +55,8 @@ public class GameLoop {
 
     private static final float DAY_NIGHT_CYCLE_DURATION_SECONDS = 600.0f; // 10 minutes
     private double gameTimeInSeconds = DAY_NIGHT_CYCLE_DURATION_SECONDS * 0.5; // Start at midday
+    private boolean isTimeOfDayEnabled = true;
+    private boolean wasF4Pressed = false;
 
     private float currentNormalizedTimeOfDay = 0.5f; // To store the latest calculated normalized time
 
@@ -227,7 +230,9 @@ public class GameLoop {
                         performanceData.generationQueueSize = chunkGenerationService.getPendingTaskCount();
                         performanceData.activeGenerationThreads = chunkGenerationService.getActiveWorkerCount();
                     }
-                    performanceData.normalizedTimeOfDay = this.currentNormalizedTimeOfDay; // Pass the time to performance data
+                    performanceData.isTimeOfDayEnabled = isTimeOfDayEnabled;
+                    performanceData.normalizedTimeOfDay = this.currentNormalizedTimeOfDay; // Pass the time to
+                                                                                           // performance data
                 }
             }
         } catch (Exception e) {
@@ -238,6 +243,13 @@ public class GameLoop {
     }
 
     private void input() {
+        boolean isF4Pressed = inputManager.isKeyPressed(GLFW_KEY_F4);
+        if (isF4Pressed && !wasF4Pressed) {
+            toggleTimeOfDay();
+        }
+        wasF4Pressed = isF4Pressed;
+
+
         boolean isF3Pressed = inputManager.isKeyPressed(GLFW_KEY_F3);
         if (isF3Pressed && !wasF3Pressed) {
             renderer.toggleWireframeMode();
@@ -277,11 +289,14 @@ public class GameLoop {
                 chunkLoadCheckTimer = 0.0;
             }
 
-            // Update game time for day/night cycle
-            gameTimeInSeconds += deltaTime;
-            this.currentNormalizedTimeOfDay = (float) (gameTimeInSeconds % DAY_NIGHT_CYCLE_DURATION_SECONDS) / DAY_NIGHT_CYCLE_DURATION_SECONDS;
-            if (renderer != null) {
-                renderer.updateTimeOfDay(this.currentNormalizedTimeOfDay);
+            if (isTimeOfDayEnabled) {
+                // Update game time for day/night cycle
+                gameTimeInSeconds += deltaTime;
+                this.currentNormalizedTimeOfDay = (float) (gameTimeInSeconds % DAY_NIGHT_CYCLE_DURATION_SECONDS)
+                        / DAY_NIGHT_CYCLE_DURATION_SECONDS;
+                if (renderer != null) {
+                    renderer.updateTimeOfDay(this.currentNormalizedTimeOfDay);
+                }
             }
             if (uiManager != null && uiManager.isInitialized() && uiManager.uiHasFocus()) {
                 // UI has focus (e.g. a text input in a future menu), game world movement might
@@ -457,5 +472,10 @@ public class GameLoop {
                 GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
             }
         }
+    }
+
+    public void toggleTimeOfDay() {
+        isTimeOfDayEnabled = !isTimeOfDayEnabled;
+        LOGGER.info("Time of day toggled to: {}", isTimeOfDayEnabled);
     }
 }

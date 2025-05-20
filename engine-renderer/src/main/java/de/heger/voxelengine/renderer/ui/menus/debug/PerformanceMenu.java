@@ -38,6 +38,7 @@ public class PerformanceMenu {
     private TextElement activeMeshesText;
     private TextElement generationQueueText;
     private TextElement activeGenThreadsText;
+    private TextElement timeOfDayEnabledText;
     private TextElement timeOfDayText;
 
 
@@ -56,7 +57,7 @@ public class PerformanceMenu {
 
         float firstTextBaselineY = visualTextTopY + scaledAscent; 
 
-        int numTextElements = 12; // Increased for the new time display
+        int numTextElements = 13; // Increased for the new time display
 
         // Calculate dimensions for the text block content itself
         // Estimate max text width. A more accurate way would be to render all text once, get max width.
@@ -105,6 +106,8 @@ public class PerformanceMenu {
         currentTextBaselineY += scaledLineHeight + lineSpacing;
         activeGenThreadsText = createTextElement("Active Gen Threads: -", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
+        timeOfDayEnabledText = createTextElement("Day/Night cycle: ", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         timeOfDayText = createTextElement("Time: --:--", textX, currentTextBaselineY);
 
         // Set initial visibility
@@ -133,7 +136,7 @@ public class PerformanceMenu {
         activeMeshesText.setText(String.format(Locale.US, "Active Meshes: %d", data.activeMeshes));
         generationQueueText.setText(String.format(Locale.US, "Gen Queue: %d", data.generationQueueSize));
         activeGenThreadsText.setText(String.format(Locale.US, "Active Gen Threads: %d", data.activeGenerationThreads));
-
+        timeOfDayEnabledText.setText(String.format(Locale.US, "Day/Night cycle: %s", data.isTimeOfDayEnabled ? "Enabled" : "Disabled"));
         // Update time of day text
         if (timeOfDayText != null) {
             float normalizedTime = data.normalizedTimeOfDay;
@@ -189,6 +192,7 @@ public class PerformanceMenu {
         public int activeMeshes;
         public int generationQueueSize;
         public int activeGenerationThreads;
+        public boolean isTimeOfDayEnabled;
         public float normalizedTimeOfDay;
 
 
