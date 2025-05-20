@@ -661,8 +661,8 @@
       - **Deliverables:** Layouting tools.
       - **Implementation Context:** (none)
     - [ ] **Subtask ID:** P4-T6.4
-      - **Name:** Offer auto-sizing of elements
-      - **Description:** Offer auto-sizing of elements according to their content and auto-sizing of text inside an element.
+      - **Name:** Offer optional auto-sizing of elements
+      - **Description:** Offer auto-sizing of elements according to their content and auto-sizing of text inside an element. This should also include auto-sizing of parent elements according to their children and auto-sizing of children according to their parent.
       - **Deliverables:** Auto-sizing of elements.
       - **Implementation Context:** (none)
     - [ ] **Subtask ID:** P4-T6.5
@@ -691,9 +691,9 @@
       - **Deliverables:** Reworked ui elements.
       - **Implementation Context:** (none)
     - [ ] **Subtask ID:** P4-T6.10
-      - **Name:** Rework existing ui displays to use the new layouting system
-      - **Description:** Rework existing ui displays to use the new layouting system. This should include the performance menu and the pause menu.
-      - **Deliverables:** Reworked ui displays.
+      - **Name:** Rework existing ui menus to use the new layouting system
+      - **Description:** Rework existing ui menus to use the new layouting system. This should include the debug menu and the pause menu.
+      - **Deliverables:** Reworked ui menus.
       - **Implementation Context:** (none)
     - [ ] **Subtask ID:** P4-T6.X
       - **Name:** (OPTIONAL) Add debug visualisation for the layouting to make it easier to use.
