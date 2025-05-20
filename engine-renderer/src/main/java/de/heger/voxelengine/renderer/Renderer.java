@@ -72,6 +72,8 @@ public class Renderer {
 
     private static final boolean USE_OCCLUSION_CULLING = true;
 
+    private final Vector3f FOG_COLOR = new Vector3f(0.5f, 0.6f, 0.7f);
+
     public Renderer(Window window) {
         this.window = window;
         this.camera = new Camera();
@@ -101,8 +103,7 @@ public class Renderer {
             logger.warn("OpenGL debug output not available.");
         }
 
-        // Set the clear color (background color) - to match fog color
-        glClearColor(0.5f, 0.6f, 0.7f, 1.0f); // Updated to match fog color
+        glClearColor(FOG_COLOR.x, FOG_COLOR.y, FOG_COLOR.z, 1.0f); // Use fog color for background
 
         // Enable depth testing
         glEnable(GL_DEPTH_TEST);
@@ -301,9 +302,9 @@ public class Renderer {
 
         // Set fog uniforms
         float cameraViewDistance = camera.getViewDistance();
-        float fogStartDistance = cameraViewDistance * 0.75f;
+        float fogStartDistance = cameraViewDistance * 0.60f;
 
-        defaultShaderProgram.setUniform("fogColor", new Vector3f(0.5f, 0.6f, 0.7f)); // A greyish-blue fog
+        defaultShaderProgram.setUniform("fogColor", FOG_COLOR);
         defaultShaderProgram.setUniform("fogStart", fogStartDistance);
         defaultShaderProgram.setUniform("fogEnd", cameraViewDistance);
 

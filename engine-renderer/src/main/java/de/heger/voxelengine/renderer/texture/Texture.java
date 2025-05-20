@@ -9,8 +9,11 @@ import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
 import static org.lwjgl.opengl.GL13.glActiveTexture;
 import static org.lwjgl.opengl.GL30.GL_RG;
 import static org.lwjgl.opengl.GL30.glGenerateMipmap;
+import static org.lwjgl.opengl.EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT;
+import static org.lwjgl.opengl.EXTTextureFilterAnisotropic.GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT;
 
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL; // Required for GL.getCapabilities()
 
 public class Texture {
 
@@ -38,10 +41,19 @@ public class Texture {
         glBindTexture(GL_TEXTURE_2D, textureId);
 
         // Set texture parameters - Use NEAREST for pixelated look
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE); // Or GL_REPEAT
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE); // Or GL_REPEAT
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        // Anisotropic filtering for improved clarity at oblique angles
+        if (GL.getCapabilities().GL_EXT_texture_filter_anisotropic) {
+            float maxAnisotropy = glGetFloat(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
+            LOGGER.debug("Anisotropic filtering enabled with max level: {}", maxAnisotropy);
+        } else {
+            LOGGER.warn("Anisotropic filtering (GL_EXT_texture_filter_anisotropic) not supported.");
+        }
 
         // Determine OpenGL format based on channels
         int internalFormat;

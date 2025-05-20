@@ -21,7 +21,7 @@ public class Camera {
     private float movementSpeed = 5.0f; // Units per second
     private float mouseSensitivity = 0.1f;
     private float viewDistance = 200.0f; // Default view distance
-    private float fov = 45.0f; // Default field of view in degrees
+    private float fov = 75.0f; // Default field of view in degrees
     private Matrix4f projectionMatrix;
     private float aspectRatio = 16.0f / 9.0f; // Default aspect ratio
 

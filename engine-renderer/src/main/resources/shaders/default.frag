@@ -24,7 +24,7 @@ uniform float fogEnd;
 void main()
 {
     // Sample the texture
-    vec4 texColor = texture(uTexture, vTexCoords);
+    vec4 texColor = texture(uTexture, vTexCoords, -0.5);
     
     // Normalize vectors
     vec3 normal = normalize(vNormal);
