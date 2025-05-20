@@ -1,4 +1,4 @@
-package de.heger.voxelengine.renderer.ui.displays;
+package de.heger.voxelengine.renderer.ui.menus;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
 import de.heger.voxelengine.platform.Window;

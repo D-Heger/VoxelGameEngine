@@ -6,10 +6,10 @@ import de.heger.voxelengine.platform.Window;
 import de.heger.voxelengine.renderer.Renderer;
 import de.heger.voxelengine.renderer.camera.Camera;
 import de.heger.voxelengine.renderer.ui.UIManager;
-import de.heger.voxelengine.renderer.ui.displays.PauseMenu;
-import de.heger.voxelengine.renderer.ui.displays.debug.PerformanceDisplay;
 import de.heger.voxelengine.renderer.ui.font.Font;
 import de.heger.voxelengine.renderer.ui.font.FontManager;
+import de.heger.voxelengine.renderer.ui.menus.PauseMenu;
+import de.heger.voxelengine.renderer.ui.menus.debug.PerformanceMenu;
 import de.heger.voxelengine.world.block.BlockRegistry;
 import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkPos;
@@ -61,11 +61,11 @@ public class GameLoop {
     private boolean wasEscapePressed = false;
 
     private UIManager uiManager;
-    private PerformanceDisplay performanceDisplay;
+    private PerformanceMenu performanceDisplay;
     private boolean performanceDisplayWasVisible = true;
     private PauseMenu pauseMenu;
     private boolean isPaused = false;
-    private PerformanceDisplay.PerformanceData performanceData;
+    private PerformanceMenu.PerformanceData performanceData;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
@@ -98,7 +98,7 @@ public class GameLoop {
             if (defaultFont == null) {
                 LOGGER.error("Default font not available from UIManager's FontManager. Performance display cannot be created.");
             } else {
-                performanceDisplay = new PerformanceDisplay(uiManager, defaultFont);
+                performanceDisplay = new PerformanceMenu(uiManager, defaultFont);
                 performanceDisplay.init();
                 performanceDisplay.setVisible(true);
                 performanceDisplayWasVisible = true;
@@ -115,7 +115,7 @@ public class GameLoop {
                 LOGGER.error("Default font not available, PauseMenu cannot be created.");
             }
         }
-        performanceData = new PerformanceDisplay.PerformanceData();
+        performanceData = new PerformanceMenu.PerformanceData();
 
         TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337, 50, 40);
         TaskResultHandler loggingHandler = new LoggingTaskResultHandler();

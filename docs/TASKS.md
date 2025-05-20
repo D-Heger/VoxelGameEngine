@@ -646,19 +646,59 @@
   - **Dependencies:** P4-T5, `engine-renderer` module
   - **Subtasks:**
     - [ ] **Subtask ID:** P4-T6.1
-      - **Name:** Add a more complex layouting system
-      - **Description:** Add a more complex layouting system to the ui, so that ui elements can be positioned relative to each other and to the screen. This should include a layout manager that can be used to position elements in a grid, a flow layout, or other layouts. This should also include a way to set the size of the elements relative to the screen size.
-      - **Deliverables:** More complex layouting system.
+      - **Name:** Establish a base for layouting
+      - **Description:** Establish a base for layouting, that can be used to create more complex layouts. This should include a base class for layouts and a base class for layout elements.
+      - **Deliverables:** Base for layouting.
       - **Implementation Context:** (none)
     - [ ] **Subtask ID:** P4-T6.2
-      - **Name:** Add debug visualisation for the layouting to make it easier to use.
-      - **Description:** Implement a debug overlay that shows the boundaries and positions of UI elements in the layout. This should help developers understand how elements are positioned and sized within the layout system.
-      - **Deliverables:** Debug visualisation overlay.
+      - **Name:** Add a layout manager
+      - **Description:** Add a layout manager that can be used to position elements. This should include a base class for layout managers a unified way to handle updating and rendering of elements.
+      - **Deliverables:** Layout manager.
       - **Implementation Context:** (none)
     - [ ] **Subtask ID:** P4-T6.3
+      - **Name:** Add layouting tools
+      - **Description:** Add tools to assist with layouting, like insets, padding, margins and spacing. 
+      - **Deliverables:** Layouting tools.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.4
+      - **Name:** Offer auto-sizing of elements
+      - **Description:** Offer auto-sizing of elements according to their content and auto-sizing of text inside an element.
+      - **Deliverables:** Auto-sizing of elements.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.5
       - **Name:** Add quality of life features
-      - **Description:** Add quality of life features to the layouting system, such as functions to position elements at the center, right/left, top/bottom and other anchor points. This should also include optional auto-sizing of elements according to their content (if the element has text) and auto-sizing of text inside an element.
+      - **Description:** Add quality of life features like positioning child elements relative to the parent element or other children. Methods to position elements relative to the screen. Functions to set the size of an element relative to the screen size.
       - **Deliverables:** Quality of life features.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.6
+      - **Name:** Add a horizontal layout
+      - **Description:** Add a horizontal layout that can be used to position elements in a horizontal flow.
+      - **Deliverables:** Horizontal layout.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.7
+      - **Name:** Add a vertical layout
+      - **Description:** Add a vertical layout that can be used to position elements in a vertical flow.
+      - **Deliverables:** Vertical layout.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.8
+      - **Name:** Add a grid layout
+      - **Description:** Add a grid layout that can be used to position elements in a grid.
+      - **Deliverables:** Grid layout.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.9
+      - **Name:** Rework existing ui elements to use the new layouting system
+      - **Description:** Rework existing ui elements to use the new layouting system. This should include the button, the text and text input, as well as the box element.
+      - **Deliverables:** Reworked ui elements.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.10
+      - **Name:** Rework existing ui displays to use the new layouting system
+      - **Description:** Rework existing ui displays to use the new layouting system. This should include the performance menu and the pause menu.
+      - **Deliverables:** Reworked ui displays.
+      - **Implementation Context:** (none)
+    - [ ] **Subtask ID:** P4-T6.X
+      - **Name:** (OPTIONAL) Add debug visualisation for the layouting to make it easier to use.
+      - **Description:** Implement a debug overlay that shows the boundaries and positions of UI elements in the layout. This should help developers understand how elements are positioned and sized within the layout system.
+      - **Deliverables:** Debug visualisation overlay.
       - **Implementation Context:** (none)
 
 - - [ ] **Task ID:** P4-T7

@@ -101,8 +101,8 @@ public class Renderer {
             logger.warn("OpenGL debug output not available.");
         }
 
-        // Set the clear color (background color) - Dark blue-grey
-        glClearColor(0.1f, 0.15f, 0.2f, 1.0f);
+        // Set the clear color (background color) - to match fog color
+        glClearColor(0.5f, 0.6f, 0.7f, 1.0f); // Updated to match fog color
 
         // Enable depth testing
         glEnable(GL_DEPTH_TEST);
@@ -251,6 +251,12 @@ public class Renderer {
         defaultShaderProgram.createUniform("viewPos");
         defaultShaderProgram.createUniform("specularStrength");
         defaultShaderProgram.createUniform("shininess");
+
+        // Fog uniforms
+        defaultShaderProgram.createUniform("fogColor");
+        defaultShaderProgram.createUniform("fogStart");
+        defaultShaderProgram.createUniform("fogEnd");
+
         logger.debug("Created uniforms for default shader program.");
     }
 
@@ -292,6 +298,11 @@ public class Renderer {
         defaultShaderProgram.setUniform("viewPos", camera.getPosition());
         defaultShaderProgram.setUniform("specularStrength", 0.5f); // Example value
         defaultShaderProgram.setUniform("shininess", 32.0f);      // Example value
+
+        // Set fog uniforms
+        defaultShaderProgram.setUniform("fogColor", new Vector3f(0.5f, 0.6f, 0.7f)); // A greyish-blue fog
+        defaultShaderProgram.setUniform("fogStart", 192.0f); // Start fog at 128 units (e.g., 12 chunks away) , 32 units per chunk
+        defaultShaderProgram.setUniform("fogEnd", 256.0f); // Full fog at 256 units (e.g., 16 chunks away)
 
         Matrix4f modelMatrix = new Matrix4f(); // Reused for each chunk
         // OLD: Matrix4f viewProjectionMatrix = new

@@ -1,4 +1,4 @@
-package de.heger.voxelengine.renderer.ui.displays.debug;
+package de.heger.voxelengine.renderer.ui.menus.debug;
 
 import de.heger.voxelengine.renderer.ui.UIManager;
 import de.heger.voxelengine.renderer.ui.elements.TextElement;
@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class PerformanceDisplay {
+public class PerformanceMenu {
 
     private final UIManager uiManager;
     private final Font font;
@@ -41,7 +41,7 @@ public class PerformanceDisplay {
     private ButtonElement buttonElement;
 
 
-    public PerformanceDisplay(UIManager uiManager, Font font) {
+    public PerformanceMenu(UIManager uiManager, Font font) {
         this.uiManager = uiManager;
         this.font = font;
     }

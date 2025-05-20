@@ -16,6 +16,11 @@ uniform vec3 viewPos; // Camera position in world space
 uniform float specularStrength; // Intensity of the specular highlight
 uniform float shininess; // Shininess factor for specular highlight
 
+// Fog Uniforms
+uniform vec3 fogColor;
+uniform float fogStart;
+uniform float fogEnd;
+
 void main()
 {
     // Sample the texture
@@ -41,5 +46,11 @@ void main()
     // Combine lighting with texture
     vec3 result = (ambient + diffuse + specular) * texColor.rgb;
 
-    FragColor = vec4(result, texColor.a);
+    // Calculate fog
+    float dist = length(vFragPos - viewPos);
+    float fogFactor = smoothstep(fogStart, fogEnd, dist); // Linear fog: 0 (no fog) to 1 (full fog)
+
+    vec3 finalColorWithFog = mix(result, fogColor, fogFactor);
+
+    FragColor = vec4(finalColorWithFog, texColor.a);
 }
