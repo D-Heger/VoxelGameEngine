@@ -646,60 +646,85 @@
   - **Dependencies:** P4-T5, `engine-renderer` module
   - **Subtasks:**
     - [ ] **Subtask ID:** P4-T6.1
-      - **Name:** Establish a base for layouting
-      - **Description:** Establish a base for layouting, that can be used to create more complex layouts. This should include a base class for layouts and a base class for layout elements.
-      - **Deliverables:** Base for layouting.
-      - **Implementation Context:** (none)
+      - **Name:** Establish Core UI Hierarchy and Element Base
+      - **Description:** Define `LayoutableElement` as the new base class for all UI elements, replacing `UIElement` (already marked as deprecated). This class will manage parent-child relationships (add/get/remove children, `getParent()`), basic properties (size, visibility, alpha), and methods for retrieving local and global positions. Establish the concept of a UI tree/scene graph.
+      - **Deliverables:** `LayoutableElement` class, foundational UI tree structure.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.2
-      - **Name:** Add a layout manager
-      - **Description:** Add a layout manager that can be used to position elements. This should include a base class for layout managers a unified way to handle updating and rendering of elements.
-      - **Deliverables:** Layout manager.
-      - **Implementation Context:** (none)
+      - **Name:** Implement Hierarchical Event Dispatching and Focus Management
+      - **Description:** Design and implement an event dispatch system operating on the `LayoutableElement` hierarchy. This includes:
+        - Processing mouse events (hover, click, press, release, scroll) via hit-testing from top-most elements downwards, considering element visibility and alpha.
+        - Managing keyboard focus (which element receives keyboard input) and dispatching keyboard (key press/release) and character typed events to the focused element.
+        - Defining event propagation mechanisms (e.g., bubbling from child to parent, or direct dispatch) and event consumption (an element can "consume" an event to stop further propagation).
+        - Integrating with the existing `InputManager` to source raw input.
+        - Refining `UIManager` or introducing a new system to manage the overall event flow for the UI tree.
+        - Adjust usage in `GameLoop` to work with these changes.
+      - **Deliverables:** Robust event dispatching and focus management system for the hierarchical UI.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.3
-      - **Name:** Add layouting tools
-      - **Description:** Add tools to assist with layouting, like insets, padding, margins and spacing. 
-      - **Deliverables:** Layouting tools.
-      - **Implementation Context:** (none)
+      - **Name:** Implement Unified Rendering with Z-Ordering
+      - **Description:** Develop a unified rendering pipeline for `LayoutableElement`s. This involves:
+        - A standard rendering traversal mechanism for the UI tree (e.g., depth-first).
+        - Implementing default Z-ordering based on tree structure (e.g., parents render before children, siblings render in their order of addition or a defined child index).
+        - Adding support for a `zIndex` property on `LayoutableElement`s to allow for custom, explicit layering (elements with higher `zIndex` render on top of those with lower `zIndex`, irrespective of tree order within the same parent or at the root level).
+        - Ensuring the rendering loop respects the combined Z-order, potentially involving sorting elements or groups of elements before drawing.
+        - Abstracting rendering details: `LayoutableElement`s should describe *what* to render (e.g., a quad with color/texture, text), and the `UIRenderer` (or a similar system) handles the OpenGL calls.
+      - **Deliverables:** Unified rendering system with default and custom Z-ordering capabilities.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.4
-      - **Name:** Offer optional auto-sizing of elements
-      - **Description:** Offer auto-sizing of elements according to their content and auto-sizing of text inside an element. This should also include auto-sizing of parent elements according to their children and auto-sizing of children according to their parent.
-      - **Deliverables:** Auto-sizing of elements.
-      - **Implementation Context:** (none)
+      - **Name:** Define Layout Management Base and Core Logic
+      - **Description:** Create a base `LayoutManager` class or interface that defines the contract for layout calculations (e.g., `measure(element, constraints)` and `arrange(element, bounds)` phases). `LayoutableElement`s will be associated with or contain a `LayoutManager` if they are containers. Define how layout recalculations are triggered (e.g., on resize, content change, element addition/removal).
+      - **Deliverables:** Base `LayoutManager` and core layout pass logic.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.5
-      - **Name:** Add quality of life features
-      - **Description:** Add quality of life features like positioning child elements relative to the parent element or other children. Methods to position elements relative to the screen. Functions to set the size of an element relative to the screen size.
-      - **Deliverables:** Quality of life features.
-      - **Implementation Context:** (none)
+      - **Name:** Add Layouting Tools (Padding, Margins, Spacing)
+      - **Description:** Implement support for common layouting properties like padding (space inside an element's border), margins (space outside an element's border), and spacing (gap between child elements within a layout). Supported units should include pixels and percentages (relative to parent or screen). These properties will be used by concrete `LayoutManager` implementations.
+      - **Deliverables:** Padding, margin, and spacing tools integrated into the layout system.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.6
-      - **Name:** Add a horizontal layout
-      - **Description:** Add a horizontal layout that can be used to position elements in a horizontal flow.
-      - **Deliverables:** Horizontal layout.
-      - **Implementation Context:** (none)
+      - **Name:** Offer Optional Auto-Sizing of Elements
+      - **Description:** Enable elements to automatically size themselves based on their content (e.g., a `TextElement` sizes to its text, a `ButtonElement` to its text plus padding). Support text wrapping within a given width and optional automatic font scaling to fit text within constrained bounds. Include auto-sizing of parent container elements based on the collective size of their children, and children sizing relative to their parent (e.g., "fill parent").
+      - **Deliverables:** Auto-sizing capabilities for elements and text.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.7
-      - **Name:** Add a vertical layout
-      - **Description:** Add a vertical layout that can be used to position elements in a vertical flow.
-      - **Deliverables:** Vertical layout.
-      - **Implementation Context:** (none)
+      - **Name:** Add Quality of Life Layout Features
+      - **Description:** Implement features to simplify element positioning and sizing, such as:
+        - Aligning elements within their parent (e.g., top-left, center, bottom-right, stretch).
+        - Positioning elements relative to the screen (e.g., screen center, screen edges).
+        - Setting element size relative to screen dimensions (e.g., 50% of screen width).
+      - **Deliverables:** Enhanced layout QoL features.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.8
-      - **Name:** Add a grid layout
-      - **Description:** Add a grid layout that can be used to position elements in a grid.
-      - **Deliverables:** Grid layout.
-      - **Implementation Context:** (none)
+      - **Name:** Add a Horizontal Layout Manager
+      - **Description:** Implement a `HorizontalLayout` manager that arranges child elements in a single row, respecting padding, margins, spacing, and alignment properties.
+      - **Deliverables:** `HorizontalLayout` manager.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.9
-      - **Name:** Rework existing ui elements to use the new layouting system
-      - **Description:** Rework existing ui elements to use the new layouting system. This should include the button, the text and text input, as well as the box element.
-      - **Deliverables:** Reworked ui elements.
-      - **Implementation Context:** (none)
+      - **Name:** Add a Vertical Layout Manager
+      - **Description:** Implement a `VerticalLayout` manager that arranges child elements in a single column, respecting padding, margins, spacing, and alignment properties.
+      - **Deliverables:** `VerticalLayout` manager.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.10
-      - **Name:** Rework existing ui menus to use the new layouting system
-      - **Description:** Rework existing ui menus to use the new layouting system. This should include the debug menu and the pause menu.
-      - **Deliverables:** Reworked ui menus.
-      - **Implementation Context:** (none)
+      - **Name:** Add a Grid Layout Manager
+      - **Description:** Implement a `GridLayout` manager that arranges child elements in a grid of rows and columns, with configurable column/row counts and sizing.
+      - **Deliverables:** `GridLayout` manager.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T6.11
+      - **Name:** Rework Existing UI Elements for New System
+      - **Description:** Refactor `BoxElement`, `TextElement`, `ButtonElement`, and `TextInputElement` to extend `LayoutableElement` and integrate with the new layout, event, and rendering systems. `ButtonElement` and `TextInputElement` will likely become containers using internal layout managers.
+      - **Deliverables:** Reworked core UI elements.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T6.12
+      - **Name:** Rework Existing UI Menus for New System
+      - **Description:** Rebuild the `DebugMenu` and `PauseMenu` using the new `LayoutableElement`s and appropriate layout managers (e.g., `VerticalLayout`) to achieve their visual structure, replacing manual coordinate calculations.
+      - **Deliverables:** Reworked UI menus.
+      - **Implementation Context:** (TBD)
     - [ ] **Subtask ID:** P4-T6.X
-      - **Name:** (OPTIONAL) Add debug visualisation for the layouting to make it easier to use.
-      - **Description:** Implement a debug overlay that shows the boundaries and positions of UI elements in the layout. This should help developers understand how elements are positioned and sized within the layout system.
+      - **Name:** (OPTIONAL) Add Debug Visualisation for Layouting
+      - **Description:** Implement a debug overlay that visually renders the boundaries, padding, margins, and effective positions of UI elements. This will aid in debugging and understanding layout behavior.
       - **Deliverables:** Debug visualisation overlay.
-      - **Implementation Context:** (none)
+      - **Implementation Context:** (TBD)
+
 
 - - [ ] **Task ID:** P4-T7
   - **Name:** Player Entity (`game`)

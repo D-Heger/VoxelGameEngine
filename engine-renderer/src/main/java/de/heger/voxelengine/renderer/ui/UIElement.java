@@ -2,6 +2,7 @@ package de.heger.voxelengine.renderer.ui;
 
 import org.joml.Vector2f;
 
+@Deprecated
 public abstract class UIElement {
     protected Vector2f position;
     protected Vector2f size;
