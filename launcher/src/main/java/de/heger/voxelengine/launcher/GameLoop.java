@@ -73,7 +73,7 @@ public class GameLoop {
     private boolean performanceDisplayWasVisible = true;
     private PauseMenu pauseMenu;
     private boolean isPaused = false;
-    private DebugMenu.DebugData performanceData;
+    private DebugMenu.DebugData debugData;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
@@ -124,7 +124,7 @@ public class GameLoop {
                 LOGGER.error("Default font not available, PauseMenu cannot be created.");
             }
         }
-        performanceData = new DebugMenu.DebugData();
+        debugData = new DebugMenu.DebugData();
 
         TerrainGenerator noiseTerrainGen = new NoiseTerrainGenerator(1337, 50, 40);
         TaskResultHandler loggingHandler = new LoggingTaskResultHandler();
@@ -198,7 +198,7 @@ public class GameLoop {
                 if (uiManager != null && uiManager.isInitialized()) {
                     uiManager.update((float) delta);
                     if (performanceDisplay != null && performanceDisplay.isVisible()) {
-                        performanceDisplay.update(performanceData);
+                        performanceDisplay.update(debugData);
                     }
                 }
 
@@ -214,24 +214,24 @@ public class GameLoop {
                     frames = 0;
                     updates = 0;
 
-                    performanceData.fps = this.currentFps;
-                    performanceData.ups = this.currentUps;
+                    debugData.fps = this.currentFps;
+                    debugData.ups = this.currentUps;
                     if (performanceTrackingHandler != null) {
-                        performanceData.avgChunkGenTime = performanceTrackingHandler.getAverageGenerationTimeMillis();
-                        performanceData.chunkGenSamples = performanceTrackingHandler.getSampleCount();
+                        debugData.avgChunkGenTime = performanceTrackingHandler.getAverageGenerationTimeMillis();
+                        debugData.chunkGenSamples = performanceTrackingHandler.getSampleCount();
                     }
-                    performanceData.drawCalls = renderer.getDrawCallsLastFrame();
-                    performanceData.renderedIndices = renderer.getTotalIndicesRenderedLastFrame();
-                    performanceData.occlusionCulledChunks = renderer.getOcclusionCulledChunksLastFrame();
-                    performanceData.frustumCulledChunks = renderer.getFrustumCulledChunksLastFrame();
-                    performanceData.totalLoadedChunks = chunkManager.getLoadedChunkCount();
-                    performanceData.activeMeshes = renderer.getActiveMeshCount();
+                    debugData.drawCalls = renderer.getDrawCallsLastFrame();
+                    debugData.renderedIndices = renderer.getTotalIndicesRenderedLastFrame();
+                    debugData.occlusionCulledChunks = renderer.getOcclusionCulledChunksLastFrame();
+                    debugData.frustumCulledChunks = renderer.getFrustumCulledChunksLastFrame();
+                    debugData.totalLoadedChunks = chunkManager.getLoadedChunkCount();
+                    debugData.activeMeshes = renderer.getActiveMeshCount();
                     if (chunkGenerationService != null) {
-                        performanceData.generationQueueSize = chunkGenerationService.getPendingTaskCount();
-                        performanceData.activeGenerationThreads = chunkGenerationService.getActiveWorkerCount();
+                        debugData.generationQueueSize = chunkGenerationService.getPendingTaskCount();
+                        debugData.activeGenerationThreads = chunkGenerationService.getActiveWorkerCount();
                     }
-                    performanceData.isTimeOfDayEnabled = isTimeOfDayEnabled;
-                    performanceData.normalizedTimeOfDay = this.currentNormalizedTimeOfDay; // Pass the time to
+                    debugData.isTimeOfDayEnabled = isTimeOfDayEnabled;
+                    debugData.normalizedTimeOfDay = this.currentNormalizedTimeOfDay; // Pass the time to
                                                                                            // performance data
                 }
             }
