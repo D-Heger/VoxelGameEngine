@@ -274,6 +274,7 @@ public class SettingsMenu {
             camera.setViewDistance(config.getViewDistance());
             LOGGER.info("Applied View Distance: {}", config.getViewDistance());
         }
+        updateLayout();
     }
 
     private void saveAndApplySettings() {
