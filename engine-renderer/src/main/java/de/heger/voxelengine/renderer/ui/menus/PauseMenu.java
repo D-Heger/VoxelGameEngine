@@ -24,6 +24,7 @@ public class PauseMenu {
     private BoxElement backgroundOverlay;
     private TextElement titleText;
     private ButtonElement continueButton;
+    private ButtonElement settingsButton;
     private ButtonElement quitButton;
 
     private final List<UIElement> menuElements = new ArrayList<>();
@@ -31,6 +32,7 @@ public class PauseMenu {
     private boolean isVisible = false;
 
     private Runnable onContinueAction;
+    private Runnable onSettingsAction;
     private Runnable onQuitAction;
 
     public PauseMenu(UIManager uiManager, Window window, Font font) {
@@ -42,11 +44,9 @@ public class PauseMenu {
 
     private void createMenuElements() {
         // Background Overlay
-        float windowWidth = window.getWidth();
-        float windowHeight = window.getHeight();
         backgroundOverlay = new BoxElement(
                 new Vector2f(0, 0),
-                new Vector2f(windowWidth, windowHeight),
+                new Vector2f(window.getWidth(), window.getHeight()),
                 new Vector4f(0.1f, 0.1f, 0.1f, 0.85f) // Dark, semi-transparent
         );
         menuElements.add(backgroundOverlay);
@@ -54,27 +54,16 @@ public class PauseMenu {
         // Title Text
         String titleStr = "Paused";
         float titleScale = 0.8f;
-        TextElement tempTitle = new TextElement(titleStr, font, new Vector2f(0,0), new Vector4f(1,1,1,1), titleScale);
-        float titleWidth = tempTitle.getSize().x;
-        //float titleHeight = tempTitle.getSize().y;
-        float titleX = (windowWidth - titleWidth) / 2;
-        float titleY = windowHeight * 0.2f; // Position title at 20% from top
-        titleText = new TextElement(titleStr, font, new Vector2f(titleX, titleY), new Vector4f(1f, 1f, 1f, 1f), titleScale);
-        tempTitle.cleanup();
+        titleText = new TextElement(titleStr, font, new Vector2f(0, 0), new Vector4f(1f, 1f, 1f, 1f), titleScale);
         menuElements.add(titleText);
-
 
         // Buttons
         float buttonWidth = 200f;
         float buttonHeight = 40f;
-        float buttonSpacing = 20f;
         float buttonTextScale = 0.5f;
 
-        float continueButtonX = (windowWidth - buttonWidth) / 2;
-        float continueButtonY = windowHeight * 0.45f;
-
         continueButton = new ButtonElement(
-                new Vector2f(continueButtonX, continueButtonY),
+                new Vector2f(0, 0),
                 "Continue",
                 font,
                 buttonTextScale,
@@ -82,14 +71,23 @@ public class PauseMenu {
                     if (onContinueAction != null) onContinueAction.run();
                 }
         );
-        continueButton.setSize(buttonWidth, buttonHeight); // Force size
+        continueButton.setSize(buttonWidth, buttonHeight);
         menuElements.add(continueButton);
 
-        float quitButtonX = (windowWidth - buttonWidth) / 2;
-        float quitButtonY = continueButtonY + buttonHeight + buttonSpacing;
+        settingsButton = new ButtonElement(
+                new Vector2f(0, 0),
+                "Settings",
+                font,
+                buttonTextScale,
+                () -> {
+                    if (onSettingsAction != null) onSettingsAction.run();
+                }
+        );
+        settingsButton.setSize(buttonWidth, buttonHeight);
+        menuElements.add(settingsButton);
 
         quitButton = new ButtonElement(
-                new Vector2f(quitButtonX, quitButtonY),
+                new Vector2f(0, 0),
                 "Quit Game",
                 font,
                 buttonTextScale,
@@ -97,11 +95,9 @@ public class PauseMenu {
                     if (onQuitAction != null) onQuitAction.run();
                 }
         );
-        quitButton.setSize(buttonWidth, buttonHeight); // Force size
+        quitButton.setSize(buttonWidth, buttonHeight);
         menuElements.add(quitButton);
 
-        // Initially, elements are not added to UIManager, only when show() is called.
-        // And they are not visible by default.
         for(UIElement element : menuElements) {
             element.setVisible(false);
         }
@@ -115,9 +111,14 @@ public class PauseMenu {
         this.onQuitAction = onQuitAction;
     }
 
+    public void setOnSettingsAction(Runnable onSettingsAction) {
+        this.onSettingsAction = onSettingsAction;
+    }
+
     public void show() {
         if (isVisible) return;
         LOGGER.debug("Showing PauseMenu");
+        updateLayout();
         for (UIElement element : menuElements) {
             element.setVisible(true);
             uiManager.addElement(element);
@@ -144,42 +145,43 @@ public class PauseMenu {
         float windowHeight = window.getHeight();
 
         if (backgroundOverlay != null) {
+            backgroundOverlay.setPosition(0,0);
             backgroundOverlay.setSize(windowWidth, windowHeight);
         }
 
         if (titleText != null) {
-            // Recalculate title position based on its current text/font/scale if they could change
             TextElement tempTitle = new TextElement(titleText.getText(), titleText.getFont(), new Vector2f(0,0), new Vector4f(0,0,0,0), titleText.getScale());
             float titleWidth = tempTitle.getSize().x;
             tempTitle.cleanup();
             titleText.setPosition((windowWidth - titleWidth) / 2, windowHeight * 0.2f);
         }
 
+        float buttonStackStartY = windowHeight * 0.45f;
+        float buttonSpacing = 20f;
+
         if (continueButton != null) {
-            float buttonWidth = continueButton.getSize().x; // Assuming fixed size set earlier
-            float buttonHeight = continueButton.getSize().y;
-            continueButton.setPosition((windowWidth - buttonWidth) / 2, windowHeight * 0.45f);
+            float buttonWidth = continueButton.getSize().x;
+            continueButton.setPosition((windowWidth - buttonWidth) / 2, buttonStackStartY);
         }
 
-        if (quitButton != null) {
-            float buttonWidth = quitButton.getSize().x; // Assuming fixed size
-            float buttonHeight = quitButton.getSize().y;
-            float buttonSpacing = 20f; // from createMenuElements
-            float continueButtonY = windowHeight * 0.45f; // from createMenuElements
-            if (continueButton != null) {
-                 continueButtonY = continueButton.getPosition().y;
-                 buttonHeight = continueButton.getSize().y; // ensure consistency
-            }
-            quitButton.setPosition((windowWidth - buttonWidth) / 2, continueButtonY + buttonHeight + buttonSpacing);
+        if (settingsButton != null) {
+            float buttonWidth = settingsButton.getSize().x;
+            float continueButtonEndY = continueButton.getPosition().y + continueButton.getSize().y;
+            settingsButton.setPosition((windowWidth - buttonWidth) / 2, continueButtonEndY + buttonSpacing);
+        }
+
+        if (quitButton != null && continueButton != null) {
+            float buttonWidth = quitButton.getSize().x;
+            float settingsButtonEndY = settingsButton.getPosition().y + settingsButton.getSize().y;
+            quitButton.setPosition((windowWidth - buttonWidth) / 2, settingsButtonEndY + buttonSpacing);
         }
     }
 
-
     public void cleanup() {
         LOGGER.debug("Cleaning up PauseMenu");
-        hide(); // Ensure elements are removed from UIManager
+        hide();
         for (UIElement element : menuElements) {
-            element.cleanup(); // Individual cleanup for VAOs etc.
+            element.cleanup();
         }
         menuElements.clear();
     }

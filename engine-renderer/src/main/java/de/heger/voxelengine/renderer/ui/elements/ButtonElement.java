@@ -70,7 +70,6 @@ public class ButtonElement extends UIElement {
         textElement.setFont(this.font);
         textElement.setScale(this.textScale);
         // TextElement's size is based on its content and scale.
-        // Its position, when set via textElement.setPosition(), is used as the top-left corner for its bounding box.
 
         if (autoSize) {
             float textWidth = textElement.getSize().x;
@@ -83,22 +82,12 @@ public class ButtonElement extends UIElement {
 
         // Background takes the full size of the button, positioned at button's local origin
         backgroundElement.setSize(this.size);
-        // backgroundElement's position is relative to the ButtonElement. For BoxElement, its position is its top-left.
-        // Since it's a child visually filling the button, its local position is (0,0)
-        // This is handled when rendering by setting its absolute position.
+        // backgroundElement's position will be set to this.position in render()
 
-        // Position textElement centered within the button.
-        // This is achieved by calculating the top-left position (textLocalX, textTopY)
-        // for the textElement's bounding box, such that its center aligns with the center of the button.
-        // This assumes textElement.setPosition(x,y) sets the top-left of its bounding box,
-        // and textElement.getSize() returns the dimensions (width, height) of this bounding box.
-        float textLocalX = (this.size.x - textElement.getSize().x) / 2.0f;
-        float textTopY = (this.size.y - textElement.getSize().y) / 2.0f;
-        
-        // Set the local top-left position for the text block.
-        // The TextElement's rendering logic (modelMatrix.translate(position.x, position.y, 0))
-        // confirms that its 'position' is treated as the top-left origin.
-        textElement.setPosition(textLocalX, textTopY);
+        // Position textElement centered within the button (absolute coordinates).
+        float textAbsX = this.position.x + (this.size.x - textElement.getSize().x) / 2.0f;
+        float textAbsY = this.position.y + textElement.getSize().y;
+        textElement.setPosition(textAbsX, textAbsY);
     }
 
     private void updateAppearance() {
@@ -265,22 +254,16 @@ public class ButtonElement extends UIElement {
         // Ensure children's visual properties are up-to-date based on button state
         updateAppearance(); // Handles colors based on state (hover, pressed, disabled)
 
-        // Children's positions (textElement.getPosition(), backgroundElement.getPosition())
-        // are set locally by updateLayout(). For rendering, they need absolute screen positions.
-        // The UIElement.render() method for Box and Text takes their `position` field as screen coordinates.
-
         if (backgroundElement != null && backgroundElement.isVisible()) {
-            // Background fills the button. Its local position is (0,0).
-            // Its screen position is the button's screen position.
+            // Background fills the button. Its screen position is the button's screen position.
             backgroundElement.setPosition(this.position.x, this.position.y);
-            backgroundElement.setSize(this.size); // Ensure size is correctly propagated
+            // backgroundElement.setSize(this.size); // Size is set in updateLayout
             backgroundElement.setAlpha(this.alpha * renderer.getCurrentAlpha());
             backgroundElement.render(renderer);
         }
 
         if (textElement != null && textElement.isVisible() && this.text != null && !this.text.isEmpty()) {
-            textElement.setPosition(this.position.x + this.size.x/8, this.position.y + this.size.y/1.25f);
-            textElement.setSize(this.size);
+            // textElement's position is absolute, set by updateLayout
             textElement.setAlpha(this.alpha * renderer.getCurrentAlpha());
             textElement.render(renderer);
         }
@@ -308,5 +291,17 @@ public class ButtonElement extends UIElement {
             backgroundElement.cleanup();
         }
         LOGGER.debug("ButtonElement '{}' cleaned up.", text);
+    }
+
+    @Override
+    public void setPosition(Vector2f position) {
+        super.setPosition(position);
+        updateLayout();
+    }
+
+    @Override
+    public void setPosition(float x, float y) {
+        super.setPosition(x, y);
+        updateLayout();
     }
 } 

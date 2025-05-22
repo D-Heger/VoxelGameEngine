@@ -31,9 +31,13 @@ public class Window {
     private int height;
     private String title;
     private boolean vsyncEnabled;
+    private boolean fullscreen;
     private float aspectRatio;
     private InputManager inputManager;
     private final List<FramebufferSizeCallback> framebufferSizeCallbacks = new ArrayList<>();
+
+    // For restoring windowed mode
+    private int windowedX, windowedY, windowedWidth, windowedHeight;
 
     // Functional interface for callbacks
     @FunctionalInterface
@@ -46,6 +50,7 @@ public class Window {
         this.height = height;
         this.title = title;
         this.vsyncEnabled = vsync;
+        this.fullscreen = fullscreen;
 
         initGlfw();
 
@@ -87,7 +92,7 @@ public class Window {
         }
 
         glfwMakeContextCurrent(windowHandle);
-        glfwSwapInterval(vsync ? 1 : 0);
+        setVsync(vsync);
 
         // IMPORTANT: Create OpenGL capabilities AFTER making context current
         GL.createCapabilities();
@@ -100,6 +105,32 @@ public class Window {
         glViewport(0, 0, width, height);
         this.aspectRatio = (float) width / height;
         this.inputManager = new InputManager(windowHandle);
+
+        // Store initial windowed mode details or sensible defaults if starting fullscreen
+        if (this.fullscreen) {
+            GLFWVidMode primary = glfwGetVideoMode(glfwGetPrimaryMonitor());
+            if (primary != null) {
+                this.windowedWidth = primary.width() / 2;
+                this.windowedHeight = primary.height() / 2;
+                this.windowedX = (primary.width() - this.windowedWidth) / 2;
+                this.windowedY = (primary.height() - this.windowedHeight) / 2;
+            } else { 
+                this.windowedWidth = 1280;
+                this.windowedHeight = 720;
+                this.windowedX = 50;
+                this.windowedY = 50;
+            }
+        } else {
+            try (MemoryStack stack = stackPush()) {
+                IntBuffer currentX = stack.mallocInt(1);
+                IntBuffer currentY = stack.mallocInt(1);
+                glfwGetWindowPos(windowHandle, currentX, currentY);
+                this.windowedX = currentX.get(0);
+                this.windowedY = currentY.get(0);
+            }
+            this.windowedWidth = this.width;
+            this.windowedHeight = this.height;
+        }
 
         // Set window icon
         if (iconResourcePath != null && !iconResourcePath.isEmpty()) {
@@ -291,5 +322,87 @@ public class Window {
         }
     }
 
-    
+    public void setVsync(boolean vsync) {
+        this.vsyncEnabled = vsync;
+        glfwSwapInterval(vsync ? 1 : 0);
+    }
+
+    public boolean isFullscreen() {
+        return this.fullscreen;
+    }
+
+    public void setFullscreen(boolean desiredFullscreen) {
+        if (this.fullscreen == desiredFullscreen) {
+            return; // No change
+        }
+
+        if (desiredFullscreen) {
+            // Switching from Windowed to Fullscreen
+            // Save current window position and size (which are the current windowed mode's)
+            try (MemoryStack stack = stackPush()) {
+                IntBuffer xpos = stack.mallocInt(1);
+                IntBuffer ypos = stack.mallocInt(1);
+                glfwGetWindowPos(windowHandle, xpos, ypos);
+                this.windowedX = xpos.get(0);
+                this.windowedY = ypos.get(0);
+            }
+            this.windowedWidth = this.width; // Current width/height are windowed dimensions
+            this.windowedHeight = this.height;
+
+            long monitor = glfwGetPrimaryMonitor();
+            GLFWVidMode vidmode = glfwGetVideoMode(monitor);
+            if (vidmode != null) {
+                // Go fullscreen with current this.width, this.height.
+                // The subsequent call to setSize() from SettingsMenu will finalize the fullscreen resolution.
+                glfwSetWindowMonitor(windowHandle, monitor, 0, 0, this.width, this.height, vidmode.refreshRate());
+                this.fullscreen = true;
+                LOGGER.info("Switched to fullscreen. Resolution to be set by setSize(): {}x{}", this.width, this.height);
+            } else {
+                LOGGER.error("Failed to get video mode for primary monitor. Cannot switch to fullscreen.");
+                return; // Failed to switch
+            }
+        } else {
+            // Switching from Fullscreen to Windowed
+            // Restore to previously stored windowedWidth/Height at windowedX/Y.
+            // The subsequent setSize() call will set this.width/height to the new target windowed resolution.
+            glfwSetWindowMonitor(windowHandle, NULL, this.windowedX, this.windowedY, this.windowedWidth, this.windowedHeight, 0);
+            this.fullscreen = false;
+            // Update internal width/height to reflect the size we just restored to, before setSize updates them again.
+            this.width = this.windowedWidth;
+            this.height = this.windowedHeight;
+            this.aspectRatio = (float)this.width / this.height;
+            LOGGER.info("Switched to windowed mode with previous size: {}x{} at ({},{}), target size via setSize()", this.windowedWidth, this.windowedHeight, this.windowedX, this.windowedY);
+        }
+        setVsync(this.vsyncEnabled); // Re-apply VSync as monitor change can affect it
+    }
+
+    public void setSize(int newWidth, int newHeight) {
+        boolean dimensionsActuallyChanged = (this.width != newWidth || this.height != newHeight);
+
+        // Update internal state to the new desired dimensions immediately
+        this.width = newWidth;
+        this.height = newHeight;
+        this.aspectRatio = (float)newWidth / newHeight;
+
+        if (this.fullscreen) {
+            // If fullscreen, and dimensions changed, update monitor settings to new resolution
+            if (dimensionsActuallyChanged) {
+                long monitor = glfwGetPrimaryMonitor();
+                GLFWVidMode vidmode = glfwGetVideoMode(monitor);
+                if (vidmode != null) {
+                    glfwSetWindowMonitor(windowHandle, monitor, 0, 0, this.width, this.height, vidmode.refreshRate());
+                    LOGGER.info("Fullscreen resolution changed to: {}x{}", this.width, this.height);
+                } else {
+                    LOGGER.error("Failed to get video mode for primary monitor. Cannot change fullscreen resolution.");
+                }
+            }
+        } else {
+            // If windowed, set window size. glfwSetWindowSize will trigger the framebuffer callback.
+            glfwSetWindowSize(windowHandle, this.width, this.height);
+            LOGGER.info("Window size requested: {}x{}. Framebuffer callback will confirm actual new size.", this.width, this.height);
+        }
+        // VSync is typically handled by setFullscreen when monitor changes, or persists in windowed mode.
+        // Re-applying here might be redundant but safe. setVsync itself checks current state.
+        // setVsync(this.vsyncEnabled); 
+    }
 }

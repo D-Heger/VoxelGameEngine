@@ -1,5 +1,7 @@
 package de.heger.voxelengine.launcher;
 
+import de.heger.voxelengine.core.config.Config;
+import de.heger.voxelengine.core.config.ConfigManager;
 import de.heger.voxelengine.core.logging.LoggerFacade;
 import de.heger.voxelengine.platform.InputManager;
 import de.heger.voxelengine.platform.Window;
@@ -10,6 +12,7 @@ import de.heger.voxelengine.renderer.ui.font.Font;
 import de.heger.voxelengine.renderer.ui.font.FontManager;
 import de.heger.voxelengine.renderer.ui.menus.DebugMenu;
 import de.heger.voxelengine.renderer.ui.menus.PauseMenu;
+import de.heger.voxelengine.renderer.ui.menus.SettingsMenu;
 import de.heger.voxelengine.world.block.BlockRegistry;
 import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkPos;
@@ -69,15 +72,27 @@ public class GameLoop {
     private boolean wasEscapePressed = false;
 
     private UIManager uiManager;
-    private DebugMenu performanceDisplay;
+    private DebugMenu debugMenu;
     private boolean performanceDisplayWasVisible = true;
     private PauseMenu pauseMenu;
+    private SettingsMenu settingsMenu;
     private boolean isPaused = false;
+    private boolean isSettingsMenuOpen = false;
     private DebugMenu.DebugData debugData;
+    private Config config;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
-        window = new Window(width, height, windowTitle, vsync, fullscreen, "/window.png");
+
+        config = ConfigManager.load();
+        if (config == null) {
+            LOGGER.warn("Failed to load config.json, creating default config.");
+            config = new Config();
+            // Optionally save the new default config immediately
+            // ConfigManager.save(config);
+        }
+        // Use config values for window creation and camera
+        window = new Window(width, height, windowTitle, config.isVsync(), fullscreen, "/window.png");
         inputManager = window.getInputManager();
 
         this.blockRegistry = BlockRegistry.getInstance();
@@ -91,8 +106,8 @@ public class GameLoop {
         renderer = new Renderer(window);
         renderer.init();
         camera = renderer.getCamera();
-        camera.setViewDistance(viewDistance);
-        LOGGER.info("Renderer initialized with view distance: {}", viewDistance);
+        camera.setViewDistance(config.getViewDistance()); // Use config view distance
+        LOGGER.info("Renderer initialized with view distance: {}", config.getViewDistance());
 
         uiManager = new UIManager();
         uiManager.init(window);
@@ -107,21 +122,34 @@ public class GameLoop {
                 LOGGER.error(
                         "Default font not available from UIManager's FontManager. Performance display cannot be created.");
             } else {
-                performanceDisplay = new DebugMenu(uiManager, defaultFont);
-                performanceDisplay.init();
-                performanceDisplay.setVisible(true);
+                debugMenu = new DebugMenu(uiManager, defaultFont);
+                debugMenu.init();
+                debugMenu.setVisible(true);
                 performanceDisplayWasVisible = true;
             }
 
             if (defaultFont != null) {
                 pauseMenu = new PauseMenu(uiManager, window, defaultFont);
                 pauseMenu.setOnContinueAction(this::togglePauseState);
+                pauseMenu.setOnSettingsAction(this::toggleSettingsMenu);
                 pauseMenu.setOnQuitAction(() -> {
                     running = false;
                     LOGGER.info("Quit action from pause menu.");
                 });
+
+                settingsMenu = new SettingsMenu(uiManager, window, defaultFont, config, camera);
+                settingsMenu.setOnBackAction(() -> {
+                    if (settingsMenu.isVisible()) {
+                        settingsMenu.hide();
+                    }
+                    if (pauseMenu != null && !pauseMenu.isVisible()) {
+                        pauseMenu.show();
+                    }
+                    isSettingsMenuOpen = false; // Ensure this flag is correctly managed
+                });
+
             } else {
-                LOGGER.error("Default font not available, PauseMenu cannot be created.");
+                LOGGER.error("Default font not available, PauseMenu and SettingsMenu cannot be created.");
             }
         }
         debugData = new DebugMenu.DebugData();
@@ -197,8 +225,8 @@ public class GameLoop {
 
                 if (uiManager != null && uiManager.isInitialized()) {
                     uiManager.update((float) delta);
-                    if (performanceDisplay != null && performanceDisplay.isVisible()) {
-                        performanceDisplay.update(debugData);
+                    if (debugMenu != null && debugMenu.isVisible()) {
+                        debugMenu.update(debugData);
                     }
                 }
 
@@ -258,17 +286,21 @@ public class GameLoop {
 
         boolean isF2Pressed = inputManager.isKeyPressed(GLFW_KEY_F2);
         if (isF2Pressed && !wasF2Pressed) {
-            if (performanceDisplay != null && !isPaused) {
-                performanceDisplay.toggleVisibility();
-                performanceDisplayWasVisible = performanceDisplay.isVisible();
-                LOGGER.debug("Performance display visibility toggled to: {}", performanceDisplay.isVisible());
+            if (debugMenu != null && !isPaused) {
+                debugMenu.toggleVisibility();
+                performanceDisplayWasVisible = debugMenu.isVisible();
+                LOGGER.debug("Performance display visibility toggled to: {}", debugMenu.isVisible());
             }
         }
         wasF2Pressed = isF2Pressed;
 
         boolean isEscapePressed = inputManager.isKeyPressed(GLFW_KEY_ESCAPE);
         if (isEscapePressed && !wasEscapePressed) {
-            togglePauseState();
+            if (isSettingsMenuOpen) {
+                toggleSettingsMenu();
+            } else {
+                togglePauseState();
+            }
         }
         wasEscapePressed = isEscapePressed;
 
@@ -307,6 +339,13 @@ public class GameLoop {
             } else {
                 camera.processKeyboard(inputManager, deltaTime);
             }
+        } else { // Game is paused
+            if (pauseMenu != null && pauseMenu.isVisible() && uiManager != null && uiManager.isInitialized()) {
+                // If window is resized while paused, the UIManager's projection matrix will update via callback.
+                // We should also explicitly update the pause menu's layout if it's visible.
+                // This is a simplified approach. A more robust system might involve a UI-wide resize event listener.
+                pauseMenu.updateLayout();
+            }
         }
     }
 
@@ -323,11 +362,14 @@ public class GameLoop {
         LOGGER.info("Cleaning up game loop...");
         running = false;
 
-        if (performanceDisplay != null) {
-            performanceDisplay.cleanup();
+        if (debugMenu != null) {
+            debugMenu.cleanup();
         }
         if (pauseMenu != null) {
             pauseMenu.cleanup();
+        }
+        if (settingsMenu != null) {
+            settingsMenu.cleanup();
         }
         if (uiManager != null && uiManager.isInitialized()) {
             uiManager.cleanup();
@@ -450,26 +492,54 @@ public class GameLoop {
 
     private void togglePauseState() {
         isPaused = !isPaused;
-        LOGGER.info("Pause state toggled to: {}", isPaused);
         if (uiManager != null && uiManager.isInitialized()) {
             uiManager.setUiHasFocus(isPaused);
             if (isPaused) {
-                if (pauseMenu != null)
-                    pauseMenu.show();
-                if (performanceDisplay != null) {
-                    // Store current visibility and then hide
-                    performanceDisplayWasVisible = performanceDisplay.isVisible();
-                    performanceDisplay.setVisible(false);
-                }
+                LOGGER.info("Game paused.");
                 GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
-            } else {
-                if (pauseMenu != null)
-                    pauseMenu.hide();
-                if (performanceDisplay != null) {
-                    // Restore previous visibility
-                    performanceDisplay.setVisible(performanceDisplayWasVisible);
+                if (pauseMenu != null) {
+                    pauseMenu.show();
                 }
+                if (settingsMenu != null && settingsMenu.isVisible()) { // Hide settings if open
+                    settingsMenu.hide();
+                    isSettingsMenuOpen = false;
+                }
+                // If performance display was visible, hide it
+                if (debugMenu != null && debugMenu.isVisible()) {
+                    performanceDisplayWasVisible = true;
+                    debugMenu.setVisible(false);
+                }
+            } else {
+                LOGGER.info("Game resumed.");
                 GLFW.glfwSetInputMode(window.getWindowHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_DISABLED);
+                if (pauseMenu != null) {
+                    pauseMenu.hide();
+                }
+                // If performance display was visible before pausing, show it again
+                if (debugMenu != null && performanceDisplayWasVisible) {
+                    debugMenu.setVisible(true);
+                }
+            }
+        }
+    }
+
+    private void toggleSettingsMenu() {
+        isSettingsMenuOpen = !isSettingsMenuOpen;
+        if (isSettingsMenuOpen) {
+            LOGGER.info("Opening settings menu.");
+            if (pauseMenu != null && pauseMenu.isVisible()) {
+                pauseMenu.hide();
+            }
+            if (settingsMenu != null) {
+                settingsMenu.show();
+            }
+        } else {
+            LOGGER.info("Closing settings menu, returning to pause menu.");
+            if (settingsMenu != null && settingsMenu.isVisible()) {
+                settingsMenu.hide();
+            }
+            if (pauseMenu != null && !pauseMenu.isVisible()) { // Check if pause menu is not already visible
+                pauseMenu.show();
             }
         }
     }
