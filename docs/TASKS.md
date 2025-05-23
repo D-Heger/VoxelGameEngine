@@ -641,31 +641,91 @@
 
 - - [ ] **Task ID:** P4-T6
   - **Name:** Player Entity (`game`)
-  - **Description:** Create a `Player` class representing the player in the world, holding position, orientation, and potentially other state.
+  - **Description:** Create a `Player` class representing the player in the world, holding position, orientation, and potentially other state. Focus on expandability, so future systems like inventory, hotbar, stats and levels etc. can be added easily.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T2, `game` module
-  - **Subtasks:** (none)
+  - **Subtasks:**
+    - [ ] **Subtask ID:** P4-T6.1
+      - **Name:** Create entity class
+      - **Description:** Create a `Entity` class representing a generic entity in the world, holding position, orientation, and potentially other state.
+      - **Deliverables:** Entity class.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T6.2
+      - **Name:** Create player class
+      - **Description:** Create a `Player` class representing the player in the world, holding position, orientation, and potentially other state.
+      - **Deliverables:** Player class.
+      - **Implementation Context:** (TBD)
 
 - - [ ] **Task ID:** P4-T7
   - **Name:** Basic Player Movement (`game`, `engine-physics`)
   - **Description:** Implement movement logic (walking, jumping) based on input. Integrate basic gravity.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T5, P4-T3, `game`, `engine-physics` modules
-  - **Subtasks:** (none)
+  - **Subtasks:** 
+    - [ ] **Subtask ID:** P4-T7.1
+      - **Name:** Create PlayerController class
+      - **Description:** Create a `PlayerController` class representing the controller of the player, interacting with the player class, the gameloop as well as camera and input manager.
+      - **Deliverables:** PlayerController class.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T7.2
+      - **Name:** Implement basic player movement
+      - **Description:** Implement basic player movement, including walking and jumping.
+      - **Deliverables:** Basic player movement.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T7.3
+      - **Name:** Implement creative movement
+      - **Description:** Implement creative movement, so that the player can fly. Default hotkey: `F9`. Toggled state should be noted in the performance display.
+      - **Deliverables:** Creative movement.
+      - **Implementation Context:** (TBD)
 
 - - [ ] **Task ID:** P4-T8
-  - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`, `game`)
+  - **Name:** AABB Collision Detection (`engine-physics`, `engine-world`, `game`) & Basic Physics
   - **Description:** Implement Axis-Aligned Bounding Box (AABB) collision detection between the player entity and world blocks. Prevent player from moving into solid blocks.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T2, P4-3, P4-T4, `engine-physics`, `engine-world`, `game` modules
-  - **Subtasks:** (none)
+  - **Subtasks:** 
+    - [ ] **Subtask ID:** P4-T8.1
+      - **Name:** Create CollisionManager class
+      - **Description:** Create a `CollisionManager` class that handles the collision detection between entities and world blocks.
+      - **Deliverables:** CollisionManager class.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T8.2
+      - **Name:** Implement AABB collision detection
+      - **Description:** Implement AABB collision detection between the entities and world blocks.
+      - **Deliverables:** AABB collision detection.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T8.3
+      - **Name:** Implement basic physics
+      - **Description:** Implement basic physics, so that the player can jump and fall.
+      - **Deliverables:** Basic physics.
+      - **Implementation Context:** (TBD)
 
 - - [ ] **Task ID:** P4-T9
   - **Name:** Raycasting (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement a raycasting algorithm (e.g., Amanatides & Woo) to determine the block the player is looking at.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P2-T3, P3-T2, P4-T3, `engine-physics`, `engine-world`, `game` modules
-  - **Subtasks:** (none)
+  - **Subtasks:** 
+    - [ ] **Subtask ID:** P4-T9.1
+      - **Name:** Design a raycasting solution
+      - **Description:** Design a raycasting solution that can be used to raycast through the world and determine the block the player is looking at.
+      - **Deliverables:** Raycasting solution.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T9.2
+      - **Name:** Implement the raycasting solution
+      - **Description:** Implement the raycasting solution.
+      - **Deliverables:** Raycasting solution.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T9.3
+      - **Name:** Integrate the raycasting solution into the game loop
+      - **Description:** Integrate the raycasting solution into the game loop.
+      - **Deliverables:** Raycasting solution integrated into the game loop.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P4-T9.4
+      - **Name:** Add a outline to the block the player is looking at
+      - **Description:** Add a outline to the block the player is looking at.
+      - **Deliverables:** Outline.
+      - **Implementation Context:** (TBD)
 
 ## Phase 5: MVP Completion (Gameplay Loop)
 
