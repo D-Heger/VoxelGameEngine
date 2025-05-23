@@ -34,7 +34,10 @@ public class Window {
     private boolean fullscreen;
     private float aspectRatio;
     private InputManager inputManager;
-    private final List<FramebufferSizeCallback> framebufferSizeCallbacks = new ArrayList<>();
+    
+    // OPTIMIZATION: Use single callback field when only one callback, lazy-initialize list
+    private FramebufferSizeCallback singleFramebufferCallback;
+    private List<FramebufferSizeCallback> framebufferSizeCallbacks;
 
     // For restoring windowed mode
     private int windowedX, windowedY, windowedWidth, windowedHeight;
@@ -172,9 +175,14 @@ public class Window {
                 this.aspectRatio = (float) w / h;
                 glViewport(0, 0, w, h);
                 LOGGER.debug("Window resized to {}x{}, aspect ratio: {}", w, h, this.aspectRatio);
-                // Notify registered callbacks
-                for (FramebufferSizeCallback callback : framebufferSizeCallbacks) {
-                    callback.invoke(windowHandle, w, h);
+                
+                // OPTIMIZATION: Notify callbacks efficiently
+                if (singleFramebufferCallback != null) {
+                    singleFramebufferCallback.invoke(windowHandle, w, h);
+                } else if (framebufferSizeCallbacks != null) {
+                    for (FramebufferSizeCallback callback : framebufferSizeCallbacks) {
+                        callback.invoke(windowHandle, w, h);
+                    }
                 }
             }
         });
@@ -278,13 +286,41 @@ public class Window {
     }
 
     public void addFramebufferSizeCallback(FramebufferSizeCallback callback) {
-        if (callback != null && !framebufferSizeCallbacks.contains(callback)) {
+        if (callback == null) {
+            return;
+        }
+        
+        // OPTIMIZATION: Use single callback field for common case of one callback
+        if (singleFramebufferCallback == null && framebufferSizeCallbacks == null) {
+            singleFramebufferCallback = callback;
+        } else if (singleFramebufferCallback != null && framebufferSizeCallbacks == null) {
+            // Move from single to multiple callbacks
+            framebufferSizeCallbacks = new ArrayList<>();
+            framebufferSizeCallbacks.add(singleFramebufferCallback);
+            framebufferSizeCallbacks.add(callback);
+            singleFramebufferCallback = null;
+        } else if (framebufferSizeCallbacks != null && !framebufferSizeCallbacks.contains(callback)) {
             framebufferSizeCallbacks.add(callback);
         }
     }
 
     public void removeFramebufferSizeCallback(FramebufferSizeCallback callback) {
-        framebufferSizeCallbacks.remove(callback);
+        if (callback == null) {
+            return;
+        }
+        
+        if (singleFramebufferCallback == callback) {
+            singleFramebufferCallback = null;
+        } else if (framebufferSizeCallbacks != null) {
+            framebufferSizeCallbacks.remove(callback);
+            // OPTIMIZATION: Downgrade to single callback if only one remains
+            if (framebufferSizeCallbacks.size() == 1) {
+                singleFramebufferCallback = framebufferSizeCallbacks.get(0);
+                framebufferSizeCallbacks = null;
+            } else if (framebufferSizeCallbacks.isEmpty()) {
+                framebufferSizeCallbacks = null;
+            }
+        }
     }
 
     // --- Getters ---

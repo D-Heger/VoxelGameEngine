@@ -40,6 +40,11 @@ public class DebugMenu {
     private TextElement activeGenThreadsText;
     private TextElement timeOfDayEnabledText;
     private TextElement timeOfDayText;
+    private TextElement memoryUsageText;
+    private TextElement memoryUsagePercentText;
+    private TextElement peakMemoryText;
+    private TextElement totalAllocationsText;
+    private TextElement gcSuggestionsText;
 
 
     public DebugMenu(UIManager uiManager, Font font) {
@@ -57,11 +62,11 @@ public class DebugMenu {
 
         float firstTextBaselineY = visualTextTopY + scaledAscent; 
 
-        int numTextElements = 13; // Increased for the new time display
+        int numTextElements = 20; // Increased for new memory monitoring elements + spacing
 
         // Calculate dimensions for the text block content itself
         // Estimate max text width. A more accurate way would be to render all text once, get max width.
-        float estimatedMaxTextStringWidthAtScale1 = 680f; // Estimated width if scale were 1.0
+        float estimatedMaxTextStringWidthAtScale1 = 800f; // Increased for longer memory text
         float textContentWidth = estimatedMaxTextStringWidthAtScale1 * textScale; 
 
         // Height of the text block content from the top of the first line to bottom of the last line
@@ -88,6 +93,9 @@ public class DebugMenu {
         currentTextBaselineY += scaledLineHeight + lineSpacing;
         upsText = createTextElement("UPS: -", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
+        
+        // Add separator for rendering metrics
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
         avgChunkGenTimeText = createTextElement("Avg Gen Time: - ms (0)", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
         drawCallsText = createTextElement("Draw Calls: -", textX, currentTextBaselineY);
@@ -106,6 +114,21 @@ public class DebugMenu {
         currentTextBaselineY += scaledLineHeight + lineSpacing;
         activeGenThreadsText = createTextElement("Active Gen Threads: -", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
+        
+        // Memory monitoring section
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        memoryUsageText = createTextElement("Memory: - MB", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        memoryUsagePercentText = createTextElement("Memory Usage: -%", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        peakMemoryText = createTextElement("Peak Memory: - MB", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        totalAllocationsText = createTextElement("Est. Allocations: - MB", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        gcSuggestionsText = createTextElement("GC Suggestions: -", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        
+        // Time of day section
         timeOfDayEnabledText = createTextElement("Day/Night cycle: ", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
         timeOfDayText = createTextElement("Time: --:--", textX, currentTextBaselineY);
@@ -125,18 +148,36 @@ public class DebugMenu {
         if (!visible) {
             return;
         }
+        
+        // Basic performance metrics
         fpsText.setText(String.format(Locale.US, "FPS: %d", data.fps));
         upsText.setText(String.format(Locale.US, "UPS: %d", data.ups));
+        
+        // Chunk generation metrics
         avgChunkGenTimeText.setText(String.format(Locale.US, "Avg Gen Time: %.2f ms (%d)", data.avgChunkGenTime, data.chunkGenSamples));
+        
+        // Rendering metrics
         drawCallsText.setText(String.format(Locale.US, "Draw Calls: %d", data.drawCalls));
         renderedIndicesText.setText(String.format(Locale.US, "Rendered Indices: %dk", data.renderedIndices / 1000));
         occlusionCulledText.setText(String.format(Locale.US, "Occlusion Culled: %d", data.occlusionCulledChunks));
         frustumCulledText.setText(String.format(Locale.US, "Frustum Culled: %d", data.frustumCulledChunks));
+        
+        // Chunk management metrics
         totalLoadedChunksText.setText(String.format(Locale.US, "Loaded Chunks: %d", data.totalLoadedChunks));
         activeMeshesText.setText(String.format(Locale.US, "Active Meshes: %d", data.activeMeshes));
         generationQueueText.setText(String.format(Locale.US, "Gen Queue: %d", data.generationQueueSize));
         activeGenThreadsText.setText(String.format(Locale.US, "Active Gen Threads: %d", data.activeGenerationThreads));
+        
+        // Memory monitoring metrics
+        memoryUsageText.setText(String.format(Locale.US, "Memory: %d MB", data.usedMemoryMB));
+        memoryUsagePercentText.setText(String.format(Locale.US, "Memory Usage: %.1f%%", data.memoryUsagePercentage));
+        peakMemoryText.setText(String.format(Locale.US, "Peak Memory: %d MB", data.peakMemoryMB));
+        totalAllocationsText.setText(String.format(Locale.US, "Est. Allocations: %d MB", data.totalAllocationsMB));
+        gcSuggestionsText.setText(String.format(Locale.US, "GC Suggestions: %d", data.gcSuggestionCount));
+        
+        // Time of day
         timeOfDayEnabledText.setText(String.format(Locale.US, "Day/Night cycle: %s", data.isTimeOfDayEnabled ? "Enabled" : "Disabled"));
+        
         // Update time of day text
         if (timeOfDayText != null) {
             float normalizedTime = data.normalizedTimeOfDay;
@@ -180,21 +221,36 @@ public class DebugMenu {
 
     // Static inner class or a new file for PerformanceData
     public static class DebugData {
+        // Basic performance
         public int fps;
         public int ups;
+        
+        // Chunk generation
         public double avgChunkGenTime;
         public int chunkGenSamples;
+        
+        // Rendering
         public int drawCalls;
         public int renderedIndices;
         public int occlusionCulledChunks;
         public int frustumCulledChunks;
+        
+        // Chunk management
         public int totalLoadedChunks;
         public int activeMeshes;
         public int generationQueueSize;
         public int activeGenerationThreads;
+        
+        // Memory monitoring
+        public long usedMemoryMB;
+        public double memoryUsagePercentage;
+        public long peakMemoryMB;
+        public long totalAllocationsMB;
+        public int gcSuggestionCount;
+        
+        // Time of day
         public boolean isTimeOfDayEnabled;
         public float normalizedTimeOfDay;
-
 
         // Builder or constructor for convenience
         public DebugData() {} // Default constructor

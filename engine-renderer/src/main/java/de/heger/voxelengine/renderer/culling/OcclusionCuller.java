@@ -28,6 +28,12 @@ public class OcclusionCuller {
     
     // Maximum distance at which a chunk can occlude another chunk
     private static final float MAX_OCCLUSION_DISTANCE = 128.0f;
+    private static final float MAX_OCCLUSION_DISTANCE_SQUARED = MAX_OCCLUSION_DISTANCE * MAX_OCCLUSION_DISTANCE;
+    
+    // OPTIMIZATION: Reusable collections to reduce allocations
+    private final List<ChunkWithDistance> reusableChunkList = new ArrayList<>();
+    private final Set<Chunk> reusableVisibleChunks = new HashSet<>();
+    private final Set<ChunkPos> reusablePotentialOccluders = new HashSet<>();
     
     /**
      * Filters the input collection of chunks to remove those that are likely
@@ -50,8 +56,12 @@ public class OcclusionCuller {
             return chunks; // Nothing to cull if there's 0 or 1 chunk
         }
         
+        // OPTIMIZATION: Reuse collections instead of creating new ones
+        reusableChunkList.clear();
+        reusableVisibleChunks.clear();
+        reusablePotentialOccluders.clear();
+        
         // Sort chunks by distance from camera (nearest first)
-        List<ChunkWithDistance> sortedChunks = new ArrayList<>(chunks.size());
         for (Chunk chunk : chunks) {
             if (chunk == null) continue;
             
@@ -61,7 +71,7 @@ public class OcclusionCuller {
             float chunkCenterY = (pos.y * Chunk.SIZE_Y) + (Chunk.SIZE_Y / 2.0f);
             float chunkCenterZ = (pos.z * Chunk.SIZE_Z) + (Chunk.SIZE_Z / 2.0f);
             
-            // Calculate distance to camera
+            // OPTIMIZATION: Calculate distance squared to avoid sqrt
             float dx = chunkCenterX - cameraPosition.x;
             float dy = chunkCenterY - cameraPosition.y;
             float dz = chunkCenterZ - cameraPosition.z;
@@ -70,44 +80,46 @@ public class OcclusionCuller {
             // Check if this chunk is potentially opaque (full of solid blocks)
             boolean isOpaque = isChunkOpaque(chunk);
             
-            sortedChunks.add(new ChunkWithDistance(chunk, distanceSquared, isOpaque));
+            reusableChunkList.add(new ChunkWithDistance(chunk, distanceSquared, isOpaque));
         }
         
         // Sort by distance (closest to camera first)
-        Collections.sort(sortedChunks, Comparator.comparingDouble(c -> c.distanceSquared));
+        Collections.sort(reusableChunkList, DISTANCE_COMPARATOR);
         
         // Apply occlusion culling
-        Set<Chunk> visibleChunks = new HashSet<>();
-        Set<ChunkPos> potentialOccluders = new HashSet<>();
         int culledCount = 0; // Counter for occluded chunks
         
         // First pass: identify chunks that are definitely visible and potential occluders
-        for (ChunkWithDistance chunkWithDist : sortedChunks) {
+        for (ChunkWithDistance chunkWithDist : reusableChunkList) {
             Chunk chunk = chunkWithDist.chunk;
             ChunkPos pos = chunk.getPosition();
             
             // Check if this chunk is "behind" any occluders from the camera's perspective
-            if (isPotentiallyOccluded(pos, cameraPosition, potentialOccluders, sortedChunks)) {
+            if (isPotentiallyOccluded(pos, cameraPosition, reusablePotentialOccluders, reusableChunkList)) {
                 culledCount++; // Increment culled counter
                 // Skipping this chunk as it might be occluded
                 continue;
             }
             
             // This chunk is visible
-            visibleChunks.add(chunk);
+            reusableVisibleChunks.add(chunk);
             
             // If this chunk is opaque, add it as a potential occluder
-            if (chunkWithDist.isOpaque && chunkWithDist.distanceSquared <= MAX_OCCLUSION_DISTANCE * MAX_OCCLUSION_DISTANCE) {
-                potentialOccluders.add(pos);
+            if (chunkWithDist.isOpaque && chunkWithDist.distanceSquared <= MAX_OCCLUSION_DISTANCE_SQUARED) {
+                reusablePotentialOccluders.add(pos);
             }
         }
         
-        logger.debug("Occlusion culling: {} chunks visible out of {} total ({} culled)", visibleChunks.size(), chunks.size(), culledCount);
+        logger.debug("Occlusion culling: {} chunks visible out of {} total ({} culled)", reusableVisibleChunks.size(), chunks.size(), culledCount);
         if (occludedChunkCounter != null) {
             occludedChunkCounter.accept(culledCount); // Report the count
         }
-        return visibleChunks;
+        return reusableVisibleChunks;
     }
+    
+    // OPTIMIZATION: Static comparator to avoid lambda allocation
+    private static final Comparator<ChunkWithDistance> DISTANCE_COMPARATOR = 
+        Comparator.comparingDouble(c -> c.distanceSquared);
     
     /**
      * Determines if a chunk is likely opaque (filled with solid blocks).
@@ -167,14 +179,25 @@ public class OcclusionCuller {
         float dirX = chunkCenterX - cameraPos.x;
         float dirY = chunkCenterY - cameraPos.y;
         float dirZ = chunkCenterZ - cameraPos.z;
-        float dist = (float) Math.sqrt(dirX*dirX + dirY*dirY + dirZ*dirZ);
+        
+        // OPTIMIZATION: Use distance squared to avoid sqrt
+        float distanceSquared = dirX*dirX + dirY*dirY + dirZ*dirZ;
+        
+        // OPTIMIZATION: Early exit if distance is too small
+        if (distanceSquared < 0.001f) {
+            return false; // Camera is too close to the chunk
+        }
         
         // Normalize
-        if (dist > 0) {
-            dirX /= dist;
-            dirY /= dist;
-            dirZ /= dist;
-        }
+        float invDistance = 1.0f / (float) Math.sqrt(distanceSquared);
+        dirX *= invDistance;
+        dirY *= invDistance;
+        dirZ *= invDistance;
+        
+        // OPTIMIZATION: Pre-calculate chunk diagonal size once
+        final float chunkDiagonal = (float) Math.sqrt(Chunk.SIZE_X*Chunk.SIZE_X + 
+                                                      Chunk.SIZE_Y*Chunk.SIZE_Y + 
+                                                      Chunk.SIZE_Z*Chunk.SIZE_Z);
         
         // Check if there are occluders along the line of sight
         for (ChunkWithDistance otherChunk : allChunks) {
@@ -186,7 +209,7 @@ public class OcclusionCuller {
             }
             
             // Skip if the occluder is further from camera than the chunk we're checking
-            if (otherChunk.distanceSquared >= dist * dist) {
+            if (otherChunk.distanceSquared >= distanceSquared) {
                 continue;
             }
             
@@ -211,14 +234,11 @@ public class OcclusionCuller {
                 float devX = occluderCenterX - projX;
                 float devY = occluderCenterY - projY;
                 float devZ = occluderCenterZ - projZ;
-                float deviation = (float) Math.sqrt(devX*devX + devY*devY + devZ*devZ);
+                float deviationSquared = devX*devX + devY*devY + devZ*devZ;
                 
                 // If occluder is close enough to the line of sight, consider it occluding
                 // We use the chunk diagonal size as a threshold
-                float chunkDiagonal = (float) Math.sqrt(Chunk.SIZE_X*Chunk.SIZE_X + 
-                                                        Chunk.SIZE_Y*Chunk.SIZE_Y + 
-                                                        Chunk.SIZE_Z*Chunk.SIZE_Z);
-                if (deviation < chunkDiagonal) {
+                if (deviationSquared < chunkDiagonal * chunkDiagonal) {
                     return true;  // This chunk is likely occluded
                 }
             }

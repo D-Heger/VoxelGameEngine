@@ -86,6 +86,25 @@ public class Renderer {
     private final Vector3f middayFogColor = new Vector3f(0.5f, 0.6f, 0.7f);
     private final Vector3f midnightFogColor = new Vector3f(0.0f, 0.0f, 0.05f);
 
+    // OPTIMIZATION: Reusable objects to reduce allocations
+    private final Vector3f reusableVector3f1 = new Vector3f();
+    private final Vector3f reusableVector3f2 = new Vector3f();
+    private final Vector3f reusableVector3f3 = new Vector3f();
+    private final Matrix4f reusableMatrix4f = new Matrix4f();
+    private final Set<ChunkPos> reusableChunkPosSet = new HashSet<>();
+    private final Set<Chunk> reusableChunkSet = new HashSet<>();
+    private final List<Chunk> reusableChunkList = new ArrayList<>();
+    
+    // OPTIMIZATION: Cache lighting calculations
+    private float lastCalculatedTimeOfDay = -1.0f;
+    private final Vector3f cachedLightColor = new Vector3f();
+    private final Vector3f cachedAmbientColor = new Vector3f();
+    private final Vector3f cachedFogColor = new Vector3f();
+    private float cachedAmbientStrength = 0.0f;
+    
+    // OPTIMIZATION: Threshold for time-based recalculation
+    private static final float TIME_CALCULATION_THRESHOLD = 0.001f;
+
     public Renderer(Window window) {
         this.window = window;
         this.camera = new Camera();
@@ -116,7 +135,7 @@ public class Renderer {
         }
 
         // Initial clear color, will be updated by fog in shader / dynamic clear later if needed
-        Vector3f initialFogColor = new Vector3f();
+        Vector3f initialFogColor = reusableVector3f1;
         interpolateVector3f(middayFogColor, midnightFogColor, (float) (Math.sin(this.currentTimeOfDay * Math.PI)), initialFogColor);
         glClearColor(initialFogColor.x, initialFogColor.y, initialFogColor.z, 1.0f);
 
@@ -280,6 +299,28 @@ public class Renderer {
     }
 
     /**
+     * OPTIMIZATION: Calculate lighting only when time changes significantly
+     */
+    private void updateLightingIfNeeded() {
+        if (Math.abs(currentTimeOfDay - lastCalculatedTimeOfDay) < TIME_CALCULATION_THRESHOLD) {
+            return; // Skip recalculation if time hasn't changed enough
+        }
+        
+        // Calculate time-based light intensity (0 at midnight, 1 at midday)
+        float lightIntensityFactor = (float) Math.sin(this.currentTimeOfDay * Math.PI);
+        // Ensure factor is clamped between 0 and 1, as sin can go slightly outside due to precision with PI.
+        lightIntensityFactor = Math.max(0.0f, Math.min(1.0f, lightIntensityFactor));
+
+        // Interpolate light properties
+        interpolateVector3f(midnightLightColor, middayLightColor, lightIntensityFactor, cachedLightColor);
+        cachedAmbientStrength = midnightAmbientStrength + (middayAmbientStrength - midnightAmbientStrength) * lightIntensityFactor;
+        interpolateVector3f(midnightAmbientColor, middayAmbientColor, lightIntensityFactor, cachedAmbientColor);
+        interpolateVector3f(midnightFogColor, middayFogColor, lightIntensityFactor, cachedFogColor);
+        
+        lastCalculatedTimeOfDay = currentTimeOfDay;
+    }
+
+    /**
      * Renders the blocks within the given list of chunks. (P3-T2.4, P3-T2.5)
      * This is a basic implementation rendering a separate cube for each block.
      *
@@ -291,26 +332,12 @@ public class Renderer {
             return;
         }
 
-        // Calculate time-based light intensity (0 at midnight, 1 at midday)
-        float lightIntensityFactor = (float) Math.sin(this.currentTimeOfDay * Math.PI);
-        // Ensure factor is clamped between 0 and 1, as sin can go slightly outside due to precision with PI.
-        lightIntensityFactor = Math.max(0.0f, Math.min(1.0f, lightIntensityFactor));
-
-        // Interpolate light properties
-        Vector3f currentLightColor = new Vector3f();
-        interpolateVector3f(midnightLightColor, middayLightColor, lightIntensityFactor, currentLightColor);
-
-        float currentAmbientStrength = midnightAmbientStrength + (middayAmbientStrength - midnightAmbientStrength) * lightIntensityFactor;
-        
-        Vector3f currentAmbientColor = new Vector3f();
-        interpolateVector3f(midnightAmbientColor, middayAmbientColor, lightIntensityFactor, currentAmbientColor);
-
-        Vector3f currentFogColor = new Vector3f();
-        interpolateVector3f(midnightFogColor, middayFogColor, lightIntensityFactor, currentFogColor);
+        // OPTIMIZATION: Update lighting only when needed
+        updateLightingIfNeeded();
         
         // Update glClearColor for the background, in case fog doesn't reach infinity
         // This is often done if there's no skybox and fog is the primary background.
-        glClearColor(currentFogColor.x, currentFogColor.y, currentFogColor.z, 1.0f);
+        glClearColor(cachedFogColor.x, cachedFogColor.y, cachedFogColor.z, 1.0f);
 
         drawCallsLastFrame = 0;
         totalIndicesRenderedLastFrame = 0;
@@ -322,11 +349,11 @@ public class Renderer {
         defaultShaderProgram.setUniform("projection", camera.getProjectionMatrix());
         defaultShaderProgram.setUniform("view", currentViewMatrix);
 
-        // Set lighting uniforms
+        // Set lighting uniforms using cached values
         defaultShaderProgram.setUniform("lightDir", new Vector3f(-0.5f, -1.0f, -0.5f));
-        defaultShaderProgram.setUniform("lightColor", currentLightColor);
-        defaultShaderProgram.setUniform("ambientColor", currentAmbientColor);
-        defaultShaderProgram.setUniform("ambientStrength", currentAmbientStrength);
+        defaultShaderProgram.setUniform("lightColor", cachedLightColor);
+        defaultShaderProgram.setUniform("ambientColor", cachedAmbientColor);
+        defaultShaderProgram.setUniform("ambientStrength", cachedAmbientStrength);
         defaultShaderProgram.setUniform("uTexture", 0); // Tell shader to use texture unit 0
 
         // Set new lighting uniforms
@@ -336,11 +363,12 @@ public class Renderer {
         float cameraViewDistance = camera.getViewDistance();
         float fogStartDistance = cameraViewDistance * 0.60f;
 
-        defaultShaderProgram.setUniform("fogColor", currentFogColor);
+        defaultShaderProgram.setUniform("fogColor", cachedFogColor);
         defaultShaderProgram.setUniform("fogStart", fogStartDistance);
         defaultShaderProgram.setUniform("fogEnd", cameraViewDistance);
 
-        Matrix4f modelMatrix = new Matrix4f(); // Reused for each chunk
+        // OPTIMIZATION: Reuse matrix instead of creating new one
+        Matrix4f modelMatrix = reusableMatrix4f; // Reused for each chunk
         // OLD: Matrix4f viewProjectionMatrix = new
         // Matrix4f(camera.getProjectionMatrix()).mul(currentViewMatrix);
         // NEW: Reuse member field to avoid allocations
@@ -353,10 +381,12 @@ public class Renderer {
             this.frustumCuller.updateViewProjectionMatrix(viewProjectionMatrixForCulling);
         }
 
-        Set<ChunkPos> currentlyVisibleAndMeshedChunks = new HashSet<>();
+        // OPTIMIZATION: Reuse collections
+        reusableChunkPosSet.clear();
 
         // Apply frustum culling first to create a list of potentially visible chunks
-        Set<Chunk> chunksInFrustum = new HashSet<>();
+        // OPTIMIZATION: Reuse collection
+        reusableChunkSet.clear();
 
         for (Chunk chunk : chunks) {
             if (chunk == null)
@@ -372,14 +402,16 @@ public class Renderer {
                 frustumCulledChunksLastFrame++;
                 continue;
             }
-            chunksInFrustum.add(chunk);
+            reusableChunkSet.add(chunk);
         }
 
         Collection<Chunk> visibleChunks;
         if (occlusionCuller != null && USE_OCCLUSION_CULLING) {
-            List<Chunk> sortedChunksInFrustum = new ArrayList<>(chunksInFrustum);
+            // OPTIMIZATION: Reuse list instead of creating new one
+            reusableChunkList.clear();
+            reusableChunkList.addAll(reusableChunkSet);
             final Vector3f cameraPos = camera.getPosition();
-            sortedChunksInFrustum.sort(Comparator.comparingDouble(chunk -> {
+            reusableChunkList.sort(Comparator.comparingDouble(chunk -> {
                 Vec3i worldPos = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
                 // Use Chunk.SIZE_X for cubic chunk dimensions
                 return cameraPos.distanceSquared(worldPos.x + Chunk.SIZE_X / 2f, worldPos.y + Chunk.SIZE_Y / 2f,
@@ -387,23 +419,23 @@ public class Renderer {
             }));
 
             visibleChunks = occlusionCuller.filterOccludedChunks(
-                    sortedChunksInFrustum,
+                    reusableChunkList,
                     camera.getPosition(),
                     camera.getFront(),
                     (occludedCount) -> this.occlusionCulledChunksLastFrame = occludedCount // Corrected lambda usage
                                                                                            // based on new signature
             );
         } else {
-            visibleChunks = chunksInFrustum;
+            visibleChunks = reusableChunkSet;
         }
 
         // Track occlusion culling statistics
-        occlusionCulledChunksLastFrame = chunksInFrustum.size() - visibleChunks.size();
+        occlusionCulledChunksLastFrame = reusableChunkSet.size() - visibleChunks.size();
 
         // Process and render the visible chunks
         for (Chunk chunk : visibleChunks) {
             ChunkPos chunkPos = chunk.getPosition();
-            currentlyVisibleAndMeshedChunks.add(chunkPos);
+            reusableChunkPosSet.add(chunkPos);
 
             // Get or build mesh for the chunk
             Map<String, ChunkMesh> meshesForChunk = activeChunkMeshes.get(chunkPos);
@@ -489,9 +521,11 @@ public class Renderer {
         // This assumes `chunks` collection contains ALL chunks that *should* be around.
         // A more robust cleanup might be needed if `chunks` is only a subset of what
         // *could* be loaded.
+        
+        // OPTIMIZATION: Use iterator to avoid creating new entry set
         activeChunkMeshes.entrySet().removeIf(entry -> {
             ChunkPos pos = entry.getKey();
-            if (!currentlyVisibleAndMeshedChunks.contains(pos)) {
+            if (!reusableChunkPosSet.contains(pos)) {
                 logger.debug("Evicting and cleaning meshes for chunk {} (no longer visible/loaded).", pos);
                 for (ChunkMesh mesh : entry.getValue().values()) {
                     mesh.cleanup();

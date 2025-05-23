@@ -3,6 +3,7 @@ package de.heger.voxelengine.launcher;
 import de.heger.voxelengine.core.config.Config;
 import de.heger.voxelengine.core.config.ConfigManager;
 import de.heger.voxelengine.core.logging.LoggerFacade;
+import de.heger.voxelengine.core.utils.PerformanceMonitor;
 import de.heger.voxelengine.platform.InputManager;
 import de.heger.voxelengine.platform.Window;
 import de.heger.voxelengine.renderer.Renderer;
@@ -27,7 +28,11 @@ import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.stream.Collectors;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Collection;
 
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_F1;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F2;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F4;
@@ -70,6 +75,7 @@ public class GameLoop {
     private boolean wasF3Pressed = false;
     private boolean wasF2Pressed = false;
     private boolean wasEscapePressed = false;
+    private boolean wasF1Pressed = false; // For performance reset
 
     private UIManager uiManager;
     private DebugMenu debugMenu;
@@ -85,6 +91,17 @@ public class GameLoop {
     private int previousWindowWidth = -1;
     private int previousWindowHeight = -1;
     private volatile boolean needsMenuRebuild = false;
+
+    // OPTIMIZATION: Reusable collections to reduce allocations
+    private final List<ChunkPos> reusableChunkPosList = new ArrayList<>();
+    private final Set<ChunkPos> reusableChunkPosSet = new HashSet<>();
+    
+    // OPTIMIZATION: Cache for chunk position calculations
+    private final int unloadRadiusActual = CHUNK_LOAD_RADIUS + CHUNK_UNLOAD_OFFSET;
+    
+    // Performance monitoring
+    private final PerformanceMonitor performanceMonitor = PerformanceMonitor.getInstance();
+    private int gcSuggestionCount = 0; // Track number of GC suggestions made
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
@@ -272,7 +289,21 @@ public class GameLoop {
                     }
                     debugData.isTimeOfDayEnabled = isTimeOfDayEnabled;
                     debugData.normalizedTimeOfDay = this.currentNormalizedTimeOfDay; // Pass the time to
-                                                                                           // performance data
+                                                                                       // performance data
+                    
+                    // OPTIMIZATION: Add memory monitoring
+                    performanceMonitor.checkMemoryUsage();
+                    if (performanceMonitor.getMemoryUsagePercentage() > 70) {
+                        performanceMonitor.suggestGC();
+                        gcSuggestionCount++;
+                    }
+                    
+                    // Populate memory monitoring data
+                    debugData.usedMemoryMB = performanceMonitor.getUsedMemoryMB();
+                    debugData.memoryUsagePercentage = performanceMonitor.getMemoryUsagePercentage();
+                    debugData.peakMemoryMB = performanceMonitor.getPeakMemoryUsageMB();
+                    debugData.totalAllocationsMB = performanceMonitor.getTotalAllocationsMB();
+                    debugData.gcSuggestionCount = gcSuggestionCount;
                 }
             }
         } catch (Exception e) {
@@ -305,6 +336,13 @@ public class GameLoop {
             }
         }
         wasF2Pressed = isF2Pressed;
+        
+        // F1: Reset performance statistics
+        boolean isF1Pressed = inputManager.isKeyPressed(GLFW_KEY_F1);
+        if (isF1Pressed && !wasF1Pressed) {
+            resetPerformanceStatistics();
+        }
+        wasF1Pressed = isF1Pressed;
 
         boolean isEscapePressed = inputManager.isKeyPressed(GLFW_KEY_ESCAPE);
         if (isEscapePressed && !wasEscapePressed) {
@@ -363,6 +401,9 @@ public class GameLoop {
             rebuildMenusIfVisible();
             needsMenuRebuild = false;
         }
+        
+        // OPTIMIZATION: Periodic memory monitoring during gameplay
+        performanceMonitor.checkMemoryUsage();
     }
 
     private void render() {
@@ -402,10 +443,14 @@ public class GameLoop {
         }
 
         if (chunkManager != null) {
-            List<ChunkPos> positionsToClear = chunkManager.getAllLoadedChunks().stream()
-                    .map(Chunk::getPosition)
-                    .collect(Collectors.toList());
-            for (ChunkPos pos : positionsToClear) {
+            // OPTIMIZATION: Avoid stream operations and collect directly
+            reusableChunkPosList.clear();
+            Collection<Chunk> allLoadedChunks = chunkManager.getAllLoadedChunks();
+            for (Chunk chunk : allLoadedChunks) {
+                reusableChunkPosList.add(chunk.getPosition());
+            }
+            
+            for (ChunkPos pos : reusableChunkPosList) {
                 chunkManager.removeChunk(pos);
             }
             LOGGER.info("All chunks removed from ChunkManager. Loaded count: {}", chunkManager.getLoadedChunkCount());
@@ -470,9 +515,9 @@ public class GameLoop {
                     chunksRequestedThisCycle, chunksAlreadyManagedThisCycle);
         }
 
-        List<Chunk> currentlyLoadedChunks = List.copyOf(chunkManager.getAllLoadedChunks());
-        List<ChunkPos> chunksToUnload = new ArrayList<>();
-        int unloadRadiusActual = CHUNK_LOAD_RADIUS + CHUNK_UNLOAD_OFFSET;
+        // OPTIMIZATION: Use reusable collections and avoid List.copyOf
+        Collection<Chunk> currentlyLoadedChunks = chunkManager.getAllLoadedChunks();
+        reusableChunkPosList.clear();
 
         for (Chunk loadedChunk : currentlyLoadedChunks) {
             ChunkPos loadedPos = loadedChunk.getPosition();
@@ -480,16 +525,16 @@ public class GameLoop {
             int distZ = Math.abs(loadedPos.z - camChunkZ);
 
             if (distX > unloadRadiusActual || distZ > unloadRadiusActual) {
-                chunksToUnload.add(loadedPos);
+                reusableChunkPosList.add(loadedPos);
             }
         }
 
-        if (!chunksToUnload.isEmpty()) {
+        if (!reusableChunkPosList.isEmpty()) {
             LOGGER.debug(
                     "Attempting to unload {} chunk positions that are out of range (Player at XZ: {},{}, UnloadRadius: {}).",
-                    chunksToUnload.size(), camChunkX, camChunkZ, unloadRadiusActual);
+                    reusableChunkPosList.size(), camChunkX, camChunkZ, unloadRadiusActual);
             int actualUnloads = 0;
-            for (ChunkPos posToUnload : chunksToUnload) {
+            for (ChunkPos posToUnload : reusableChunkPosList) {
                 if (chunkManager.containsChunk(posToUnload)) {
                     // Ensure renderer resources are freed for this chunk.
                     renderer.releaseChunkResources(posToUnload);
@@ -501,7 +546,7 @@ public class GameLoop {
             }
             if (actualUnloads > 0) {
                 LOGGER.debug("Successfully unloaded {} chunks. {} were requested for unload.", actualUnloads,
-                        chunksToUnload.size());
+                        reusableChunkPosList.size());
             }
         }
     }
@@ -684,5 +729,18 @@ public class GameLoop {
         } else {
             LOGGER.error("Cannot rebuild menus: default font is null");
         }
+    }
+
+    /**
+     * Resets all performance monitoring statistics for benchmarking purposes.
+     */
+    private void resetPerformanceStatistics() {
+        performanceMonitor.reset();
+        gcSuggestionCount = 0;
+        if (performanceTrackingHandler != null) {
+            // Reset chunk generation performance tracking if possible
+            // This depends on the implementation of PerformanceTrackingTaskResultHandler
+        }
+        LOGGER.info("Performance statistics reset for benchmarking");
     }
 }
