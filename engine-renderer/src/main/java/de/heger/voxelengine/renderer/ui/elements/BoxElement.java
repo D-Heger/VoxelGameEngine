@@ -41,7 +41,18 @@ public class BoxElement extends UIElement {
 
     public void setSize(Vector2f size) {
         if (!this.size.equals(size)) {
+            LOGGER.debug("BoxElement size changing from {}x{} to {}x{}", this.size.x, this.size.y, size.x, size.y);
             this.size.set(size);
+            buildMesh(); // Rebuild mesh if size changes
+        }
+    }
+
+    @Override
+    public void setSize(float width, float height) {
+        Vector2f newSize = new Vector2f(width, height);
+        if (!this.size.equals(newSize)) {
+            LOGGER.debug("BoxElement size changing from {}x{} to {}x{}", this.size.x, this.size.y, width, height);
+            this.size.set(newSize);
             buildMesh(); // Rebuild mesh if size changes
         }
     }

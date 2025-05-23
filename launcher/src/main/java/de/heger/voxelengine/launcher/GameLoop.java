@@ -81,6 +81,12 @@ public class GameLoop {
     private DebugMenu.DebugData debugData;
     private Config config;
 
+    // Track previous window dimensions for proper resize detection
+    private int previousWindowWidth = -1;
+    private int previousWindowHeight = -1;
+    private double lastResizeTime = 0.0;
+    private static final double RESIZE_REBUILD_DELAY = 0.1; // 100ms delay to avoid rapid rebuilds
+
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
 
@@ -183,6 +189,13 @@ public class GameLoop {
         LOGGER.info("Mouse cursor captured.");
 
         this.lastCameraXZChunkPos = new ChunkPos(Integer.MIN_VALUE, 0, Integer.MIN_VALUE);
+
+        // Register window resize callback to handle menu reconstruction when window dimensions change significantly
+        window.addFramebufferSizeCallback(this::handleWindowResize);
+
+        // Initialize previous window dimensions for resize detection
+        this.previousWindowWidth = window.getWidth();
+        this.previousWindowHeight = window.getHeight();
 
         LOGGER.info("Game loop initialized.");
     }
@@ -340,12 +353,16 @@ public class GameLoop {
                 camera.processKeyboard(inputManager, deltaTime);
             }
         } else { // Game is paused
-            if (pauseMenu != null && pauseMenu.isVisible() && uiManager != null && uiManager.isInitialized()) {
-                // If window is resized while paused, the UIManager's projection matrix will update via callback.
-                // We should also explicitly update the pause menu's layout if it's visible.
-                // This is a simplified approach. A more robust system might involve a UI-wide resize event listener.
-                pauseMenu.updateLayout();
-            }
+            // UI has focus during pause state
+            // Window resize handling is now managed by the framebuffer callback system
+            // which properly rebuilds menus when needed, following OpenGL best practices
+        }
+        
+        // Check for delayed menu rebuild after window resize
+        if (lastResizeTime > 0 && (GLFW.glfwGetTime() - lastResizeTime) >= RESIZE_REBUILD_DELAY) {
+            LOGGER.debug("Executing delayed menu rebuild after window resize");
+            rebuildMenusIfVisible();
+            lastResizeTime = 0.0; // Reset the timer
         }
     }
 
@@ -547,5 +564,131 @@ public class GameLoop {
     public void toggleTimeOfDay() {
         isTimeOfDayEnabled = !isTimeOfDayEnabled;
         LOGGER.info("Time of day toggled to: {}", isTimeOfDayEnabled);
+    }
+
+    private void handleWindowResize(long windowHandle, int width, int height) {
+        LOGGER.debug("Window resize callback triggered: {}x{} (previous: {}x{})", width, height, previousWindowWidth, previousWindowHeight);
+        
+        // Only rebuild menus if they exist and window dimensions are valid
+        if (width <= 0 || height <= 0) {
+            LOGGER.warn("Invalid window dimensions received in resize callback: {}x{}", width, height);
+            return;
+        }
+        
+        // Update last resize time for delay mechanism
+        lastResizeTime = GLFW.glfwGetTime();
+        
+        // Check if we need to rebuild UI components due to significant size changes
+        // This is especially important for fullscreen toggles and resolution changes
+        boolean needsMenuRebuild = shouldRebuildMenus(width, height);
+        
+        if (needsMenuRebuild) {
+            LOGGER.info("Window dimensions changed significantly from {}x{} to {}x{}, scheduling menu rebuild...", 
+                       previousWindowWidth, previousWindowHeight, width, height);
+            // Schedule rebuild to happen after delay to avoid rapid rebuilds
+            scheduleMenuRebuild();
+        }
+        
+        // Update tracking variables for next comparison
+        this.previousWindowWidth = width;
+        this.previousWindowHeight = height;
+    }
+    
+    private boolean shouldRebuildMenus(int newWidth, int newHeight) {
+        // If we don't have previous dimensions yet, don't rebuild
+        if (previousWindowWidth <= 0 || previousWindowHeight <= 0) {
+            return false;
+        }
+        
+        // Calculate absolute and percentage changes from previous dimensions
+        int widthDiff = Math.abs(newWidth - previousWindowWidth);
+        int heightDiff = Math.abs(newHeight - previousWindowHeight);
+        double widthChange = (double)widthDiff / previousWindowWidth;
+        double heightChange = (double)heightDiff / previousWindowHeight;
+        
+        // Rebuild if there's a significant change (> 10%) OR a large absolute change (> 50 pixels)
+        // This handles both percentage-based changes for larger windows and absolute changes for smaller windows
+        boolean significantChange = widthChange > 0.1 || heightChange > 0.1 || widthDiff > 50 || heightDiff > 50;
+        
+        // Also rebuild if aspect ratio changes significantly
+        double oldAspectRatio = (double)previousWindowWidth / previousWindowHeight;
+        double newAspectRatio = (double)newWidth / newHeight;
+        boolean aspectRatioChanged = Math.abs(newAspectRatio - oldAspectRatio) > 0.1;
+        
+        LOGGER.debug("Size change analysis: width={}px ({}%) height={}px ({}%) aspect ratio change={}", 
+                    widthDiff, String.format("%.1f", widthChange * 100), 
+                    heightDiff, String.format("%.1f", heightChange * 100), 
+                    aspectRatioChanged);
+        
+        return significantChange || aspectRatioChanged;
+    }
+    
+    private void scheduleMenuRebuild() {
+        // This method could be expanded to use a proper scheduler, 
+        // but for now we'll handle it in the update loop
+        // The actual rebuild will happen in the update method after the delay
+    }
+
+    private void rebuildMenusIfVisible() {
+        if (uiManager == null || !uiManager.isInitialized()) {
+            return;
+        }
+        
+        // Store current menu state
+        boolean pauseMenuWasVisible = pauseMenu != null && pauseMenu.isVisible();
+        boolean settingsMenuWasVisible = settingsMenu != null && settingsMenu.isVisible();
+        
+        // Clean up existing menus following OpenGL best practices
+        if (pauseMenu != null) {
+            pauseMenu.cleanup(); // This frees OpenGL resources
+            pauseMenu = null;
+        }
+        
+        if (settingsMenu != null) {
+            settingsMenu.cleanup(); // This frees OpenGL resources  
+            settingsMenu = null;
+        }
+        
+        // Recreate menus with current window dimensions
+        FontManager fontManager = uiManager.getFontManager();
+        Font defaultFont = fontManager != null ? fontManager.getDefaultFont() : null;
+        
+        if (defaultFont != null) {
+            // Recreate PauseMenu
+            pauseMenu = new PauseMenu(uiManager, window, defaultFont);
+            pauseMenu.setOnContinueAction(this::togglePauseState);
+            pauseMenu.setOnSettingsAction(this::toggleSettingsMenu);
+            pauseMenu.setOnQuitAction(() -> {
+                running = false;
+                LOGGER.info("Quit action from pause menu.");
+            });
+            
+            // Recreate SettingsMenu
+            settingsMenu = new SettingsMenu(uiManager, window, defaultFont, config, camera);
+            settingsMenu.setOnBackAction(() -> {
+                if (settingsMenu.isVisible()) {
+                    settingsMenu.hide();
+                }
+                if (pauseMenu != null && !pauseMenu.isVisible()) {
+                    pauseMenu.show();
+                }
+                isSettingsMenuOpen = false;
+            });
+            
+            // Restore menu visibility state
+            if (pauseMenuWasVisible && pauseMenu != null) {
+                pauseMenu.show();
+                LOGGER.debug("Restored PauseMenu visibility after rebuild");
+            }
+            
+            if (settingsMenuWasVisible && settingsMenu != null) {
+                settingsMenu.show();
+                LOGGER.debug("Restored SettingsMenu visibility after rebuild");
+            }
+            
+            LOGGER.info("Successfully rebuilt menus with new window dimensions");
+        } else {
+            LOGGER.error("Cannot rebuild menus: default font is null");
+        }
     }
 }
