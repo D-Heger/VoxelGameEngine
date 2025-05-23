@@ -2,46 +2,62 @@ package de.heger.voxelengine.renderer.ui;
 
 import org.joml.Vector2f;
 
-@Deprecated
 public abstract class UIElement {
     protected Vector2f position;
     protected Vector2f size;
     protected boolean visible;
     protected float alpha; // For transparency
-    protected boolean mouseOver; // New: To track mouse hover state
-    protected boolean focused; // New: To track focus state
+    protected boolean mouseOver; // To track mouse hover state
+    protected boolean focused; // To track focus state
+    
+    // Performance optimization: track if bounds have changed
+    private boolean boundsDirty = true;
+    private float cachedLeft, cachedRight, cachedTop, cachedBottom;
 
     public UIElement(Vector2f position, Vector2f size) {
-        this.position = position;
-        this.size = size;
+        this.position = new Vector2f(position); // Defensive copy
+        this.size = new Vector2f(size); // Defensive copy
         this.visible = true;
         this.alpha = 1.0f;
-        this.mouseOver = false; // Initialize mouseOver state
-        this.focused = false; // Initialize focused state
+        this.mouseOver = false;
+        this.focused = false;
+        this.boundsDirty = true;
     }
 
     public Vector2f getPosition() {
-        return position;
+        return new Vector2f(position); // Return defensive copy
     }
 
     public void setPosition(Vector2f position) {
-        this.position = position;
+        if (!this.position.equals(position)) {
+            this.position.set(position);
+            this.boundsDirty = true;
+        }
     }
 
     public void setPosition(float x, float y) {
-        this.position.set(x, y);
+        if (this.position.x != x || this.position.y != y) {
+            this.position.set(x, y);
+            this.boundsDirty = true;
+        }
     }
 
     public Vector2f getSize() {
-        return size;
+        return new Vector2f(size); // Return defensive copy
     }
 
     public void setSize(Vector2f size) {
-        this.size = size;
+        if (!this.size.equals(size)) {
+            this.size.set(size);
+            this.boundsDirty = true;
+        }
     }
 
     public void setSize(float width, float height) {
-        this.size.set(width, height);
+        if (this.size.x != width || this.size.y != height) {
+            this.size.set(width, height);
+            this.boundsDirty = true;
+        }
     }
 
     public boolean isVisible() {
@@ -61,7 +77,22 @@ public abstract class UIElement {
     }
 
     /**
+     * Updates cached bounds if they're dirty. This optimization avoids
+     * recalculating bounds on every mouse over check.
+     */
+    private void updateCachedBounds() {
+        if (boundsDirty) {
+            cachedLeft = position.x;
+            cachedRight = position.x + size.x;
+            cachedTop = position.y;
+            cachedBottom = position.y + size.y;
+            boundsDirty = false;
+        }
+    }
+
+    /**
      * Checks if the given screen coordinates are within the bounds of this UI element.
+     * Optimized version that caches bounds calculations.
      * @param mouseX The x-coordinate of the mouse.
      * @param mouseY The y-coordinate of the mouse.
      * @return true if the mouse is over the element, false otherwise.
@@ -70,15 +101,15 @@ public abstract class UIElement {
         if (!visible) {
             return false;
         }
-        return mouseX >= position.x && mouseX <= position.x + size.x &&
-               mouseY >= position.y && mouseY <= position.y + size.y;
+        updateCachedBounds();
+        return mouseX >= cachedLeft && mouseX <= cachedRight &&
+               mouseY >= cachedTop && mouseY <= cachedBottom;
     }
 
     /**
      * Called when the mouse cursor enters the bounds of this element.
      */
     public void onMouseEnter() {
-        // Default implementation: subclasses can override
         this.mouseOver = true;
     }
 
@@ -86,7 +117,6 @@ public abstract class UIElement {
      * Called when the mouse cursor leaves the bounds of this element.
      */
     public void onMouseLeave() {
-        // Default implementation: subclasses can override
         this.mouseOver = false;
     }
 
@@ -109,8 +139,7 @@ public abstract class UIElement {
      * @return true if the event was handled by this element, false otherwise.
      */
     public boolean onMouseDown(int button, float mouseX, float mouseY) {
-        // Default implementation: subclasses can override
-        return false; // Indicates event not consumed
+        return false; // Default: event not consumed
     }
 
     /**
@@ -122,8 +151,7 @@ public abstract class UIElement {
      * @return true if the event was handled by this element, false otherwise.
      */
     public boolean onMouseUp(int button, float mouseX, float mouseY) {
-        // Default implementation: subclasses can override
-        return false; // Indicates event not consumed
+        return false; // Default: event not consumed
     }
 
     /**
@@ -135,8 +163,7 @@ public abstract class UIElement {
      * @return true if the event was handled by this element, false otherwise.
      */
     public boolean onClick(int button, float mouseX, float mouseY) {
-        // Default implementation: subclasses can override
-        return false; // Indicates event not consumed
+        return false; // Default: event not consumed
     }
 
     /**
@@ -146,8 +173,7 @@ public abstract class UIElement {
      * @return true if the event was handled by this element, false otherwise.
      */
     public boolean onScroll(float deltaX, float deltaY) {
-        // Default implementation: subclasses can override
-        return false; // Indicates event not consumed
+        return false; // Default: event not consumed
     }
 
     /**
@@ -168,7 +194,10 @@ public abstract class UIElement {
      * Cleans up any resources used by the UI element.
      */
     public void cleanup() {
-        // Default implementation does nothing
+        // Reset state
+        mouseOver = false;
+        focused = false;
+        boundsDirty = true;
     }
 
     // --- Focus Management --- 
@@ -210,8 +239,7 @@ public abstract class UIElement {
      * @return true if the event was handled, false otherwise.
      */
     public boolean onCharTyped(char character) {
-        // Default implementation: subclasses can override
-        return false; // Indicates event not consumed
+        return false; // Default: event not consumed
     }
 
     /**
@@ -222,8 +250,7 @@ public abstract class UIElement {
      * @return true if the event was handled, false otherwise.
      */
     public boolean onKeyPressed(int key, int mods) {
-        // Default implementation: subclasses can override
-        return false; // Indicates event not consumed
+        return false; // Default: event not consumed
     }
     
     /**
@@ -233,7 +260,6 @@ public abstract class UIElement {
      * @return true if the event was handled, false otherwise.
      */
     public boolean onKeyReleased(int key, int mods) {
-        // Default implementation: subclasses can override
-        return false; // Indicates event not consumed
+        return false; // Default: event not consumed
     }
 } 

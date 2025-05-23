@@ -84,8 +84,7 @@ public class GameLoop {
     // Track previous window dimensions for proper resize detection
     private int previousWindowWidth = -1;
     private int previousWindowHeight = -1;
-    private double lastResizeTime = 0.0;
-    private static final double RESIZE_REBUILD_DELAY = 0.1; // 100ms delay to avoid rapid rebuilds
+    private volatile boolean needsMenuRebuild = false;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
@@ -359,10 +358,10 @@ public class GameLoop {
         }
         
         // Check for delayed menu rebuild after window resize
-        if (lastResizeTime > 0 && (GLFW.glfwGetTime() - lastResizeTime) >= RESIZE_REBUILD_DELAY) {
-            LOGGER.debug("Executing delayed menu rebuild after window resize");
+        if (needsMenuRebuild) {
+            LOGGER.debug("Executing menu rebuild after window resize");
             rebuildMenusIfVisible();
-            lastResizeTime = 0.0; // Reset the timer
+            needsMenuRebuild = false;
         }
     }
 
@@ -575,18 +574,13 @@ public class GameLoop {
             return;
         }
         
-        // Update last resize time for delay mechanism
-        lastResizeTime = GLFW.glfwGetTime();
-        
         // Check if we need to rebuild UI components due to significant size changes
-        // This is especially important for fullscreen toggles and resolution changes
-        boolean needsMenuRebuild = shouldRebuildMenus(width, height);
+        boolean shouldRebuild = shouldRebuildMenus(width, height);
         
-        if (needsMenuRebuild) {
+        if (shouldRebuild) {
             LOGGER.info("Window dimensions changed significantly from {}x{} to {}x{}, scheduling menu rebuild...", 
                        previousWindowWidth, previousWindowHeight, width, height);
-            // Schedule rebuild to happen after delay to avoid rapid rebuilds
-            scheduleMenuRebuild();
+            needsMenuRebuild = true;
         }
         
         // Update tracking variables for next comparison

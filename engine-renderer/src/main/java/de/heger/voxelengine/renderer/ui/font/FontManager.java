@@ -9,12 +9,17 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class FontManager {
     private static final LoggerFacade LOGGER = LoggerFacade.get(FontManager.class);
-    private final Map<String, Font> fontCache = new HashMap<>();
+    
+    // Thread-safe cache using ConcurrentHashMap
+    private final ConcurrentHashMap<String, Font> fontCache = new ConcurrentHashMap<>();
+    
+    // Lock for font loading operations to prevent duplicate loading
+    private final ReentrantLock loadingLock = new ReentrantLock();
 
     // Default font properties
     public static final String DEFAULT_FONT_NAME = "Roboto-Regular";
@@ -40,16 +45,26 @@ public class FontManager {
     }
 
     public Font getDefaultFont() {
-        Font font = fontCache.get(DEFAULT_FONT_NAME + "_" + DEFAULT_FONT_SIZE);
+        String cacheKey = DEFAULT_FONT_NAME + "_" + DEFAULT_FONT_SIZE;
+        Font font = fontCache.get(cacheKey);
         if (font == null) {
+            // Use double-checked locking pattern for thread safety
+            loadingLock.lock();
             try {
-                font = loadFont(DEFAULT_FONT_NAME, DEFAULT_FONT_PATH, DEFAULT_FONT_SIZE, 
-                                DEFAULT_ATLAS_WIDTH, DEFAULT_ATLAS_HEIGHT, 
-                                DEFAULT_FIRST_CHAR, DEFAULT_NUM_CHARS);
-            } catch (IOException e) {
-                LOGGER.error("Failed to load default font: {}", DEFAULT_FONT_PATH, e);
-                // throw new RuntimeException("Could not load default font: " + DEFAULT_FONT_PATH, e);
-                return null; // Or some fallback mechanism
+                // Check again in case another thread loaded it while we were waiting
+                font = fontCache.get(cacheKey);
+                if (font == null) {
+                    try {
+                        font = loadFont(DEFAULT_FONT_NAME, DEFAULT_FONT_PATH, DEFAULT_FONT_SIZE, 
+                                        DEFAULT_ATLAS_WIDTH, DEFAULT_ATLAS_HEIGHT, 
+                                        DEFAULT_FIRST_CHAR, DEFAULT_NUM_CHARS);
+                    } catch (IOException e) {
+                        LOGGER.error("Failed to load default font: {}", DEFAULT_FONT_PATH, e);
+                        return null; // Or some fallback mechanism
+                    }
+                }
+            } finally {
+                loadingLock.unlock();
             }
         }
         return font;
@@ -58,26 +73,43 @@ public class FontManager {
     public Font loadFont(String fontName, String resourcePath, float fontSize, 
                          int atlasWidth, int atlasHeight, int firstChar, int numChars) throws IOException {
         String cacheKey = fontName + "_" + fontSize;
-        if (fontCache.containsKey(cacheKey)) {
-            return fontCache.get(cacheKey);
-        }
-
-        ByteBuffer ttfBuffer = ioResourceToByteBuffer(resourcePath, 1024 * 500); // 500KB buffer for font
         
-        Font font = new Font(fontName, fontSize, ttfBuffer, atlasWidth, atlasHeight, firstChar, numChars);
-        fontCache.put(cacheKey, font);
-        LOGGER.info("Loaded font: {} ({}) with size {}", fontName, resourcePath, fontSize);
-        
-        // The ttfBuffer was copied inside Font constructor, so we can free the one loaded here if it was direct.
-        // If ioResourceToByteBuffer allocates direct, it should be freed.
-        // For now, assume Font constructor handles its copy and this one might be GC'd if not direct,
-        // or needs explicit free if MemoryUtil.memAlloc was used by ioResourceToByteBuffer.
-        // Let's assume ioResourceToByteBuffer returns a buffer that needs to be freed if direct.
-        if (ttfBuffer.isDirect()) {
-            MemoryUtil.memFree(ttfBuffer);
+        // Check cache first (thread-safe read)
+        Font cachedFont = fontCache.get(cacheKey);
+        if (cachedFont != null) {
+            return cachedFont;
         }
+        
+        // Use lock to prevent duplicate loading
+        loadingLock.lock();
+        try {
+            // Double-check pattern: another thread might have loaded it while we waited
+            cachedFont = fontCache.get(cacheKey);
+            if (cachedFont != null) {
+                return cachedFont;
+            }
 
-        return font;
+            ByteBuffer ttfBuffer = ioResourceToByteBuffer(resourcePath, 1024 * 500); // 500KB buffer for font
+            
+            Font font = new Font(fontName, fontSize, ttfBuffer, atlasWidth, atlasHeight, firstChar, numChars);
+            
+            // Thread-safe put operation
+            fontCache.put(cacheKey, font);
+            LOGGER.info("Loaded font: {} ({}) with size {}", fontName, resourcePath, fontSize);
+            
+            // The ttfBuffer was copied inside Font constructor, so we can free the one loaded here if it was direct.
+            // If ioResourceToByteBuffer allocates direct, it should be freed.
+            // For now, assume Font constructor handles its copy and this one might be GC'd if not direct,
+            // or needs explicit free if MemoryUtil.memAlloc was used by ioResourceToByteBuffer.
+            // Let's assume ioResourceToByteBuffer returns a buffer that needs to be freed if direct.
+            if (ttfBuffer.isDirect()) {
+                MemoryUtil.memFree(ttfBuffer);
+            }
+
+            return font;
+        } finally {
+            loadingLock.unlock();
+        }
     }
 
     // Helper method to load a resource file into a ByteBuffer
@@ -118,12 +150,17 @@ public class FontManager {
 
     public void cleanup() {
         LOGGER.info("Cleaning up FontManager...");
-        for (Font font : fontCache.values()) {
-            if (font != null) {
-                font.cleanup();
+        loadingLock.lock();
+        try {
+            for (Font font : fontCache.values()) {
+                if (font != null) {
+                    font.cleanup();
+                }
             }
+            fontCache.clear();
+        } finally {
+            loadingLock.unlock();
         }
-        fontCache.clear();
         LOGGER.info("FontManager cleanup complete.");
     }
 }

@@ -17,6 +17,33 @@ public class UIRenderer {
     private final Matrix4f projectionMatrix;
 
     private float currentGlobalAlpha = 1.0f;
+    
+    // Cache GL state to avoid expensive queries every frame
+    private static class GLStateCache {
+        boolean depthTestEnabled = false;
+        boolean blendEnabled = false;
+        int blendSrc = GL_SRC_ALPHA;
+        int blendDst = GL_ONE_MINUS_SRC_ALPHA;
+        boolean stateInitialized = false;
+        
+        void initializeFromGL() {
+            if (!stateInitialized) {
+                depthTestEnabled = glIsEnabled(GL_DEPTH_TEST);
+                blendEnabled = glIsEnabled(GL_BLEND);
+                if (blendEnabled) {
+                    blendSrc = glGetInteger(GL_BLEND_SRC);
+                    blendDst = glGetInteger(GL_BLEND_DST);
+                }
+                stateInitialized = true;
+            }
+        }
+        
+        void reset() {
+            stateInitialized = false;
+        }
+    }
+    
+    private final GLStateCache glStateCache = new GLStateCache();
 
     public UIRenderer(Window window) throws IOException {
         try {
@@ -31,6 +58,8 @@ public class UIRenderer {
         window.addFramebufferSizeCallback((win, w, h) -> {
             if (w > 0 && h > 0) {
                 updateProjectionMatrix(w,h);
+                // Reset state cache on resize as context might change
+                glStateCache.reset();
             }
         });
     }
@@ -59,46 +88,74 @@ public class UIRenderer {
             return;
         }
 
-        // Save current GL state that we will change
-        boolean depthTestEnabled = glIsEnabled(GL_DEPTH_TEST);
-        boolean blendEnabled = glIsEnabled(GL_BLEND);
-        int blendSrc = glGetInteger(GL_BLEND_SRC);
-        int blendDst = glGetInteger(GL_BLEND_DST);
-        //int cullFaceEnabled = glIsEnabled(GL_CULL_FACE);
+        // Initialize state cache once per session
+        glStateCache.initializeFromGL();
 
-        // Setup GL state for UI rendering
-        if (depthTestEnabled) {
+        // Setup GL state for UI rendering - only change what we need to
+        boolean needRestoreDepthTest = false;
+        boolean needRestoreBlend = false;
+        boolean needRestoreBlendFunc = false;
+        
+        if (glStateCache.depthTestEnabled) {
             glDisable(GL_DEPTH_TEST);
+            needRestoreDepthTest = true;
         }
-        if (!blendEnabled) {
+        
+        if (!glStateCache.blendEnabled) {
             glEnable(GL_BLEND);
+            needRestoreBlend = true;
         }
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // Standard alpha blending
-        //glDisable(GL_CULL_FACE); // UI elements are typically 2D, culling might not be desired or handled by shader
+        
+        // Check if we need to change blend function
+        int currentBlendSrc = glGetInteger(GL_BLEND_SRC);
+        int currentBlendDst = glGetInteger(GL_BLEND_DST);
+        if (currentBlendSrc != GL_SRC_ALPHA || currentBlendDst != GL_ONE_MINUS_SRC_ALPHA) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            needRestoreBlendFunc = true;
+        }
 
         uiShader.bind();
         uiShader.loadProjectionMatrix(projectionMatrix);
 
-        for (UIElement element : elementsToRender) {
-            if (element.isVisible()) {
-                // The element's render method will set its own model matrix, color, alpha, texture
-                element.render(this); 
-            }
-        }
+        // Batch render elements by type to minimize state changes
+        renderElementsBatched(elementsToRender);
 
         uiShader.unbind();
 
-        // Restore GL state
-        if (depthTestEnabled) {
+        // Restore only the GL state we actually changed
+        if (needRestoreDepthTest) {
             glEnable(GL_DEPTH_TEST);
         }
-        if (!blendEnabled) {
+        if (needRestoreBlend) {
             glDisable(GL_BLEND);
-        } else {
-            // Restore previous blend function if we knew it, otherwise default or standard
-             glBlendFunc(blendSrc, blendDst); // Restore old blend func
         }
-        //if(cullFaceEnabled) glEnable(GL_CULL_FACE);
+        if (needRestoreBlendFunc) {
+            glBlendFunc(glStateCache.blendSrc, glStateCache.blendDst);
+        }
+    }
+    
+    private void renderElementsBatched(List<UIElement> elements) {
+        // Simple batching: render all non-textured elements first, then textured ones
+        // This reduces texture binding state changes
+        
+        // First pass: non-textured elements (boxes, etc.)
+        for (UIElement element : elements) {
+            if (element.isVisible() && isNonTexturedElement(element)) {
+                element.render(this);
+            }
+        }
+        
+        // Second pass: textured elements (text, etc.)
+        for (UIElement element : elements) {
+            if (element.isVisible() && !isNonTexturedElement(element)) {
+                element.render(this);
+            }
+        }
+    }
+    
+    private boolean isNonTexturedElement(UIElement element) {
+        // Simple heuristic: BoxElement and ButtonElement backgrounds are non-textured
+        return element.getClass().getSimpleName().contains("Box");
     }
     
     public void updateElements(List<UIElement> elementsToUpdate, float deltaTime) {
@@ -115,7 +172,6 @@ public class UIRenderer {
         if (uiShader != null) {
             uiShader.cleanup();
         }
-        // Elements are no longer managed here, so no loop to clear/cleanup elements
-        // elements.clear(); // To be removed
+        glStateCache.reset();
     }
 } 

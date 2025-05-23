@@ -35,6 +35,12 @@ public class TextElement extends UIElement {
     private int indexCount = 0; // Number of indices
 
     private final Matrix4f modelMatrix = new Matrix4f();
+    
+    // Performance optimization: dirty flags to avoid unnecessary rebuilds
+    private boolean meshDirty = true;
+    private String lastBuiltText = null;
+    private Font lastBuiltFont = null;
+    private float lastBuiltScale = -1.0f;
 
     public TextElement(String text, Font font, Vector2f position, Vector4f color) {
         this(text, font, position, color, 1.0f);
@@ -46,10 +52,11 @@ public class TextElement extends UIElement {
         this.font = font;
         this.color = color;
         this.scale = scale;
+        this.meshDirty = true;
         if (font == null) {
             LOGGER.warn("TextElement created with null font for text: {}", text);
         }
-        buildMesh();
+        buildMeshIfNeeded();
     }
 
     public String getText() {
@@ -59,7 +66,7 @@ public class TextElement extends UIElement {
     public void setText(String text) {
         if (this.text == null || !this.text.equals(text)) {
             this.text = text;
-            buildMesh();
+            this.meshDirty = true;
         }
     }
 
@@ -70,10 +77,10 @@ public class TextElement extends UIElement {
     public void setFont(Font font) {
         if (this.font != font) {
             this.font = font;
+            this.meshDirty = true;
             if (font == null) {
                  LOGGER.warn("TextElement font set to null for text: {}", text);
             }
-            buildMesh();
         }
     }
 
@@ -92,8 +99,26 @@ public class TextElement extends UIElement {
     public void setScale(float scale) {
         if (this.scale != scale && scale > 0) {
             this.scale = scale;
-            buildMesh();
+            this.meshDirty = true;
         }
+    }
+    
+    private void buildMeshIfNeeded() {
+        // Check if rebuild is actually needed
+        if (!meshDirty && 
+            java.util.Objects.equals(text, lastBuiltText) &&
+            font == lastBuiltFont &&
+            scale == lastBuiltScale) {
+            return; // No rebuild needed
+        }
+        
+        buildMesh();
+        
+        // Update tracking variables
+        lastBuiltText = text;
+        lastBuiltFont = font;
+        lastBuiltScale = scale;
+        meshDirty = false;
     }
 
     private void buildMesh() {
@@ -215,6 +240,9 @@ public class TextElement extends UIElement {
 
     @Override
     public void render(UIRenderer renderer) {
+        // Ensure mesh is up-to-date before rendering
+        buildMeshIfNeeded();
+        
         if (!visible || vaoId == -1 || font == null || indexCount == 0) {
             return;
         }
@@ -247,6 +275,11 @@ public class TextElement extends UIElement {
     public void cleanup() {
         super.cleanup();
         cleanupMesh();
+        // Reset tracking variables
+        lastBuiltText = null;
+        lastBuiltFont = null;
+        lastBuiltScale = -1.0f;
+        meshDirty = false;
         LOGGER.trace("Cleaned up TextElement for text: {}", text);
     }
 } 

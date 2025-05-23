@@ -19,6 +19,10 @@ public class UIManager {
     private boolean initialized = false;
 
     private final List<UIElement> elements;
+    // Cache reversed elements list to avoid allocations every frame
+    private final List<UIElement> reversedElementsCache;
+    private boolean elementsOrderDirty = true;
+    
     private UIElement hoveredElement = null;
     private UIElement pressedElement = null;
     private UIElement focusedElement = null;
@@ -26,6 +30,7 @@ public class UIManager {
 
     public UIManager() {
         this.elements = new ArrayList<>();
+        this.reversedElementsCache = new ArrayList<>();
     }
 
     public void init(Window window) {
@@ -51,6 +56,7 @@ public class UIManager {
         }
         if (element != null && !elements.contains(element)) {
             elements.add(element);
+            elementsOrderDirty = true; // Mark cache as dirty
         }
     }
 
@@ -59,10 +65,20 @@ public class UIManager {
             LOGGER.error("UIManager not initialized. Cannot remove element.");
             return;
         }
-        elements.remove(element);
-        if (hoveredElement == element) hoveredElement = null;
+        if (elements.remove(element)) {
+            elementsOrderDirty = true; // Mark cache as dirty
+        }
+        
+        // Clean up references safely
+        if (hoveredElement == element) {
+            hoveredElement.onMouseLeave();
+            hoveredElement = null;
+        }
         if (pressedElement == element) pressedElement = null;
-        if (focusedElement == element) focusedElement = null;
+        if (focusedElement == element) {
+            focusedElement.onBlur();
+            focusedElement = null;
+        }
     }
 
     public void clearElements() {
@@ -71,11 +87,27 @@ public class UIManager {
             return;
         }
         elements.clear();
-        hoveredElement = null;
+        reversedElementsCache.clear();
+        elementsOrderDirty = true;
+        
+        // Clean up references
+        if (hoveredElement != null) {
+            hoveredElement.onMouseLeave();
+            hoveredElement = null;
+        }
         pressedElement = null;
         if (focusedElement != null) {
             focusedElement.onBlur();
             focusedElement = null;
+        }
+    }
+    
+    private void updateReversedElementsCache() {
+        if (elementsOrderDirty) {
+            reversedElementsCache.clear();
+            reversedElementsCache.addAll(elements);
+            Collections.reverse(reversedElementsCache);
+            elementsOrderDirty = false;
         }
     }
     
@@ -110,11 +142,11 @@ public class UIManager {
         float scrollX = (float) inputManager.getScrollDeltaX();
         float scrollY = (float) inputManager.getScrollDeltaY();
 
-        UIElement currentTopElement = null;
-        List<UIElement> reversedElements = new ArrayList<>(elements);
-        Collections.reverse(reversedElements);
+        // Update reversed elements cache if needed
+        updateReversedElementsCache();
 
-        for (UIElement element : reversedElements) {
+        UIElement currentTopElement = null;
+        for (UIElement element : reversedElementsCache) {
             if (element.isVisible() && element.isMouseOver(mouseX, mouseY)) {
                 currentTopElement = element;
                 break;
@@ -137,6 +169,7 @@ public class UIManager {
 
         if (hoveredElement != null && (scrollX != 0 || scrollY != 0)) {
             if (hoveredElement.onScroll(scrollX, scrollY)) {
+                // Event consumed
             }
         }
 
@@ -193,12 +226,14 @@ public class UIManager {
         Character typedChar;
         while ((typedChar = inputManager.pollTypedCharacter()) != null) {
             if (focusedElement.onCharTyped(typedChar)) {
+                // Event consumed
             }
         }
 
         for (int key = 0; key <= GLFW.GLFW_KEY_LAST; key++) {
             if (inputManager.isKeyPressed(key)) {
                 if (focusedElement.onKeyPressed(key, 0)) {
+                    // Event consumed
                 }
             }
         }
@@ -206,17 +241,15 @@ public class UIManager {
 
     public void render() {
         if (!initialized) {
-            // LOGGER.trace("UIManager not initialized or nothing to render."); // Can be too spammy
             return;
         }
-        uiRenderer.render(elements); // Pass elements to UIRenderer
+        uiRenderer.render(elements);
     }
     
     public void update(float deltaTime) {
         if (!initialized) {
             return;
         }
-        // Elements are updated directly by UIManager now
         for (UIElement element : elements) {
             if (element.isVisible()) {
                 element.update(deltaTime);
@@ -254,6 +287,7 @@ public class UIManager {
             element.cleanup();
         }
         elements.clear();
+        reversedElementsCache.clear();
         hoveredElement = null;
         pressedElement = null;
 
