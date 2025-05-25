@@ -79,6 +79,11 @@ public class Renderer {
     private static final boolean USE_OCCLUSION_CULLING = true;
     private static final int MESH_BUILDER_THREADS = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
 
+    // Static light direction to avoid allocations in render loop
+    private static final Vector3f DEFAULT_LIGHT_DIR = new Vector3f(-0.5f, -1.0f, -0.5f);
+    private static final String FALLBACK_TEXTURE_NAME = "core:block/dirt";
+    private Texture defaultFallbackTexture = null;
+
     private float currentTimeOfDay = 0.5f; // 0.0 (midnight) to 1.0 (next midnight), 0.5 is midday
 
     // Define light properties for key times
@@ -273,6 +278,16 @@ public class Renderer {
                 // textureMap.put(textureName, getMissingTexture());
             }
         }
+
+        // Attempt to set the default fallback texture
+        this.defaultFallbackTexture = textureMap.get(FALLBACK_TEXTURE_NAME);
+        if (this.defaultFallbackTexture == null) {
+            logger.warn("Configured default fallback texture '{}' not found in texture map. Submeshes with missing textures might not be rendered if their specific texture is also missing.", FALLBACK_TEXTURE_NAME);
+            // If FALLBACK_TEXTURE_NAME is not found, defaultFallbackTexture will remain null.
+            // This means if a chunk tries to use a missing texture, and the designated fallback is also missing, that part of the chunk won't render.
+        } else {
+            logger.info("Default fallback texture set to: '{}'", FALLBACK_TEXTURE_NAME);
+        }
     }
 
     /**
@@ -395,7 +410,7 @@ public class Renderer {
         defaultShaderProgram.setUniform("view", currentViewMatrix);
 
         // Set lighting uniforms using cached values
-        defaultShaderProgram.setUniform("lightDir", new Vector3f(-0.5f, -1.0f, -0.5f));
+        defaultShaderProgram.setUniform("lightDir", DEFAULT_LIGHT_DIR);
         defaultShaderProgram.setUniform("lightColor", cachedLightColor);
         defaultShaderProgram.setUniform("ambientColor", cachedAmbientColor);
         defaultShaderProgram.setUniform("ambientStrength", cachedAmbientStrength);
@@ -482,9 +497,6 @@ public class Renderer {
             this.occlusionCulledChunksLastFrame = 0; // No chunks culled by occlusion culling
         }
 
-        // Track occlusion culling statistics -- This line was redundant if lambda sets it.
-        // occlusionCulledChunksLastFrame = reusableChunkSet.size() - visibleChunks.size();
-
         // Process and render the visible chunks (now sorted closest to farthest)
         for (Chunk chunk : visibleChunks) {
             ChunkPos chunkPos = chunk.getPosition();
@@ -500,9 +512,10 @@ public class Renderer {
             
             // If it's truly EMPTY and has no meshes, that's fine, skip rebuild for that specific case.
             // The EMPTY state implies it was processed and found to have no geometry.
-            if (currentMeshState == ChunkMeshState.EMPTY && (meshesForChunk == null || meshesForChunk.isEmpty())) {
-                isUpToDateButMissingMeshes = false; 
-            }
+            // This block is redundant because currentMeshState != ChunkMeshState.EMPTY already handles it.
+            // if (currentMeshState == ChunkMeshState.EMPTY && (meshesForChunk == null || meshesForChunk.isEmpty())) {
+            //     isUpToDateButMissingMeshes = false; 
+            // }
 
             if ((needsRebuild || isUpToDateButMissingMeshes) && !pendingMeshTasks.containsKey(chunkPos)) {
                 if (meshesForChunk != null) { // Clean up any stray old meshes if they exist (should be rare for isUpToDateButMissingMeshes)
@@ -576,20 +589,13 @@ public class Renderer {
 
                 Texture textureToRender = textureMap.get(textureName);
                 if (textureToRender == null) {
-                    // logger.warn("Texture '{}' not found for chunk {}, submesh. Using
-                    // fallback/default?", textureName, chunkPos);
-                    // Optionally: bind a default "missing" texture
                     // For now, skip rendering this submesh if texture is missing to avoid GL errors
                     // or wrong textures.
-                    Texture fallbackTexture = textureMap.get("core:block/dirt"); // Example fallback
-                    if (fallbackTexture == null && !textureMap.isEmpty())
-                        fallbackTexture = textureMap.values().iterator().next();
-
-                    if (fallbackTexture != null) {
-                        fallbackTexture.bind(0);
+                    if (this.defaultFallbackTexture != null) {
+                        // logger.debug("Texture '{}' not found for chunk {}, submesh. Using default fallback texture.", textureName, chunkPos);
+                        this.defaultFallbackTexture.bind(0);
                     } else {
-                        // logger.error("No fallback texture available for chunk {}, submesh with
-                        // texture key '{}'", chunkPos, textureName);
+                        // logger.warn("Texture '{}' not found for chunk {} and no default fallback texture is set. Skipping render for this submesh.", textureName, chunkPos);
                         continue; // No texture, no render
                     }
                 } else {
