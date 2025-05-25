@@ -529,7 +529,7 @@ public class Renderer {
                 logger.debug("Submitting mesh data generation task for chunk {} (State: {}, MissingMeshes: {})...", chunkPos, currentMeshState, isUpToDateButMissingMeshes);
                 chunk.setMeshState(ChunkMeshState.BUILDING_DATA); 
 
-                final Chunk finalChunk = chunk;
+                Chunk finalChunk = chunk;
                 final ChunkManager finalChunkManager = chunkManager; 
                 final BlockRegistry finalBlockRegistry = blockRegistry; 
 
@@ -540,10 +540,16 @@ public class Renderer {
                     } catch (InterruptedException e) {
                         logger.warn("Mesh building thread for chunk {} interrupted.", finalChunk.getPosition());
                         Thread.currentThread().interrupt(); 
-                        finalChunk.setMeshState(ChunkMeshState.NEEDS_REBUILD); 
+                        // Ensure state is reset for the main thread to pick up
+                        synchronized(finalChunk) { // Synchronize state change
+                            finalChunk.setMeshState(ChunkMeshState.NEEDS_REBUILD); 
+                        }
                     } catch (Exception e) {
                         logger.error("Error building mesh data for chunk {}", finalChunk.getPosition(), e);
-                         finalChunk.setMeshState(ChunkMeshState.NEEDS_REBUILD); 
+                        // Ensure state is reset for the main thread to pick up
+                        synchronized(finalChunk) { // Synchronize state change
+                            finalChunk.setMeshState(ChunkMeshState.NEEDS_REBUILD); 
+                        }
                     } finally {
                         pendingMeshTasks.remove(finalChunk.getPosition()); 
                     }
@@ -551,10 +557,10 @@ public class Renderer {
                 pendingMeshTasks.put(chunkPos, task);
 
             } else if (meshesForChunk == null && (currentMeshState == ChunkMeshState.UP_TO_DATE || currentMeshState == ChunkMeshState.EMPTY)) {
-                 // This specific else-if was part of the original problem statement logic that was too broad.
-                 // The more precise isUpToDateButMissingMeshes condition above handles the necessary cases.
-                 // Keeping this path empty or removing it unless a very specific scenario is identified.
-                 // logger.debug("Chunk {} is {} but has no active meshes. State handled by primary rebuild logic if necessary.", chunkPos, currentMeshState);
+                // This specific else-if was part of the original problem statement logic that was too broad.
+                // The more precise isUpToDateButMissingMeshes condition above handles the necessary cases.
+                // Keeping this path empty or removing it unless a very specific scenario is identified.
+                // logger.debug("Chunk {} is {} but has no active meshes. State handled by primary rebuild logic if necessary.", chunkPos, currentMeshState);
             }
 
             if (meshesForChunk == null || meshesForChunk.isEmpty()) {
@@ -652,20 +658,49 @@ public class Renderer {
         CompletedMeshData completedData;
         while ((completedData = completedMeshDataQueue.poll()) != null) {
             ChunkPos chunkPos = completedData.chunkPos;
-            Chunk chunk = chunkManager.getChunk(chunkPos); // Get the latest chunk reference
+            Chunk chunk = chunkManager.getChunk(chunkPos); 
 
             if (chunk == null) {
                 logger.warn("Completed mesh data for chunk {} but chunk is no longer loaded. Discarding.", chunkPos);
-                // Clean up MeshData buffers if they are direct and need explicit management outside GC, though MeshData itself handles this for its internal buffers.
+                // MeshData buffers are direct and managed by GC or their direct release if not wrapped by ChunkMesh.
+                // If ChunkMesh was created, its cleanup would handle it. Here, MeshData is raw.
                 continue;
             }
             
-            // Mark chunk as ready for GL object creation or already building them.
-            // This synchronized block ensures that state changes and mesh updates are atomic with respect to other thread interactions with the chunk's meshState.
+            // The pendingMeshTasks.remove for this task is handled in the worker thread's finally block.
+            
             synchronized (chunk) { // Synchronize on the chunk object to protect its state
+                ChunkMeshState currentState = chunk.getMeshState();
+
+                if (currentState == ChunkMeshState.NEEDS_REBUILD) {
+                    logger.debug("Chunk {} is marked NEEDS_REBUILD. Discarding completed mesh data for {} as it's stale.", chunkPos, chunkPos);
+                    continue; 
+                }
+
+                if (completedData.isEmpty) {
+                    // Mesh data from worker thread indicates no renderable geometry.
+                    Map<String, ChunkMesh> oldMeshes = activeChunkMeshes.remove(chunkPos);
+                    if (oldMeshes != null) {
+                        logger.debug("Cleaning up old meshes for chunk {} as it's now confirmed empty.", chunkPos);
+                        for (ChunkMesh oldMesh : oldMeshes.values()) {
+                            oldMesh.cleanup();
+                        }
+                    }
+                    chunk.setMeshState(ChunkMeshState.EMPTY);
+                    logger.debug("Processed completed EMPTY mesh data for chunk {}. State set to EMPTY.", chunkPos);
+                    continue; 
+                }
+
+                // If we reach here, completedData is NOT empty.
+                if (currentState != ChunkMeshState.BUILDING_DATA && currentState != ChunkMeshState.BUILDING) {
+                    //BUILDING could be a valid intermediate if this process was somehow re-entrant for the same chunk, though unlikely with pendingMeshTasks.
+                    //Most common expected state here is BUILDING_DATA.
+                    logger.warn("Chunk {} state was {} (expected BUILDING_DATA or BUILDING) when non-empty mesh data completed. Proceeding to build meshes, but this might indicate an unexpected state transition.", chunkPos, currentState);
+                }
+                
                 chunk.setMeshState(ChunkMeshState.BUILDING); // Now we are building GL objects on the main thread
 
-                // Clean up any old meshes that might still be there, though the submission logic should also handle this.
+                // Clean up any old meshes that might still be there.
                 Map<String, ChunkMesh> oldMeshes = activeChunkMeshes.remove(chunkPos);
                 if (oldMeshes != null) {
                     logger.debug("Cleaning up old meshes for chunk {} before creating new ones from completed data.", chunkPos);
@@ -675,13 +710,19 @@ public class Renderer {
                 }
 
                 Map<String, ChunkMesh> newMeshesForChunk = new HashMap<>();
-                if (completedData.meshDataMap != null && !completedData.isEmpty) {
+                if (completedData.meshDataMap != null) { // Already checked completedData.isEmpty, so meshDataMap should have something.
                     for (Map.Entry<String, MeshData> entry : completedData.meshDataMap.entrySet()) {
                         MeshData md = entry.getValue();
-                        if (!md.isEmpty()) {
+                        if (!md.isEmpty()) { // Double check individual mesh data emptiness
                             // This is a GL call, must be on the main render thread
                             ChunkMesh newMesh = new ChunkMesh(md.getVertexBuffer(), md.getIndexBuffer());
-                            newMeshesForChunk.put(entry.getKey(), newMesh);
+                            if (!newMesh.isEmpty()) { // ChunkMesh constructor can also determine emptiness
+                                newMeshesForChunk.put(entry.getKey(), newMesh);
+                            } else {
+                                // MeshData had content, but ChunkMesh decided it's empty. Cleanup md's buffers if necessary (usually GC for direct buffers not owned by GL object).
+                                // Log this case if it's unexpected.
+                                logger.debug("MeshData for texture {} in chunk {} was not empty, but resulted in an empty ChunkMesh.", entry.getKey(), chunkPos);
+                            }
                         }
                     }
                 }
@@ -691,11 +732,14 @@ public class Renderer {
                     chunk.setMeshState(ChunkMeshState.UP_TO_DATE);
                     logger.debug("Created {} new submeshes for chunk {}. State: UP_TO_DATE", newMeshesForChunk.size(), chunkPos);
                 } else {
+                    // No renderable GL geometry was created, or original data was empty and handled above.
+                    // Ensure it's not in active meshes if it ended up empty.
+                    activeChunkMeshes.remove(chunkPos); // defensive removal
                     chunk.setMeshState(ChunkMeshState.EMPTY);
-                    logger.debug("No renderable geometry found for chunk {} after mesh data processing. State: EMPTY", chunkPos);
+                    logger.debug("No renderable geometry created for chunk {} after mesh data processing. State: EMPTY", chunkPos);
                 }
             } // end synchronized (chunk)
-            pendingMeshTasks.remove(chunkPos); // Ensure it's removed here too, in case the task completed but wasn't picked up by eviction logic
+            // pendingMeshTasks.remove(chunkPos); // Already handled by the worker thread's finally block.
         }
     }
 
