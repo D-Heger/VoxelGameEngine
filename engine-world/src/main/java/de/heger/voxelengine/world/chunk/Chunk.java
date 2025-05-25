@@ -353,12 +353,14 @@ public class Chunk {
      * This method is thread-safe.
      */
     public synchronized void flagForMeshRebuild() {
-        // Only transition to NEEDS_REBUILD if not already BUILDING
-        // If it's EMPTY or UP_TO_DATE, it definitely needs rebuild.
-        // If it's already NEEDS_REBUILD, no change.
-        // If it's BUILDING, let the current build process complete; it might pick up the latest changes
-        // or a subsequent check will flag it again. For now, don't interrupt BUILDING.
-        if (this.meshState != ChunkMeshState.BUILDING) { 
+        // Only transition to NEEDS_REBUILD if not already actively being processed.
+        // If it's BUILDING_DATA, the current data generation will run. If changes occur during this,
+        // it might not pick them up, and a subsequent check/event will flag it again.
+        // If it's BUILDING (GL objects from data), let that complete.
+        // If it's MESH_DATA_READY, it's about to become BUILDING, so similar logic applies.
+        if (this.meshState != ChunkMeshState.BUILDING_DATA && 
+            this.meshState != ChunkMeshState.BUILDING &&
+            this.meshState != ChunkMeshState.MESH_DATA_READY) { 
             this.meshState = ChunkMeshState.NEEDS_REBUILD;
         }
     }

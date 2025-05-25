@@ -5,6 +5,10 @@ import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 
+import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+
 import static org.lwjgl.opengl.GL11.GL_FLOAT;
 import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
 import static org.lwjgl.opengl.GL11.GL_UNSIGNED_INT;
@@ -15,6 +19,12 @@ import static org.lwjgl.opengl.GL30.*;
 /**
  * Represents the renderable geometry for a single chunk.
  * It encapsulates a VAO, VBO, and EBO for all visible faces within that chunk.
+ * 
+ * DIRECT MEMORY OPTIMIZATIONS:
+ * - Uses direct ByteBuffers (via BufferUtils.createFloatBuffer/createIntBuffer) for zero-copy OpenGL uploads
+ * - Accepts pre-flipped buffers to avoid unnecessary buffer operations
+ * - Buffers are consumed directly by glBufferData() without intermediate array copying
+ * - Memory is allocated off-heap for better GC performance
  */
 public class ChunkMesh {
 
@@ -27,12 +37,15 @@ public class ChunkMesh {
     /**
      * Creates a new ChunkMesh from the given vertex and index data.
      * Vertex data is expected to be interleaved: 3 position floats, 2 UV floats, 3 normal floats.
+     * 
+     * Note: The buffers should be positioned at the start of the data to upload and have their
+     * limit set to the end of the data. The buffers will be consumed (position will advance).
      *
-     * @param vertices The vertex data. If null or empty, the mesh will be marked as empty.
-     * @param indices The index data. If null or empty (and vertices is not), the mesh will be marked as empty.
+     * @param vertexBuffer The vertex data as a FloatBuffer. If null or empty, the mesh will be marked as empty.
+     * @param indexBuffer The index data as an IntBuffer. If null or empty (and vertices is not), the mesh will be marked as empty.
      */
-    public ChunkMesh(float[] vertices, int[] indices) {
-        if (vertices == null || vertices.length == 0 || indices == null || indices.length == 0) {
+    public ChunkMesh(FloatBuffer vertexBuffer, IntBuffer indexBuffer) {
+        if (vertexBuffer == null || !vertexBuffer.hasRemaining() || indexBuffer == null || !indexBuffer.hasRemaining()) {
             this.isEmpty = true;
             this.vaoId = 0;
             this.vboId = 0;
@@ -42,7 +55,7 @@ public class ChunkMesh {
         }
 
         this.isEmpty = false;
-        this.vertexCount = indices.length;
+        this.vertexCount = indexBuffer.remaining();
 
         vaoId = glGenVertexArrays();
         glBindVertexArray(vaoId);
@@ -50,7 +63,7 @@ public class ChunkMesh {
         // VBO for vertex data
         vboId = glGenBuffers();
         glBindBuffer(GL_ARRAY_BUFFER, vboId);
-        glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, vertexBuffer, GL_STATIC_DRAW);
 
         // Define Vertex Attributes (3 pos, 2 tex, 3 normal)
         int stride = (3 + 2 + 3) * Float.BYTES;
@@ -70,7 +83,7 @@ public class ChunkMesh {
         // EBO for indices
         eboId = glGenBuffers();
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBuffer, GL_STATIC_DRAW);
 
         // Unbind VAO (and VBO/EBO implicitly by binding 0)
         glBindVertexArray(0);

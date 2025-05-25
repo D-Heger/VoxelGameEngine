@@ -20,6 +20,7 @@ import de.heger.voxelengine.core.math.Vec3i;
 import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.renderer.mesh.ChunkMesh;
 import de.heger.voxelengine.renderer.mesh.ChunkMeshBuilder;
+import de.heger.voxelengine.renderer.mesh.MeshData;
 import de.heger.voxelengine.world.chunk.ChunkMeshState;
 import de.heger.voxelengine.renderer.debug.WireframeRenderer;
 
@@ -39,6 +40,11 @@ import java.util.Set;
 import java.util.List;
 import java.util.Comparator;
 import java.util.ArrayList;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Future;
 
 public class Renderer {
 
@@ -71,6 +77,7 @@ public class Renderer {
     private final Matrix4f viewProjectionMatrixForCulling = new Matrix4f();
 
     private static final boolean USE_OCCLUSION_CULLING = true;
+    private static final int MESH_BUILDER_THREADS = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
 
     private float currentTimeOfDay = 0.5f; // 0.0 (midnight) to 1.0 (next midnight), 0.5 is midday
 
@@ -104,6 +111,33 @@ public class Renderer {
     
     // OPTIMIZATION: Threshold for time-based recalculation
     private static final float TIME_CALCULATION_THRESHOLD = 0.001f;
+
+    // For asynchronous mesh building
+    private ExecutorService meshBuilderExecutor;
+    private BlockingQueue<CompletedMeshData> completedMeshDataQueue;
+    private final Map<ChunkPos, Future<?>> pendingMeshTasks = new HashMap<>(); // To avoid re-submitting tasks
+
+    // Helper class to store result from mesh building threads
+    private static class CompletedMeshData {
+        final ChunkPos chunkPos;
+        final Map<String, MeshData> meshDataMap;
+        final boolean isEmpty; // Indicates if the generated mesh data resulted in no renderable geometry
+
+        CompletedMeshData(ChunkPos chunkPos, Map<String, MeshData> meshDataMap) {
+            this.chunkPos = chunkPos;
+            this.meshDataMap = meshDataMap;
+            boolean trulyEmpty = true;
+            if (meshDataMap != null) {
+                for (MeshData md : meshDataMap.values()) {
+                    if (!md.isEmpty()) {
+                        trulyEmpty = false;
+                        break;
+                    }
+                }
+            }
+            this.isEmpty = trulyEmpty;
+        }
+    }
 
     public Renderer(Window window) {
         this.window = window;
@@ -173,6 +207,14 @@ public class Renderer {
             logger.error("Failed to load block textures", e);
             throw new RuntimeException("Failed to initialize block textures", e);
         }
+
+        this.meshBuilderExecutor = Executors.newFixedThreadPool(MESH_BUILDER_THREADS, r -> {
+            Thread t = new Thread(r);
+            t.setName("MeshBuilderThread-" + t.getId());
+            t.setDaemon(true); // Allow JVM to exit if only daemon threads are running
+            return t;
+        });
+        this.completedMeshDataQueue = new LinkedBlockingQueue<>();
 
         logger.info("OpenGL context initialized successfully.");
     }
@@ -332,6 +374,9 @@ public class Renderer {
             return;
         }
 
+        // Process completed mesh data from background threads
+        processCompletedMeshData();
+
         // OPTIMIZATION: Update lighting only when needed
         updateLightingIfNeeded();
         
@@ -405,63 +450,111 @@ public class Renderer {
             reusableChunkSet.add(chunk);
         }
 
+        // Prepare a list of frustum-culled chunks and sort it by distance to camera (closest first)
+        reusableChunkList.clear();
+        reusableChunkList.addAll(reusableChunkSet);
+
+        final Vector3f cameraPosForSorting = camera.getPosition(); // Capture camera position for sorting
+        reusableChunkList.sort(Comparator.comparingDouble(aChunk -> { // Renamed lambda param for clarity
+            if (aChunk == null) return Double.MAX_VALUE; // Should not happen if input `chunks` is clean
+            Vec3i worldPos = CoordinateUtils.chunkOriginToWorldCoords(aChunk.getPosition());
+            return cameraPosForSorting.distanceSquared(
+                worldPos.x + Chunk.SIZE_X / 2f, 
+                worldPos.y + Chunk.SIZE_Y / 2f, 
+                worldPos.z + Chunk.SIZE_Z / 2f
+            );
+        }));
+
         Collection<Chunk> visibleChunks;
         if (occlusionCuller != null && USE_OCCLUSION_CULLING) {
-            // OPTIMIZATION: Reuse list instead of creating new one
-            reusableChunkList.clear();
-            reusableChunkList.addAll(reusableChunkSet);
-            final Vector3f cameraPos = camera.getPosition();
-            reusableChunkList.sort(Comparator.comparingDouble(chunk -> {
-                Vec3i worldPos = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
-                // Use Chunk.SIZE_X for cubic chunk dimensions
-                return cameraPos.distanceSquared(worldPos.x + Chunk.SIZE_X / 2f, worldPos.y + Chunk.SIZE_Y / 2f,
-                        worldPos.z + Chunk.SIZE_Z / 2f);
-            }));
-
+            // Occlusion culler now takes the already sorted list.
+            // The lambda within filterOccludedChunks is expected to set occlusionCulledChunksLastFrame.
             visibleChunks = occlusionCuller.filterOccludedChunks(
-                    reusableChunkList,
-                    camera.getPosition(),
+                    reusableChunkList, // Pass the sorted list
+                    cameraPosForSorting, // Reuse captured camera position
                     camera.getFront(),
-                    (occludedCount) -> this.occlusionCulledChunksLastFrame = occludedCount // Corrected lambda usage
-                                                                                           // based on new signature
+                    (occludedCount) -> this.occlusionCulledChunksLastFrame = occludedCount
             );
+            // The 'occlusionCulledChunksLastFrame' is set by the lambda passed to filterOccludedChunks.
+            // No need for: this.occlusionCulledChunksLastFrame = reusableChunkList.size() - visibleChunks.size();
         } else {
-            visibleChunks = reusableChunkSet;
+            visibleChunks = new ArrayList<>(reusableChunkList); // Use the sorted list directly (copy for safety if modification occurs later)
+            this.occlusionCulledChunksLastFrame = 0; // No chunks culled by occlusion culling
         }
 
-        // Track occlusion culling statistics
-        occlusionCulledChunksLastFrame = reusableChunkSet.size() - visibleChunks.size();
+        // Track occlusion culling statistics -- This line was redundant if lambda sets it.
+        // occlusionCulledChunksLastFrame = reusableChunkSet.size() - visibleChunks.size();
 
-        // Process and render the visible chunks
+        // Process and render the visible chunks (now sorted closest to farthest)
         for (Chunk chunk : visibleChunks) {
             ChunkPos chunkPos = chunk.getPosition();
             reusableChunkPosSet.add(chunkPos);
 
-            // Get or build mesh for the chunk
             Map<String, ChunkMesh> meshesForChunk = activeChunkMeshes.get(chunkPos);
+            ChunkMeshState currentMeshState = chunk.getMeshState();
 
-            if (meshesForChunk == null || chunk.getMeshState() == ChunkMeshState.NEEDS_REBUILD) {
-                if (meshesForChunk != null) { // Old meshes exist, clean them up
-                    logger.debug("Chunk {} needs rebuild, cleaning old meshes.", chunkPos);
+            boolean needsRebuild = currentMeshState == ChunkMeshState.NEEDS_REBUILD;
+            boolean isUpToDateButMissingMeshes = (currentMeshState == ChunkMeshState.UP_TO_DATE || currentMeshState == ChunkMeshState.EMPTY) && 
+                                                 (meshesForChunk == null || meshesForChunk.isEmpty()) && 
+                                                 currentMeshState != ChunkMeshState.EMPTY; // Don't rebuild if it was processed and found to be EMPTY
+            
+            // If it's truly EMPTY and has no meshes, that's fine, skip rebuild for that specific case.
+            // The EMPTY state implies it was processed and found to have no geometry.
+            if (currentMeshState == ChunkMeshState.EMPTY && (meshesForChunk == null || meshesForChunk.isEmpty())) {
+                isUpToDateButMissingMeshes = false; 
+            }
+
+            if ((needsRebuild || isUpToDateButMissingMeshes) && !pendingMeshTasks.containsKey(chunkPos)) {
+                if (meshesForChunk != null) { // Clean up any stray old meshes if they exist (should be rare for isUpToDateButMissingMeshes)
+                    logger.debug("Chunk {} is {} or marked for rebuild and missing meshes, cleaning old GL meshes (if any) before async build.", chunkPos, currentMeshState);
                     for (ChunkMesh oldMesh : meshesForChunk.values()) {
                         oldMesh.cleanup();
                     }
+                    activeChunkMeshes.remove(chunkPos); 
                 }
-                logger.debug("Building mesh for chunk {} (State: {})...", chunkPos, chunk.getMeshState());
-                // Critical section: set state to BUILDING, build, then set to UP_TO_DATE /
-                // EMPTY
-                // For now, synchronous build. Asynchronous would need more complex state
-                // handling.
-                chunk.setMeshState(ChunkMeshState.BUILDING); // Mark as building
-                meshesForChunk = ChunkMeshBuilder.buildMeshesByTexture(chunk, chunkManager, blockRegistry);
-                activeChunkMeshes.put(chunkPos, meshesForChunk);
-                chunk.setMeshState(meshesForChunk.isEmpty() ? ChunkMeshState.EMPTY : ChunkMeshState.UP_TO_DATE);
-                logger.debug("Finished building mesh for chunk {}, found {} submeshes. New state: {}",
-                        chunkPos, meshesForChunk.size(), chunk.getMeshState());
+
+                logger.debug("Submitting mesh data generation task for chunk {} (State: {}, MissingMeshes: {})...", chunkPos, currentMeshState, isUpToDateButMissingMeshes);
+                chunk.setMeshState(ChunkMeshState.BUILDING_DATA); 
+
+                final Chunk finalChunk = chunk;
+                final ChunkManager finalChunkManager = chunkManager; 
+                final BlockRegistry finalBlockRegistry = blockRegistry; 
+
+                Future<?> task = meshBuilderExecutor.submit(() -> {
+                    try {
+                        Map<String, MeshData> generatedData = ChunkMeshBuilder.generateMeshDataByTexture(finalChunk, finalChunkManager, finalBlockRegistry);
+                        completedMeshDataQueue.put(new CompletedMeshData(finalChunk.getPosition(), generatedData));
+                    } catch (InterruptedException e) {
+                        logger.warn("Mesh building thread for chunk {} interrupted.", finalChunk.getPosition());
+                        Thread.currentThread().interrupt(); 
+                        finalChunk.setMeshState(ChunkMeshState.NEEDS_REBUILD); 
+                    } catch (Exception e) {
+                        logger.error("Error building mesh data for chunk {}", finalChunk.getPosition(), e);
+                         finalChunk.setMeshState(ChunkMeshState.NEEDS_REBUILD); 
+                    } finally {
+                        pendingMeshTasks.remove(finalChunk.getPosition()); 
+                    }
+                });
+                pendingMeshTasks.put(chunkPos, task);
+
+            } else if (meshesForChunk == null && (currentMeshState == ChunkMeshState.UP_TO_DATE || currentMeshState == ChunkMeshState.EMPTY)) {
+                 // This specific else-if was part of the original problem statement logic that was too broad.
+                 // The more precise isUpToDateButMissingMeshes condition above handles the necessary cases.
+                 // Keeping this path empty or removing it unless a very specific scenario is identified.
+                 // logger.debug("Chunk {} is {} but has no active meshes. State handled by primary rebuild logic if necessary.", chunkPos, currentMeshState);
             }
 
-            if (meshesForChunk.isEmpty()) {
-                continue; // Nothing to render for this chunk
+            if (meshesForChunk == null || meshesForChunk.isEmpty()) {
+                if (currentMeshState != ChunkMeshState.BUILDING_DATA &&
+                    currentMeshState != ChunkMeshState.MESH_DATA_READY &&
+                    currentMeshState != ChunkMeshState.NEEDS_REBUILD && /* Already handled by submission logic */
+                    currentMeshState != ChunkMeshState.BUILDING) { /* Handled by processCompletedMeshData */
+                    // If chunk is UP_TO_DATE or EMPTY but has no mesh, it's fine, means it's truly empty or was processed.
+                } else if (meshesForChunk != null && meshesForChunk.isEmpty() && (currentMeshState == ChunkMeshState.UP_TO_DATE || currentMeshState == ChunkMeshState.EMPTY)) {
+                    // This is fine, chunk has been processed and found to be empty or is up-to-date with empty mesh.
+                }
+                // Don't render if no meshes or still processing
+                continue;
             }
 
             // Calculate chunk's world origin ONCE for all its sub-meshes
@@ -525,16 +618,21 @@ public class Renderer {
         // OPTIMIZATION: Use iterator to avoid creating new entry set
         activeChunkMeshes.entrySet().removeIf(entry -> {
             ChunkPos pos = entry.getKey();
-            if (!reusableChunkPosSet.contains(pos)) {
-                logger.debug("Evicting and cleaning meshes for chunk {} (no longer visible/loaded).", pos);
+            Chunk chunk = chunkManager.getChunk(pos); // Check if chunk still exists and its state
+
+            if (!reusableChunkPosSet.contains(pos) || (chunk != null && chunk.getMeshState() == ChunkMeshState.NEEDS_REBUILD)) {
+                // If chunk is no longer in the "visible/should be active" set OR
+                // if the chunk itself has been marked for rebuild (e.g., by block change)
+                // then evict its meshes.
+                logger.debug("Evicting and cleaning meshes for chunk {} (no longer visible/loaded or marked for rebuild).", pos);
                 for (ChunkMesh mesh : entry.getValue().values()) {
                     mesh.cleanup();
                 }
-                // P4-T5.2: Also remove from AABB cache
                 AABB removedAABB = chunkAABBCache.remove(pos);
                 if (removedAABB != null) {
-                    logger.debug("Removed AABB for chunk {} from cache.", pos);
+                    // logger.debug("Removed AABB for chunk {} from cache.", pos);
                 }
+                pendingMeshTasks.remove(pos); // Cancel/remove any pending build for this chunk if it's being evicted
                 return true; // Remove from activeChunkMeshes
             }
             return false;
@@ -544,8 +642,78 @@ public class Renderer {
         // follow
     }
 
+    private void processCompletedMeshData() {
+        CompletedMeshData completedData;
+        while ((completedData = completedMeshDataQueue.poll()) != null) {
+            ChunkPos chunkPos = completedData.chunkPos;
+            Chunk chunk = chunkManager.getChunk(chunkPos); // Get the latest chunk reference
+
+            if (chunk == null) {
+                logger.warn("Completed mesh data for chunk {} but chunk is no longer loaded. Discarding.", chunkPos);
+                // Clean up MeshData buffers if they are direct and need explicit management outside GC, though MeshData itself handles this for its internal buffers.
+                continue;
+            }
+            
+            // Mark chunk as ready for GL object creation or already building them.
+            // This synchronized block ensures that state changes and mesh updates are atomic with respect to other thread interactions with the chunk's meshState.
+            synchronized (chunk) { // Synchronize on the chunk object to protect its state
+                chunk.setMeshState(ChunkMeshState.BUILDING); // Now we are building GL objects on the main thread
+
+                // Clean up any old meshes that might still be there, though the submission logic should also handle this.
+                Map<String, ChunkMesh> oldMeshes = activeChunkMeshes.remove(chunkPos);
+                if (oldMeshes != null) {
+                    logger.debug("Cleaning up old meshes for chunk {} before creating new ones from completed data.", chunkPos);
+                    for (ChunkMesh oldMesh : oldMeshes.values()) {
+                        oldMesh.cleanup();
+                    }
+                }
+
+                Map<String, ChunkMesh> newMeshesForChunk = new HashMap<>();
+                if (completedData.meshDataMap != null && !completedData.isEmpty) {
+                    for (Map.Entry<String, MeshData> entry : completedData.meshDataMap.entrySet()) {
+                        MeshData md = entry.getValue();
+                        if (!md.isEmpty()) {
+                            // This is a GL call, must be on the main render thread
+                            ChunkMesh newMesh = new ChunkMesh(md.getVertexBuffer(), md.getIndexBuffer());
+                            newMeshesForChunk.put(entry.getKey(), newMesh);
+                        }
+                    }
+                }
+
+                if (!newMeshesForChunk.isEmpty()) {
+                    activeChunkMeshes.put(chunkPos, newMeshesForChunk);
+                    chunk.setMeshState(ChunkMeshState.UP_TO_DATE);
+                    logger.debug("Created {} new submeshes for chunk {}. State: UP_TO_DATE", newMeshesForChunk.size(), chunkPos);
+                } else {
+                    chunk.setMeshState(ChunkMeshState.EMPTY);
+                    logger.debug("No renderable geometry found for chunk {} after mesh data processing. State: EMPTY", chunkPos);
+                }
+            } // end synchronized (chunk)
+            pendingMeshTasks.remove(chunkPos); // Ensure it's removed here too, in case the task completed but wasn't picked up by eviction logic
+        }
+    }
+
     public void cleanup() {
         logger.info("Cleaning up Renderer resources...");
+
+        // Shutdown mesh builder executor
+        if (meshBuilderExecutor != null) {
+            logger.debug("Shutting down mesh builder executor...");
+            meshBuilderExecutor.shutdown();
+            try {
+                // Wait a while for existing tasks to terminate
+                if (!meshBuilderExecutor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    meshBuilderExecutor.shutdownNow(); // Cancel currently executing tasks
+                    // Wait a while for tasks to respond to being cancelled
+                    if (!meshBuilderExecutor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS))
+                        logger.error("Mesh builder executor did not terminate.");
+                }
+            } catch (InterruptedException ie) {
+                meshBuilderExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            logger.debug("Mesh builder executor shut down.");
+        }
 
         // Cleanup shaders
         if (defaultShaderProgram != null) {

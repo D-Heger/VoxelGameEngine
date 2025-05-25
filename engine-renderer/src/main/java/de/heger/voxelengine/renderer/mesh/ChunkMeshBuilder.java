@@ -15,8 +15,9 @@ import java.util.Map;
 import java.util.HashMap;
 
 /**
- * Builds a {@link ChunkMesh} for a given {@link Chunk}.
- * It collects all visible faces of the blocks within the chunk and consolidates them into a single mesh.
+ * Builds {@link MeshData} for a given {@link Chunk}.
+ * It collects all visible faces of the blocks within the chunk and consolidates them into mesh data,
+ * grouped by texture. This class is designed to be used by background threads for mesh generation.
  */
 public class ChunkMeshBuilder {
 
@@ -68,17 +69,23 @@ public class ChunkMeshBuilder {
     private static final int[] FACE_INDICES = {0, 1, 2, 0, 2, 3}; // Standard quad indices (CCW)
     private static final int FLOATS_PER_VERTEX = 3 + 2 + 3; // Pos (3) + UV (2) + Normal (3)
     private static final String DEFAULT_TEXTURE_KEY = "core:block/unknown_texture_fallback";
+    
+    // Pre-allocated arrays for bulk operations to avoid repeated allocations
+    private static final ThreadLocal<float[]> TEMP_VERTICES = ThreadLocal.withInitial(() -> new float[32]); // 4 vertices * 8 floats per vertex
+    private static final ThreadLocal<int[]> TEMP_INDICES = ThreadLocal.withInitial(() -> new int[6]); // 6 indices per face
 
     /**
-     * Builds a map of texture names to {@link ChunkMesh} objects for the given chunk.
+     * Generates a map of texture names to {@link MeshData} objects for the given chunk.
+     * This method is safe to call from multiple threads as it only processes chunk data
+     * and does not perform any OpenGL operations.
      *
-     * @param chunk The chunk to build meshes for.
+     * @param chunk The chunk to generate mesh data for.
      * @param chunkManager The chunk manager to access neighbor chunks.
      * @param blockRegistry The block registry to access block properties.
-     * @return A map where keys are texture names and values are the corresponding ChunkMesh objects.
+     * @return A map where keys are texture names and values are the corresponding MeshData objects.
      *         Returns an empty map if the input is invalid or no visible geometry is found.
      */
-    public static Map<String, ChunkMesh> buildMeshesByTexture(Chunk chunk, ChunkManager chunkManager, BlockRegistry blockRegistry) {
+    public static Map<String, MeshData> generateMeshDataByTexture(Chunk chunk, ChunkManager chunkManager, BlockRegistry blockRegistry) {
         if (chunk == null || chunkManager == null || blockRegistry == null) {
             return new HashMap<>(); // Return an empty map
         }
@@ -105,20 +112,34 @@ public class ChunkMeshBuilder {
 
                             float[] faceVertices = getFaceVertices(faceDir);
 
+                            // Use thread-local pre-allocated arrays for better performance
+                            float[] transformedVertices = TEMP_VERTICES.get();
+                            int[] transformedIndices = TEMP_INDICES.get();
+
+                            // Transform vertex data in bulk
                             for (int i = 0; i < faceVertices.length; i += FLOATS_PER_VERTEX) {
-                                currentMeshData.vertexList.add(faceVertices[i] + x + 0.5f);
-                                currentMeshData.vertexList.add(faceVertices[i + 1] + y + 0.5f);
-                                currentMeshData.vertexList.add(faceVertices[i + 2] + z + 0.5f);
-                                currentMeshData.vertexList.add(faceVertices[i + 3]); // U
-                                currentMeshData.vertexList.add(faceVertices[i + 4]); // V
-                                currentMeshData.vertexList.add(faceVertices[i + 5]); // NX
-                                currentMeshData.vertexList.add(faceVertices[i + 6]); // NY
-                                currentMeshData.vertexList.add(faceVertices[i + 7]); // NZ
+                                // Transform position coordinates
+                                transformedVertices[i] = faceVertices[i] + x + 0.5f;     // X
+                                transformedVertices[i + 1] = faceVertices[i + 1] + y + 0.5f; // Y
+                                transformedVertices[i + 2] = faceVertices[i + 2] + z + 0.5f; // Z
+                                // Copy UV and normal data as-is
+                                transformedVertices[i + 3] = faceVertices[i + 3]; // U
+                                transformedVertices[i + 4] = faceVertices[i + 4]; // V
+                                transformedVertices[i + 5] = faceVertices[i + 5]; // NX
+                                transformedVertices[i + 6] = faceVertices[i + 6]; // NY
+                                transformedVertices[i + 7] = faceVertices[i + 7]; // NZ
                             }
 
-                            for (int index : FACE_INDICES) {
-                                currentMeshData.indexList.add(currentMeshData.currentIndexOffset + index);
+                            // Add all vertices in bulk for better performance
+                            currentMeshData.addVertices(transformedVertices, 0, faceVertices.length);
+
+                            // Transform indices in bulk
+                            for (int i = 0; i < FACE_INDICES.length; i++) {
+                                transformedIndices[i] = currentMeshData.currentIndexOffset + FACE_INDICES[i];
                             }
+
+                            // Add all indices in bulk for better performance
+                            currentMeshData.addIndices(transformedIndices, 0, FACE_INDICES.length);
                             currentMeshData.incrementVertexOffset(4); // Each face adds 4 vertices
                         }
                     }
@@ -129,11 +150,13 @@ public class ChunkMeshBuilder {
         Map<String, ChunkMesh> finalMeshes = new HashMap<>();
         for (Map.Entry<String, MeshData> entry : meshDataMap.entrySet()) {
             MeshData md = entry.getValue();
-            if (!md.vertexList.isEmpty() && !md.indexList.isEmpty()) {
-                finalMeshes.put(entry.getKey(), new ChunkMesh(md.vertexList.toFloatArray(), md.indexList.toIntArray()));
+            if (!md.isEmpty()) {
+                // finalMeshes.put(entry.getKey(), new ChunkMesh(md.getVertexBuffer(), md.getIndexBuffer()));
+                // We no longer create ChunkMesh here. The caller (Renderer) will do it on the main thread.
             }
         }
-        return finalMeshes;
+        // Return the meshDataMap directly
+        return meshDataMap;
     }
 
     private static float[] getFaceVertices(Direction direction) {
