@@ -632,19 +632,32 @@ public class Renderer {
             ChunkPos pos = entry.getKey();
             Chunk chunk = chunkManager.getChunk(pos); // Check if chunk still exists and its state
 
-            if (!reusableChunkPosSet.contains(pos) || (chunk != null && chunk.getMeshState() == ChunkMeshState.NEEDS_REBUILD)) {
-                // If chunk is no longer in the "visible/should be active" set OR
-                // if the chunk itself has been marked for rebuild (e.g., by block change)
-                // then evict its meshes.
-                logger.debug("Evicting and cleaning meshes for chunk {} (no longer visible/loaded or marked for rebuild).", pos);
+            boolean shouldEvict = false;
+            if (chunk == null) { // Chunk is no longer loaded by ChunkManager
+                shouldEvict = true;
+                logger.debug("Evicting meshes for unloaded chunk {}.", pos);
+            } else if (chunk.getMeshState() == ChunkMeshState.NEEDS_REBUILD) { // Chunk is loaded but marked for rebuild (e.g. block change)
+                shouldEvict = true;
+                // This log might be redundant if the rebuild submission path also logs cleanup.
+                // logger.debug("Evicting meshes for chunk {} marked NEEDS_REBUILD, pending new build.", pos);
+            }
+            // Future consideration: Evict meshes for chunks that are loaded and UP_TO_DATE,
+            // but haven't been rendered for a significant period (e.g., an LRU cache for meshes
+            // of chunks not in `reusableChunkPosSet` over time).
+            // For now, this simpler logic reduces churn from temporary culling.
+
+            if (shouldEvict) {
+                logger.debug("Evicting and cleaning GL meshes for chunk {}.", pos);
                 for (ChunkMesh mesh : entry.getValue().values()) {
                     mesh.cleanup();
                 }
-                AABB removedAABB = chunkAABBCache.remove(pos);
-                if (removedAABB != null) {
-                    // logger.debug("Removed AABB for chunk {} from cache.", pos);
+                chunkAABBCache.remove(pos);
+
+                Future<?> pendingTask = pendingMeshTasks.remove(pos);
+                if (pendingTask != null && !pendingTask.isDone()) {
+                    pendingTask.cancel(true); // Attempt to interrupt the task if it's running
+                    logger.debug("Cancelled pending mesh build task for evicted chunk {}.", pos);
                 }
-                pendingMeshTasks.remove(pos); // Cancel/remove any pending build for this chunk if it's being evicted
                 return true; // Remove from activeChunkMeshes
             }
             return false;
@@ -664,6 +677,8 @@ public class Renderer {
                 logger.warn("Completed mesh data for chunk {} but chunk is no longer loaded. Discarding.", chunkPos);
                 // MeshData buffers are direct and managed by GC or their direct release if not wrapped by ChunkMesh.
                 // If ChunkMesh was created, its cleanup would handle it. Here, MeshData is raw.
+                // No active GL meshes to clean here as the chunk is gone, eviction should have handled them.
+                pendingMeshTasks.remove(chunkPos); // Ensure it's removed if somehow still there (worker's finally should get it)
                 continue;
             }
             
@@ -674,18 +689,24 @@ public class Renderer {
 
                 if (currentState == ChunkMeshState.NEEDS_REBUILD) {
                     logger.debug("Chunk {} is marked NEEDS_REBUILD. Discarding completed mesh data for {} as it's stale.", chunkPos, chunkPos);
+                    // Old meshes (if any) will be handled by the rebuild process or eviction.
+                    // Don't alter activeChunkMeshes here based on stale data.
                     continue; 
+                }
+
+                // Regardless of new data, if there were old GL meshes, they are now stale or being replaced.
+                // Remove and clean them up.
+                Map<String, ChunkMesh> oldMeshesForChunk = activeChunkMeshes.remove(chunkPos);
+                if (oldMeshesForChunk != null) {
+                    logger.debug("Removed and cleaning up old GL meshes for chunk {} to process new mesh data.", chunkPos);
+                    for (ChunkMesh oldMesh : oldMeshesForChunk.values()) {
+                        oldMesh.cleanup();
+                    }
                 }
 
                 if (completedData.isEmpty) {
                     // Mesh data from worker thread indicates no renderable geometry.
-                    Map<String, ChunkMesh> oldMeshes = activeChunkMeshes.remove(chunkPos);
-                    if (oldMeshes != null) {
-                        logger.debug("Cleaning up old meshes for chunk {} as it's now confirmed empty.", chunkPos);
-                        for (ChunkMesh oldMesh : oldMeshes.values()) {
-                            oldMesh.cleanup();
-                        }
-                    }
+                    // Old meshes already removed and cleaned above.
                     chunk.setMeshState(ChunkMeshState.EMPTY);
                     logger.debug("Processed completed EMPTY mesh data for chunk {}. State set to EMPTY.", chunkPos);
                     continue; 
@@ -700,15 +721,6 @@ public class Renderer {
                 
                 chunk.setMeshState(ChunkMeshState.BUILDING); // Now we are building GL objects on the main thread
 
-                // Clean up any old meshes that might still be there.
-                Map<String, ChunkMesh> oldMeshes = activeChunkMeshes.remove(chunkPos);
-                if (oldMeshes != null) {
-                    logger.debug("Cleaning up old meshes for chunk {} before creating new ones from completed data.", chunkPos);
-                    for (ChunkMesh oldMesh : oldMeshes.values()) {
-                        oldMesh.cleanup();
-                    }
-                }
-
                 Map<String, ChunkMesh> newMeshesForChunk = new HashMap<>();
                 if (completedData.meshDataMap != null) { // Already checked completedData.isEmpty, so meshDataMap should have something.
                     for (Map.Entry<String, MeshData> entry : completedData.meshDataMap.entrySet()) {
@@ -719,8 +731,7 @@ public class Renderer {
                             if (!newMesh.isEmpty()) { // ChunkMesh constructor can also determine emptiness
                                 newMeshesForChunk.put(entry.getKey(), newMesh);
                             } else {
-                                // MeshData had content, but ChunkMesh decided it's empty. Cleanup md's buffers if necessary (usually GC for direct buffers not owned by GL object).
-                                // Log this case if it's unexpected.
+                                // MeshData had content, but ChunkMesh decided it's empty.
                                 logger.debug("MeshData for texture {} in chunk {} was not empty, but resulted in an empty ChunkMesh.", entry.getKey(), chunkPos);
                             }
                         }
@@ -732,11 +743,10 @@ public class Renderer {
                     chunk.setMeshState(ChunkMeshState.UP_TO_DATE);
                     logger.debug("Created {} new submeshes for chunk {}. State: UP_TO_DATE", newMeshesForChunk.size(), chunkPos);
                 } else {
-                    // No renderable GL geometry was created, or original data was empty and handled above.
-                    // Ensure it's not in active meshes if it ended up empty.
-                    activeChunkMeshes.remove(chunkPos); // defensive removal
+                    // No renderable GL geometry was created from the (non-empty) mesh data, or original data was empty and handled above.
+                    // activeChunkMeshes already had chunkPos removed.
                     chunk.setMeshState(ChunkMeshState.EMPTY);
-                    logger.debug("No renderable geometry created for chunk {} after mesh data processing. State: EMPTY", chunkPos);
+                    logger.debug("No renderable geometry created for chunk {} after mesh data processing (all sub-meshes from data were empty). State: EMPTY", chunkPos);
                 }
             } // end synchronized (chunk)
             // pendingMeshTasks.remove(chunkPos); // Already handled by the worker thread's finally block.
