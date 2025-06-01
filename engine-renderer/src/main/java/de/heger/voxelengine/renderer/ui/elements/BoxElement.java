@@ -11,6 +11,7 @@ import org.lwjgl.system.MemoryStack;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.List;
 
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
@@ -25,8 +26,15 @@ public class BoxElement extends UIElement {
     private int indexCount = 0;
     private final Matrix4f modelMatrix = new Matrix4f();
 
+    public BoxElement(Vector4f color) {
+        super();
+        this.color = color;
+    }
+
     public BoxElement(Vector2f position, Vector2f size, Vector4f color) {
-        super(position, size);
+        super();
+        super.setPosition(position);
+        super.setSize(size);
         this.color = color;
         buildMesh();
     }
@@ -50,10 +58,10 @@ public class BoxElement extends UIElement {
     @Override
     public void setSize(float width, float height) {
         Vector2f newSize = new Vector2f(width, height);
-        if (!this.size.equals(newSize)) {
-            LOGGER.debug("BoxElement size changing from {}x{} to {}x{}", this.size.x, this.size.y, width, height);
-            this.size.set(newSize);
-            buildMesh(); // Rebuild mesh if size changes
+        if (!this.size.equals(newSize) || vaoId == -1) {
+            LOGGER.debug("BoxElement size changing from {}x{} to {}x{} (or mesh not built)", this.size.x, this.size.y, width, height);
+            super.setSize(width, height);
+            buildMesh();
         }
     }
 
@@ -111,21 +119,34 @@ public class BoxElement extends UIElement {
 
     @Override
     public void render(UIRenderer renderer) {
-        if (!visible || vaoId == -1 || indexCount == 0) {
+        if (!visible) {
             return;
         }
 
-        UIShader shader = renderer.getUIShader();
-        
-        shader.loadUseTexture(false); // Tell shader not to use a texture
-        modelMatrix.identity().translate(position.x, position.y, 0);
-        shader.loadModelMatrix(modelMatrix);
-        shader.loadColor(this.color);
-        shader.loadAlpha(this.alpha * renderer.getCurrentAlpha());
+        // Render the box itself if its mesh is valid
+        if (vaoId != -1 && indexCount > 0 && this.size.x > 0 && this.size.y > 0) {
+            UIShader shader = renderer.getUIShader();
+            shader.loadUseTexture(false); // Tell shader not to use a texture
+            // Use getComputedPosition() to ensure correct placement by layout system
+            Vector2f screenPos = getComputedPosition(); 
+            modelMatrix.identity().translate(screenPos.x, screenPos.y, 0);
+            shader.loadModelMatrix(modelMatrix);
+            shader.loadColor(this.color);
+            shader.loadAlpha(this.alpha * renderer.getCurrentAlpha());
 
-        glBindVertexArray(vaoId);
-        glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
+            glBindVertexArray(vaoId);
+            glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+        }
+
+        // Render children, regardless of the parent box's own rendering
+        if (children != null && !children.isEmpty()) {
+            for (UIElement child : children) {
+                if (child.isVisible()) {
+                    child.render(renderer);
+                }
+            }
+        }
     }
 
     private void cleanupMesh() {
@@ -140,5 +161,22 @@ public class BoxElement extends UIElement {
         super.cleanup();
         cleanupMesh();
         LOGGER.trace("Cleaned up BoxElement");
+    }
+
+    @Override
+    public void update(float deltaTime) {
+        super.update(deltaTime);
+
+        if (isNeedsLayoutUpdate()) {
+            updateLayout();
+        }
+
+        if (children != null) {
+            for (UIElement child : children) {
+                if (child.isVisible()) {
+                    child.update(deltaTime);
+                }
+            }
+        }
     }
 } 

@@ -210,18 +210,23 @@ public class SettingsMenu {
     }
     
     private void updateDynamicTexts() {
-        if (vsyncValueText != null) vsyncValueText.setText(config.isVsync() ? "ON" : "OFF");
-        if (fullscreenValueText != null) fullscreenValueText.setText(config.isFullscreen() ? "ON" : "OFF");
+        if (vsyncValueText != null) {
+            vsyncValueText.setText(config.isVsync() ? "ON" : "OFF");
+            vsyncValueText.buildMeshIfNeeded();
+        }
+        if (fullscreenValueText != null) {
+            fullscreenValueText.setText(config.isFullscreen() ? "ON" : "OFF");
+            fullscreenValueText.buildMeshIfNeeded();
+        }
         if (resolutionValueText != null) {
             ResolutionItem currentRes = availableResolutions.get(currentResolutionIndex);
             resolutionValueText.setText(currentRes.toString());
+            resolutionValueText.buildMeshIfNeeded();
         }
         if (viewDistanceValueText != null) {
-             // This text element is now more of a label, the actual value is part of the label for view distance control row
-            // To display the numeric value like other settings, we can re-purpose it or add another TextElement
-            // For now, let's make it display the value like the others, and the button row can be for interaction
             if (!availableViewDistances.isEmpty()) {
                 viewDistanceValueText.setText(String.format(Locale.US, "%.0f", availableViewDistances.get(currentViewDistanceIndex)));
+                viewDistanceValueText.buildMeshIfNeeded();
             }
         }
         updateLayout();
@@ -294,7 +299,6 @@ public class SettingsMenu {
         initializeCurrentResolutionIndex(); // Ensure resolution index is synced with config
         initializeCurrentViewDistanceIndex(); // Ensure view distance index is synced
         updateDynamicTexts(); 
-        updateLayout();
         for (UIElement element : menuElements) {
             element.setVisible(true);
             uiManager.addElement(element);
@@ -345,28 +349,44 @@ public class SettingsMenu {
         // VSync Layout
         if (vsyncButton != null && vsyncValueText != null) {
             vsyncButton.setPosition(column1X - vsyncButton.getSize().x / 2, currentY); // Centered in its column part
-            vsyncValueText.setPosition(column2X - vsyncValueText.getSize().x / 2, currentY + buttonHeight / 2); // Centered with button
+            float valueTextHeight = vsyncValueText.getSize().y;
+            float valueTextScale = vsyncValueText.getScale();
+            float valueTextVisualAscent = font.getAscent() * valueTextScale;
+            float valueTextBlockTopY = currentY + (buttonHeight - valueTextHeight) / 2.0f;
+            vsyncValueText.setPosition(column2X, valueTextBlockTopY + valueTextVisualAscent);
             currentY += buttonHeight + itemSpacingY;
         }
 
         // Fullscreen Layout
         if (fullscreenButton != null && fullscreenValueText != null) {
             fullscreenButton.setPosition(column1X - fullscreenButton.getSize().x / 2, currentY);
-            fullscreenValueText.setPosition(column2X - fullscreenValueText.getSize().x / 2, currentY + buttonHeight / 2);
+            float valueTextHeight = fullscreenValueText.getSize().y;
+            float valueTextScale = fullscreenValueText.getScale();
+            float valueTextVisualAscent = font.getAscent() * valueTextScale;
+            float valueTextBlockTopY = currentY + (buttonHeight - valueTextHeight) / 2.0f;
+            fullscreenValueText.setPosition(column2X, valueTextBlockTopY + valueTextVisualAscent);
             currentY += buttonHeight + itemSpacingY;
         }
 
         // Resolution Layout
         if (cycleResolutionButton != null && resolutionValueText != null) {
             cycleResolutionButton.setPosition(column1X - cycleResolutionButton.getSize().x / 2, currentY);
-            resolutionValueText.setPosition(column2X - resolutionValueText.getSize().x / 2, currentY + buttonHeight / 2);
+            float valueTextHeight = resolutionValueText.getSize().y;
+            float valueTextScale = resolutionValueText.getScale();
+            float valueTextVisualAscent = font.getAscent() * valueTextScale;
+            float valueTextBlockTopY = currentY + (buttonHeight - valueTextHeight) / 2.0f;
+            resolutionValueText.setPosition(column2X, valueTextBlockTopY + valueTextVisualAscent);
             currentY += buttonHeight + itemSpacingY;
         }
 
         // View Distance Layout (New: Similar to Resolution)
         if (cycleViewDistanceButton != null && viewDistanceValueText != null) {
             cycleViewDistanceButton.setPosition(column1X - cycleViewDistanceButton.getSize().x / 2, currentY);
-            viewDistanceValueText.setPosition(column2X - viewDistanceValueText.getSize().x / 2, currentY + buttonHeight / 2);
+            float valueTextHeight = viewDistanceValueText.getSize().y;
+            float valueTextScale = viewDistanceValueText.getScale();
+            float valueTextVisualAscent = font.getAscent() * valueTextScale;
+            float valueTextBlockTopY = currentY + (buttonHeight - valueTextHeight) / 2.0f;
+            viewDistanceValueText.setPosition(column2X, valueTextBlockTopY + valueTextVisualAscent);
             currentY += buttonHeight + itemSpacingY;
         }
 

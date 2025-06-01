@@ -62,32 +62,49 @@ public class ButtonElement extends UIElement {
         updateAppearance();
     }
 
-    private void updateLayout() {
+    public void updateLayout() {
         if (textElement == null || backgroundElement == null) return;
 
         // Ensure textElement's content is up-to-date for size calculation
         textElement.setText(this.text);
         textElement.setFont(this.font);
         textElement.setScale(this.textScale);
-        // TextElement's size is based on its content and scale.
+        textElement.buildMeshIfNeeded(); // Ensures textElement.getSize() is accurate
 
         if (autoSize) {
             float textWidth = textElement.getSize().x;
-            float textHeight = textElement.getSize().y; // This is the actual height of the text mesh
+            float textHeight = textElement.getSize().y;
 
             float newButtonWidth = textWidth + (2 * paddingHorizontal);
             float newButtonHeight = textHeight + (2 * paddingVertical);
             super.setSize(newButtonWidth, newButtonHeight); // Update Button's own size
         }
 
-        // Background takes the full size of the button, positioned at button's local origin
         backgroundElement.setSize(this.size);
-        // backgroundElement's position will be set to this.position in render()
 
-        // Position textElement centered within the button (absolute coordinates).
-        float textAbsX = this.position.x + (this.size.x - textElement.getSize().x) / 2.0f;
-        float textAbsY = this.position.y + textElement.getSize().y;
-        textElement.setPosition(textAbsX, textAbsY);
+        // Position textElement centered within the button.
+        // Assumes textElement.position is its BASELINE.
+        // Button's this.position is its TOP-LEFT.
+        float buttonTopLeftX = this.position.x;
+        float buttonTopLeftY = this.position.y;
+        float buttonWidth = this.size.x;
+        float buttonHeight = this.size.y;
+
+        float textContentWidth = textElement.getSize().x;
+        float textElementHeight = textElement.getSize().y; // This is font.getLineHeight() * textElement.getScale()
+
+        float textBaselineX = buttonTopLeftX + (buttonWidth - textContentWidth) / 2.0f;
+
+        // Align baseline of text such that the text block appears vertically centered.
+        // Top of text block = buttonTopLeftY + (buttonHeight - textElementHeight) / 2.0f
+        // Baseline Y = Top of text block + (font.getAscent() * textElement.getScale())
+        // Note: font.getAscent() returns a value already scaled by font's internal scale factor for its target pixel height.
+        // textElement.getScale() is an additional scale factor applied in TextElement.
+        float textVisualAscent = font.getAscent() * textElement.getScale();
+        float textBlockTopY = buttonTopLeftY + (buttonHeight - textElementHeight) / 2.0f;
+        float textBaselineY = textBlockTopY + textVisualAscent;
+
+        textElement.setPosition(textBaselineX, textBaselineY);
     }
 
     private void updateAppearance() {

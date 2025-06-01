@@ -67,6 +67,10 @@ public class TextElement extends UIElement {
         if (this.text == null || !this.text.equals(text)) {
             this.text = text;
             this.meshDirty = true;
+            this.needsLayoutUpdate = true; // Text content change affects layout
+            if (this.parent != null) {
+                this.parent.setNeedsLayoutUpdate(true);
+            }
         }
     }
 
@@ -78,6 +82,10 @@ public class TextElement extends UIElement {
         if (this.font != font) {
             this.font = font;
             this.meshDirty = true;
+            this.needsLayoutUpdate = true; // Font change affects layout
+            if (this.parent != null) {
+                this.parent.setNeedsLayoutUpdate(true);
+            }
             if (font == null) {
                  LOGGER.warn("TextElement font set to null for text: {}", text);
             }
@@ -100,10 +108,14 @@ public class TextElement extends UIElement {
         if (this.scale != scale && scale > 0) {
             this.scale = scale;
             this.meshDirty = true;
+            this.needsLayoutUpdate = true; // Scale change affects layout
+            if (this.parent != null) {
+                this.parent.setNeedsLayoutUpdate(true);
+            }
         }
     }
     
-    private void buildMeshIfNeeded() {
+    public void buildMeshIfNeeded() {
         // Check if rebuild is actually needed
         if (!meshDirty && 
             java.util.Objects.equals(text, lastBuiltText) &&

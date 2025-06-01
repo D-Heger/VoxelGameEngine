@@ -12,77 +12,83 @@
 
 ## Phase 1: Core UI Systems (Foundation)
 
-- [ ] **Task ID:** UI-P1-T1
+- [x] **Task ID:** UI-P1-T1
   - **Name:** Enhance `UIElement` Base Class
   - **Description:** Extend the existing `UIElement` class with properties and methods to support the new UI system as outlined in section 3.1 of `ui_refactor_plan.md`.
   - **Phase:** 1 - Core UI Systems
   - **Dependencies:** Existing `UIElement` class (`engine-renderer/src/main/java/de/heger/voxelengine/renderer/ui/UIElement.java`)
   - **Subtasks:**
-    - [ ] **Subtask ID:** UI-P1-T1.1
+    - [x] **Subtask ID:** UI-P1-T1.1
       - **Name:** Add Core Properties
       - **Description:** Add `parent`, `children` (List), `anchorPoint`, `positioningMode` (Enum: `ABSOLUTE`, `RELATIVE_TO_PARENT`), `margin` (Insets class), `padding` (Insets class), `minSize`, `maxSize`, `preferredSize`, `layout` (LayoutManager reference), `needsLayoutUpdate`, `needsRenderUpdate`.
-    - [ ] **Subtask ID:** UI-P1-T1.2
+    - [x] **Subtask ID:** UI-P1-T1.2
       - **Name:** Implement Core Methods
       - **Description:** Implement `addChild(UIElement child)`, `removeChild(UIElement child)`, a basic `updateLayout()` stub, `getComputedPosition()`, `getComputedSize()`, and `getBoundingBox()`.
-    - [ ] **Subtask ID:** UI-P1-T1.3
+    - [x] **Subtask ID:** UI-P1-T1.3
       - **Name:** Create `Insets` Class
       - **Description:** Implement a simple class (e.g., `Insets.java`) to handle margin and padding values (top, right, bottom, left).
-  - **Implementation Context:** (TBD)
+  - **Implementation Context:** Created `Insets.java`, `PositioningMode.java` enum, and a placeholder `LayoutManager.java` interface. Added new properties and core methods to `UIElement.java`, including `addChild`, `removeChild`, `updateLayout` (stub), `getComputedPosition`, `getComputedSize`, and `getBoundingBox`.
 
-- [ ] **Task ID:** UI-P1-T2
+- [x] **Task ID:** UI-P1-T2
   - **Name:** Implement Basic Layout Managers
   - **Description:** Create the `LayoutManager` interface and implement `VerticalListLayout` and `HorizontalListLayout` as described in section 3.2 of `ui_refactor_plan.md`.
   - **Phase:** 1 - Core UI Systems
   - **Dependencies:** UI-P1-T1
   - **Subtasks:**
-    - [ ] **Subtask ID:** UI-P1-T2.1
+    - [x] **Subtask ID:** UI-P1-T2.1
       - **Name:** Define `LayoutManager` Interface
       - **Description:** Create `LayoutManager.java` with `arrangeChildren(UIElement container, List<UIElement> children)` and `calculatePreferredSize(UIElement container, List<UIElement> children)` methods.
-    - [ ] **Subtask ID:** UI-P1-T2.2
+    - [x] **Subtask ID:** UI-P1-T2.2
       - **Name:** Implement `VerticalListLayout`
       - **Description:** Implements arranging children in a vertical column, considering spacing, child alignment, margins, and padding.
-    - [ ] **Subtask ID:** UI-P1-T2.3
+    - [x] **Subtask ID:** UI-P1-T2.3
       - **Name:** Implement `HorizontalListLayout`
       - **Description:** Implements arranging children in a horizontal row, considering spacing, child alignment, margins, and padding.
-  - **Implementation Context:** (TBD)
+  - **Implementation Context:** Updated `LayoutManager.java` with method definitions. Created `VerticalListLayout.java` and `HorizontalListLayout.java` with alignment and spacing options, and implementations for `arrangeChildren` and `calculatePreferredSize`.
 
-- [ ] **Task ID:** UI-P1-T3
+- [x] **Task ID:** UI-P1-T3
   - **Name:** Integrate Basic Layout Updates
   - **Description:** Connect the layout system to `UIElement`. Implement logic for `needsLayoutUpdate` flag and triggering `updateLayout()` which then calls the assigned `LayoutManager`.
   - **Phase:** 1 - Core UI Systems
   - **Dependencies:** UI-P1-T1, UI-P1-T2
   - **Subtasks:**
-    - [ ] **Subtask ID:** UI-P1-T3.1
+    - [x] **Subtask ID:** UI-P1-T3.1
       - **Name:** Add `setLayout(LayoutManager)` to `UIElement`.
-    - [ ] **Subtask ID:** UI-P1-T3.2
+    - [x] **Subtask ID:** UI-P1-T3.2
       - **Name:** Implement `updateLayout()` in `UIElement` to call its `LayoutManager.arrangeChildren()` and `LayoutManager.calculatePreferredSize()`.
-    - [ ] **Subtask ID:** UI-P1-T3.3
+    - [x] **Subtask ID:** UI-P1-T3.3
       - **Name:** Ensure `needsLayoutUpdate` is set correctly when relevant properties (position, size, children, text content etc.) change.
-  - **Implementation Context:** (TBD)
+  - **Implementation Context:** Updated `UIElement.updateLayout()` to invoke layout manager methods. Ensured `needsLayoutUpdate` flag is set appropriately on property changes in `UIElement` and `TextElement` (for content changes).
 
-- [ ] **Task ID:** UI-P1-T4
+- [x] **Task ID:** UI-P1-T4
   - **Name:** Enhance `BoxElement` for Layout
   - **Description:** Update `BoxElement` to function as a basic container that can utilize the new layout system. Ensure its own size can be determined by its layout manager and children.
   - **Phase:** 1 - Core UI Systems
   - **Dependencies:** UI-P1-T1, UI-P1-T3, Existing `BoxElement.java`
   - **Subtasks:**
-    - [ ] **Subtask ID:** UI-P1-T4.1
+    - [x] **Subtask ID:** UI-P1-T4.1
       - **Name:** Allow `BoxElement` to have children and a `LayoutManager`.
-    - [ ] **Subtask ID:** UI-P1-T4.2
+    - [x] **Subtask ID:** UI-P1-T4.2
       - **Name:** Ensure `BoxElement.buildMesh()` is updated if its size changes due to layout.
-  - **Implementation Context:** (TBD)
+    - [x] **Subtask ID:** UI-P1-T4.3
+      - **Name:** Refactor usages of `BoxElement` accordingly.
+  - **Implementation Context:** Added a new constructor to `BoxElement` for layout-driven sizing. Updated `render()` and `update()` methods to process children. Ensured `setSize()` calls `super.setSize()` and then `buildMesh()`, covering size changes from layout. `render()` now uses `getComputedPosition()`. Analysis of existing `BoxElement` usages indicates no immediate forced refactoring, but `DebugMenu` is a candidate for later layout-driven sizing.
 
-- [ ] **Task ID:** UI-P1-T5
+- [x] **Task ID:** UI-P1-T5
   - **Name:** Enhance `TextElement` for Layout
   - **Description:** Update `TextElement` to integrate with the new layout system. Its `preferredSize` should be calculated based on its text content, font, and scale.
   - **Phase:** 1 - Core UI Systems
   - **Dependencies:** UI-P1-T1, UI-P1-T3, Existing `TextElement.java`
   - **Subtasks:**
-    - [ ] **Subtask ID:** UI-P1-T5.1
+    - [x] **Subtask ID:** UI-P1-T5.1
       - **Name:** Implement `preferredSize` calculation in `TextElement`.
-    - [ ] **Subtask ID:** UI-P1-T5.2
+    - [x] **Subtask ID:** UI-P1-T5.2
       - **Name:** Ensure `TextElement.buildMesh()` is called when text or scale changes, and `needsLayoutUpdate` is flagged for its parent.
-  - **Implementation Context:** (TBD)
+    - [x] **Subtask ID:** UI-P1-T5.3
+      - **Name:** Refactor usages of `TextElement` accordingly. Take special care of `ButtonElement` and ensure its text is centered inside the buttons background box.
+    - [x] **Subtask ID:** UI-P1-T5.4
+      - **Name:** Ensure `PauseMenu` and `SettingsMenu` are adjusted with the new layout system, including the changes to the `ButtonElement` class.
+  - **Implementation Context:** Verified that `TextElement.size` (used as preferred size by `UIElement.getPreferredSize()` if no explicit preferred size is set) is correctly calculated in `buildMeshIfNeeded()`. Setters in `TextElement` correctly flag `meshDirty` and `needsLayoutUpdate`. Modified `ButtonElement.updateLayout()` to call `textElement.buildMeshIfNeeded()` before calculations and corrected text centering logic. Changed `TextElement.buildMeshIfNeeded()` to `public`. No direct changes needed for `PauseMenu` or `SettingsMenu` for this task, as `ButtonElement`'s internal centering is now improved, and full menu layout refactoring is for UI-P3.
 
 ## Phase 2: UI Rendering and Interaction
 
