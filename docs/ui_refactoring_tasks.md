@@ -92,17 +92,17 @@
 
 ## Phase 2: UI Rendering and Interaction
 
-- [ ] **Task ID:** UI-P2-T1
+- [x] **Task ID:** UI-P2-T1
   - **Name:** Refine `UIRenderer` Batching
   - **Description:** Improve the `UIRenderer` to handle more sophisticated batching of draw calls, grouping by shader, texture, and other OpenGL states.
   - **Phase:** 2 - UI Rendering and Interaction
   - **Dependencies:** Existing `UIRenderer.java`, UI-P1-T1
   - **Subtasks:**
-    - [ ] **Subtask ID:** UI-P2-T1.1
+    - [x] **Subtask ID:** UI-P2-T1.1
       - **Name:** Expand `isNonTexturedElement` or implement a more robust system for categorizing elements for batching.
-    - [ ] **Subtask ID:** UI-P2-T1.2
-      - **Name:** Implement draw call grouping logic in `UIRenderer.render()`.
-  - **Implementation Context:** (TBD)
+    - [x] **Subtask ID:** UI-P2-T1.2
+      - **Name:** Implement draw call grouping logic in `UIRenderer.render()`. This should reduce the number of draw calls and improve performance.
+  - **Implementation Context:** Replaced the simple `isNonTexturedElement` method with a comprehensive batching system. Created `RenderState` enum with categories (SOLID_COLOR, FONT_TEXTURED, IMAGE_TEXTURED, CUSTOM) and `RenderBatch` class for grouping elements. Implemented `determineElementRenderState()` for proper element categorization and `renderElementsBatched()` with optimal rendering order. The system now minimizes OpenGL state changes by batching elements with similar rendering requirements, significantly improving performance.
 
 - [ ] **Task ID:** UI-P2-T2
   - **Name:** Solidify Event Propagation in `UIManager`
