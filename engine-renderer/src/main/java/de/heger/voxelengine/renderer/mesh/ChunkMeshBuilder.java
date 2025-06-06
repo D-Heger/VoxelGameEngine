@@ -147,7 +147,7 @@ public class ChunkMeshBuilder {
             }
         }
 
-        Map<String, ChunkMesh> finalMeshes = new HashMap<>();
+        //Map<String, ChunkMesh> finalMeshes = new HashMap<>();
         for (Map.Entry<String, MeshData> entry : meshDataMap.entrySet()) {
             MeshData md = entry.getValue();
             if (!md.isEmpty()) {
