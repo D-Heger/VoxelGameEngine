@@ -27,9 +27,24 @@ import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.opengl.GLUtil;
 import org.lwjgl.system.Callback;
 
-import java.util.*;
+import static org.lwjgl.opengl.GL11.glClear;
+import static org.lwjgl.opengl.GL11.glClearColor;
+import static org.lwjgl.opengl.GL11.glCullFace;
+import static org.lwjgl.opengl.GL11.glEnable;
+import static org.lwjgl.opengl.GL11.glGetString;
+import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
+import static org.lwjgl.opengl.GL11.GL_CULL_FACE;
+import static org.lwjgl.opengl.GL11.GL_BACK;
+import static org.lwjgl.opengl.GL30.glBindVertexArray;
+import static org.lwjgl.opengl.GL11.GL_VERSION;
 
-import static org.lwjgl.opengl.GL11.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The main rendering class for the voxel engine. It orchestrates the entire rendering process,
@@ -237,6 +252,7 @@ public class Renderer {
 
     private void renderVisibleChunks(Collection<Chunk> visibleChunks) {
         Matrix4f modelMatrix = reusableMatrix4f;
+        int lastBoundVaoId = 0;
 
         for (Chunk chunk : visibleChunks) {
             chunkMeshManager.ensureMeshForChunk(chunk);
@@ -261,6 +277,12 @@ public class Renderer {
 
                 textureToRender.bind(0);
 
+                int vaoId = chunkMeshToRender.getVaoId();
+                if (vaoId != lastBoundVaoId) {
+                    glBindVertexArray(vaoId);
+                    lastBoundVaoId = vaoId;
+                }
+
                 if (wireframeMode) {
                     wireframeRenderer.render(chunkMeshToRender);
                 } else {
@@ -269,6 +291,10 @@ public class Renderer {
                 renderStats.addIndices(chunkMeshToRender.getIndexCount());
                 renderStats.incrementDrawCalls();
             }
+        }
+
+        if (lastBoundVaoId != 0) {
+            glBindVertexArray(0);
         }
     }
 

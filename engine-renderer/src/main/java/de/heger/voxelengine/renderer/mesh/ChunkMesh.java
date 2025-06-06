@@ -1,29 +1,36 @@
 package de.heger.voxelengine.renderer.mesh;
 
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL15;
-import org.lwjgl.opengl.GL20;
-import org.lwjgl.opengl.GL30;
-
-import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 import static org.lwjgl.opengl.GL11.GL_FLOAT;
 import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
 import static org.lwjgl.opengl.GL11.GL_UNSIGNED_INT;
-import static org.lwjgl.opengl.GL15.*;
-import static org.lwjgl.opengl.GL20.*;
-import static org.lwjgl.opengl.GL30.*;
+import static org.lwjgl.opengl.GL15.glBindBuffer;
+import static org.lwjgl.opengl.GL15.glBufferData;
+import static org.lwjgl.opengl.GL15.glDeleteBuffers;
+import static org.lwjgl.opengl.GL15.glGenBuffers;
+import static org.lwjgl.opengl.GL30.glBindVertexArray;
+import static org.lwjgl.opengl.GL30.glDeleteVertexArrays;
+import static org.lwjgl.opengl.GL30.glGenVertexArrays;
+import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
+import static org.lwjgl.opengl.GL20.glEnableVertexAttribArray;
+import static org.lwjgl.opengl.GL20.glDisableVertexAttribArray;
+import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
+import static org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL11.glDrawElements;
 
 /**
  * Represents the renderable geometry for a single chunk.
  * It encapsulates a VAO, VBO, and EBO for all visible faces within that chunk.
  * 
  * DIRECT MEMORY OPTIMIZATIONS:
- * - Uses direct ByteBuffers (via BufferUtils.createFloatBuffer/createIntBuffer) for zero-copy OpenGL uploads
+ * - Uses direct ByteBuffers (via BufferUtils.createFloatBuffer/createIntBuffer)
+ * for zero-copy OpenGL uploads
  * - Accepts pre-flipped buffers to avoid unnecessary buffer operations
- * - Buffers are consumed directly by glBufferData() without intermediate array copying
+ * - Buffers are consumed directly by glBufferData() without intermediate array
+ * copying
  * - Memory is allocated off-heap for better GC performance
  */
 public class ChunkMesh {
@@ -36,16 +43,22 @@ public class ChunkMesh {
 
     /**
      * Creates a new ChunkMesh from the given vertex and index data.
-     * Vertex data is expected to be interleaved: 3 position floats, 2 UV floats, 3 normal floats.
+     * Vertex data is expected to be interleaved: 3 position floats, 2 UV floats, 3
+     * normal floats.
      * 
-     * Note: The buffers should be positioned at the start of the data to upload and have their
-     * limit set to the end of the data. The buffers will be consumed (position will advance).
+     * Note: The buffers should be positioned at the start of the data to upload and
+     * have their
+     * limit set to the end of the data. The buffers will be consumed (position will
+     * advance).
      *
-     * @param vertexBuffer The vertex data as a FloatBuffer. If null or empty, the mesh will be marked as empty.
-     * @param indexBuffer The index data as an IntBuffer. If null or empty (and vertices is not), the mesh will be marked as empty.
+     * @param vertexBuffer The vertex data as a FloatBuffer. If null or empty, the
+     *                     mesh will be marked as empty.
+     * @param indexBuffer  The index data as an IntBuffer. If null or empty (and
+     *                     vertices is not), the mesh will be marked as empty.
      */
     public ChunkMesh(FloatBuffer vertexBuffer, IntBuffer indexBuffer) {
-        if (vertexBuffer == null || !vertexBuffer.hasRemaining() || indexBuffer == null || !indexBuffer.hasRemaining()) {
+        if (vertexBuffer == null || !vertexBuffer.hasRemaining() || indexBuffer == null
+                || !indexBuffer.hasRemaining()) {
             this.isEmpty = true;
             this.vaoId = 0;
             this.vboId = 0;
@@ -94,14 +107,13 @@ public class ChunkMesh {
     /**
      * Renders the chunk mesh.
      * If the mesh is empty, this method does nothing.
+     * Assumes the correct VAO has already been bound by the caller.
      */
     public void render() {
         if (isEmpty) {
             return;
         }
-        glBindVertexArray(vaoId);
         glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
     }
 
     /**
@@ -136,10 +148,20 @@ public class ChunkMesh {
     }
 
     /**
+     * Gets the OpenGL handle for the Vertex Array Object.
+     *
+     * @return The VAO ID.
+     */
+    public int getVaoId() {
+        return vaoId;
+    }
+
+    /**
      * Gets the number of indices in this mesh (used for glDrawElements count).
+     * 
      * @return The number of indices.
      */
     public int getIndexCount() {
         return vertexCount;
     }
-} 
+}
