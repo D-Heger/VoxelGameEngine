@@ -11,12 +11,14 @@ import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.world.chunk.ChunkMeshState;
 import de.heger.voxelengine.world.chunk.ChunkPos;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.*;
 
 /**
- * Manages the lifecycle of chunk meshes, including asynchronous building, caching, and cleanup.
+ * Manages the lifecycle of chunk meshes, including asynchronous building,
+ * caching, and cleanup.
  */
 public class ChunkMeshManager {
     private static final LoggerFacade logger = LoggerFacade.get(ChunkMeshManager.class);
@@ -86,7 +88,8 @@ public class ChunkMeshManager {
 
             synchronized (chunk) {
                 if (chunk.getMeshState() == ChunkMeshState.NEEDS_REBUILD) {
-                    logger.debug("Chunk {} is marked NEEDS_REBUILD. Discarding completed mesh data as it's stale.", chunkPos);
+                    logger.debug("Chunk {} is marked NEEDS_REBUILD. Discarding completed mesh data as it's stale.",
+                            chunkPos);
                     continue;
                 }
 
@@ -115,10 +118,12 @@ public class ChunkMeshManager {
                 if (!newMeshesForChunk.isEmpty()) {
                     activeChunkMeshes.put(chunkPos, newMeshesForChunk);
                     chunk.setMeshState(ChunkMeshState.UP_TO_DATE);
-                    logger.debug("Created {} new submeshes for chunk {}. State: UP_TO_DATE", newMeshesForChunk.size(), chunkPos);
+                    logger.debug("Created {} new submeshes for chunk {}. State: UP_TO_DATE", newMeshesForChunk.size(),
+                            chunkPos);
                 } else {
                     chunk.setMeshState(ChunkMeshState.EMPTY);
-                    logger.debug("No renderable geometry created for chunk {} after mesh data processing. State: EMPTY", chunkPos);
+                    logger.debug("No renderable geometry created for chunk {} after mesh data processing. State: EMPTY",
+                            chunkPos);
                 }
             }
         }
@@ -126,17 +131,21 @@ public class ChunkMeshManager {
 
     /**
      * Checks the state of a chunk and submits a mesh build task if necessary.
+     * 
      * @param chunk The chunk to check.
      */
     public void ensureMeshForChunk(Chunk chunk) {
-        if (chunk == null) return;
-        
+        if (chunk == null)
+            return;
+
         ChunkPos chunkPos = chunk.getPosition();
+
         ChunkMeshState currentMeshState = chunk.getMeshState();
         Map<String, ChunkMesh> meshesForChunk = activeChunkMeshes.get(chunkPos);
 
         boolean needsRebuild = currentMeshState == ChunkMeshState.NEEDS_REBUILD;
-        boolean isUpToDateButMissing = (currentMeshState == ChunkMeshState.UP_TO_DATE || currentMeshState == ChunkMeshState.EMPTY)
+        boolean isUpToDateButMissing = (currentMeshState == ChunkMeshState.UP_TO_DATE
+                || currentMeshState == ChunkMeshState.EMPTY)
                 && (meshesForChunk == null || meshesForChunk.isEmpty())
                 && currentMeshState != ChunkMeshState.EMPTY;
 
@@ -145,22 +154,30 @@ public class ChunkMeshManager {
                 cleanupMeshesForChunk(chunkPos);
             }
 
-            logger.debug("Submitting mesh data generation task for chunk {} (State: {}, MissingMeshes: {})...", chunkPos, currentMeshState, isUpToDateButMissing);
+            logger.debug("Submitting mesh data generation task for chunk {} (State: {}, MissingMeshes: {})...",
+                    chunkPos, currentMeshState, isUpToDateButMissing);
             chunk.setMeshState(ChunkMeshState.BUILDING_DATA);
 
             Future<?> task = meshBuilderExecutor.submit(() -> {
                 try {
-                    Map<String, MeshData> generatedData = ChunkMeshBuilder.generateMeshDataByTexture(chunk, chunkManager, blockRegistry);
+                    // Also pre-compute AABB in background thread as a safety measure
+                    // This ensures AABB is available even if the main thread computation was
+                    // skipped
+                    AABB chunkAABB = AABB.fromChunk(chunk);
+                    chunkAABBCache.put(chunk.getPosition(), chunkAABB);
+
+                    Map<String, MeshData> generatedData = ChunkMeshBuilder.generateMeshDataByTexture(chunk,
+                            chunkManager, blockRegistry);
                     completedMeshDataQueue.put(new CompletedMeshData(chunk.getPosition(), generatedData));
                 } catch (InterruptedException e) {
                     logger.warn("Mesh building thread for chunk {} interrupted.", chunk.getPosition());
                     Thread.currentThread().interrupt();
-                    synchronized(chunk) {
+                    synchronized (chunk) {
                         chunk.setMeshState(ChunkMeshState.NEEDS_REBUILD);
                     }
                 } catch (Exception e) {
                     logger.error("Error building mesh data for chunk {}", chunk.getPosition(), e);
-                    synchronized(chunk) {
+                    synchronized (chunk) {
                         chunk.setMeshState(ChunkMeshState.NEEDS_REBUILD);
                     }
                 } finally {
@@ -172,7 +189,8 @@ public class ChunkMeshManager {
     }
 
     /**
-     * Evicts meshes and other cached data for chunks that are no longer loaded or need a rebuild.
+     * Evicts meshes and other cached data for chunks that are no longer loaded or
+     * need a rebuild.
      */
     public void evictStaleMeshes() {
         activeChunkMeshes.entrySet().removeIf(entry -> {
@@ -199,24 +217,47 @@ public class ChunkMeshManager {
 
     /**
      * Retrieves the map of active meshes for a given chunk.
+     * 
      * @param chunkPos The position of the chunk.
-     * @return A map of texture names to {@link ChunkMesh} objects, or null if no meshes exist.
+     * @return A map of texture names to {@link ChunkMesh} objects, or null if no
+     *         meshes exist.
      */
     public Map<String, ChunkMesh> getMeshesForChunk(ChunkPos chunkPos) {
         return activeChunkMeshes.get(chunkPos);
     }
 
     /**
-     * Gets the AABB for a chunk, creating and caching it if it doesn't exist.
+     * Gets the AABB for a chunk from the cache. The AABB should have been
+     * pre-computed
+     * when the chunk was processed by ensureMeshForChunk().
+     * 
      * @param chunk The chunk.
-     * @return The {@link AABB} for the chunk.
+     * @return The {@link AABB} for the chunk, or a fallback AABB if not found in
+     *         cache.
      */
     public AABB getAABBForChunk(Chunk chunk) {
-        return chunkAABBCache.computeIfAbsent(chunk.getPosition(), k -> AABB.fromChunk(chunk));
+        if (chunk == null) {
+            throw new IllegalArgumentException("Chunk cannot be null when getting AABB.");
+        }
+
+        ChunkPos chunkPos = chunk.getPosition();
+        AABB cachedAABB = chunkAABBCache.get(chunkPos);
+
+        if (cachedAABB == null) {
+            // Fallback: compute AABB if not found in cache (should be rare)
+            // This can happen if the chunk was just loaded and ensureMeshForChunk hasn't
+            // been called yet
+            logger.warn("AABB not found in cache for chunk {}, computing fallback.", chunkPos);
+            cachedAABB = AABB.fromChunk(chunk);
+            chunkAABBCache.put(chunkPos, cachedAABB);
+        }
+
+        return cachedAABB;
     }
 
     /**
      * Releases all renderer-specific resources associated with a chunk.
+     * 
      * @param chunkPos The position of the chunk whose resources are to be released.
      */
     public void releaseChunkResources(ChunkPos chunkPos) {
@@ -273,4 +314,20 @@ public class ChunkMeshManager {
             logger.debug("Mesh builder executor shut down.");
         }
     }
-} 
+
+    /**
+     * Pre-computes and caches the AABB for a chunk to avoid computation during
+     * rendering.
+     * 
+     * @param chunks The chunks for which to pre-compute the AABB.
+     */
+    public void precomputeAABBForChunk(Collection<Chunk> chunks) {
+        for (Chunk chunk : chunks) {
+            if (chunk != null && !chunkAABBCache.containsKey(chunk.getPosition())) {
+                AABB aabb = AABB.fromChunk(chunk);
+                chunkAABBCache.put(chunk.getPosition(), aabb);
+                logger.debug("Pre-computed AABB for chunk {}", chunk.getPosition());
+            }
+        }
+    }
+}

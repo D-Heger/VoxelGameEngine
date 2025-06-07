@@ -182,6 +182,9 @@ public class Renderer {
 
         setupShaderUniforms();
 
+        // Pre-compute AABB for all chunks
+        chunkMeshManager.precomputeAABBForChunk(chunks);
+
         Collection<Chunk> visibleChunks = performCulling(chunks);
 
         renderVisibleChunks(visibleChunks);
