@@ -45,6 +45,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * The main rendering class for the voxel engine. It orchestrates the entire rendering process,
@@ -81,6 +82,30 @@ public class Renderer {
     private final Matrix4f viewProjectionMatrixForCulling = new Matrix4f();
     private final List<Chunk> reusableChunkList = new ArrayList<>();
     private final List<Chunk> reusableOcclusionList = new ArrayList<>();
+
+    // Texture batching optimization - reusable collections
+    private final Map<String, List<RenderableChunkData>> textureToChunkDataMap = new HashMap<>();
+    private final List<RenderableChunkData> reusableRenderableDataList = new ArrayList<>();
+
+    // Texture binding state tracking
+    private String currentlyBoundTexture = null;
+
+    /**
+     * Helper class to store renderable chunk data for texture batching optimization.
+     */
+    private static class RenderableChunkData {
+        final Chunk chunk;
+        final String textureName;
+        final ChunkMesh mesh;
+        final Vec3i chunkOriginWorld;
+
+        RenderableChunkData(Chunk chunk, String textureName, ChunkMesh mesh, Vec3i chunkOriginWorld) {
+            this.chunk = chunk;
+            this.textureName = textureName;
+            this.mesh = mesh;
+            this.chunkOriginWorld = chunkOriginWorld;
+        }
+    }
 
     public Renderer(Window window) {
         this.window = window;
@@ -256,10 +281,22 @@ public class Renderer {
         }
     }
 
+    /**
+     * Renders visible chunks using texture batching optimization.
+     * Groups all meshes by texture to minimize texture binding calls.
+     */
     private void renderVisibleChunks(Collection<Chunk> visibleChunks) {
         Matrix4f modelMatrix = reusableMatrix4f;
         int lastBoundVaoId = 0;
 
+        // Reset texture binding state
+        currentlyBoundTexture = null;
+
+        // Clear reusable collections
+        textureToChunkDataMap.clear();
+        reusableRenderableDataList.clear();
+
+        // First pass: collect all renderable data and group by texture
         for (Chunk chunk : visibleChunks) {
             chunkMeshManager.ensureMeshForChunk(chunk);
             Map<String, ChunkMesh> meshesForChunk = chunkMeshManager.getMeshesForChunk(chunk.getPosition());
@@ -268,39 +305,82 @@ public class Renderer {
             }
 
             Vec3i chunkOriginWorld = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
-            modelMatrix.identity().translation(chunkOriginWorld.x, chunkOriginWorld.y, chunkOriginWorld.z);
-            defaultShaderProgram.setUniform("model", modelMatrix);
 
             for (Map.Entry<String, ChunkMesh> meshEntry : meshesForChunk.entrySet()) {
                 ChunkMesh chunkMeshToRender = meshEntry.getValue();
                 if (chunkMeshToRender.isEmpty()) continue;
 
-                Texture textureToRender = textureManager.getTexture(meshEntry.getKey());
-                if (textureToRender == null) {
-                    textureToRender = textureManager.getDefaultFallbackTexture();
-                    if (textureToRender == null) continue; // Skip if no texture and no fallback
-                }
+                String textureName = meshEntry.getKey();
+                RenderableChunkData renderableData = new RenderableChunkData(
+                    chunk, textureName, chunkMeshToRender, chunkOriginWorld
+                );
 
-                textureToRender.bind(0);
+                // Group by texture
+                textureToChunkDataMap.computeIfAbsent(textureName, k -> new ArrayList<>()).add(renderableData);
+            }
+        }
 
-                int vaoId = chunkMeshToRender.getVaoId();
+        // Second pass: render grouped by texture to minimize texture switches
+        for (Map.Entry<String, List<RenderableChunkData>> textureGroup : textureToChunkDataMap.entrySet()) {
+            String textureName = textureGroup.getKey();
+            List<RenderableChunkData> renderableDataList = textureGroup.getValue();
+
+            // Bind texture once for all meshes using this texture
+            bindTextureIfNeeded(textureName);
+
+            // Render all meshes for this texture
+            for (RenderableChunkData renderableData : renderableDataList) {
+                // Set model matrix for this chunk
+                modelMatrix.identity().translation(
+                    renderableData.chunkOriginWorld.x,
+                    renderableData.chunkOriginWorld.y,
+                    renderableData.chunkOriginWorld.z
+                );
+                defaultShaderProgram.setUniform("model", modelMatrix);
+
+                // Bind VAO if different from last bound
+                int vaoId = renderableData.mesh.getVaoId();
                 if (vaoId != lastBoundVaoId) {
                     glBindVertexArray(vaoId);
                     lastBoundVaoId = vaoId;
                 }
 
+                // Render the mesh
                 if (wireframeMode) {
-                    wireframeRenderer.render(chunkMeshToRender);
+                    wireframeRenderer.render(renderableData.mesh);
                 } else {
-                    chunkMeshToRender.render();
+                    renderableData.mesh.render();
                 }
-                renderStats.addIndices(chunkMeshToRender.getIndexCount());
+
+                renderStats.addIndices(renderableData.mesh.getIndexCount());
                 renderStats.incrementDrawCalls();
             }
         }
 
         if (lastBoundVaoId != 0) {
             glBindVertexArray(0);
+        }
+    }
+
+    /**
+     * Binds a texture only if it's different from the currently bound texture.
+     * This avoids redundant texture binding calls.
+     * 
+     * @param textureName The name of the texture to bind
+     */
+    private void bindTextureIfNeeded(String textureName) {
+        if (!textureName.equals(currentlyBoundTexture)) {
+            Texture textureToRender = textureManager.getTexture(textureName);
+            if (textureToRender == null) {
+                textureToRender = textureManager.getDefaultFallbackTexture();
+                if (textureToRender == null) {
+                    logger.warn("No texture found for '{}' and no fallback texture available", textureName);
+                    return;
+                }
+            }
+
+            textureToRender.bind(0);
+            currentlyBoundTexture = textureName;
         }
     }
 
