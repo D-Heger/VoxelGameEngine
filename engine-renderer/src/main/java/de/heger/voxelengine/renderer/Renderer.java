@@ -80,6 +80,7 @@ public class Renderer {
     private final Matrix4f reusableMatrix4f = new Matrix4f();
     private final Matrix4f viewProjectionMatrixForCulling = new Matrix4f();
     private final List<Chunk> reusableChunkList = new ArrayList<>();
+    private final List<Chunk> reusableOcclusionList = new ArrayList<>();
 
     public Renderer(Window window) {
         this.window = window;
@@ -219,6 +220,7 @@ public class Renderer {
 
         // Frustum cull and sort visible chunks
         reusableChunkList.clear();
+        reusableOcclusionList.clear();
         for (Chunk chunk : allChunks) {
             if (chunk == null) continue;
             AABB chunkAABB = chunkMeshManager.getAABBForChunk(chunk);
@@ -249,7 +251,8 @@ public class Renderer {
             );
         } else {
             renderStats.setOcclusionCulledChunks(0);
-            return new ArrayList<>(reusableChunkList); // Return a copy
+            reusableOcclusionList.addAll(reusableChunkList);
+            return reusableOcclusionList;
         }
     }
 
