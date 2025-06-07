@@ -32,7 +32,50 @@ public class SceneLightingManager {
     private final Vector3f cachedFogColor = new Vector3f();
     private float cachedAmbientStrength = 0.0f;
 
-    private static final float TIME_CALCULATION_THRESHOLD = 0.001f;
+    // OPTIMIZATION: Configurable threshold - increased from 0.001f to 0.01f for better performance
+    private static final float DEFAULT_TIME_CALCULATION_THRESHOLD = 0.01f;
+    private float timeCalculationThreshold = DEFAULT_TIME_CALCULATION_THRESHOLD;
+
+    // OPTIMIZATION: Sin calculation cache for common time values
+    private static final int SIN_CACHE_SIZE = 360; // Cache for 360 steps (1 degree precision)
+    private static final float[] SIN_CACHE = new float[SIN_CACHE_SIZE];
+    private static boolean sinCacheInitialized = false;
+
+    // OPTIMIZATION: Profiling metrics
+    private long totalUpdateCalls = 0;
+    private long actualRecalculations = 0;
+    private long cacheHits = 0;
+    private double totalRecalculationTime = 0.0;
+    private long lastResetTime = System.currentTimeMillis();
+
+    static {
+        initializeSinCache();
+    }
+
+    /**
+     * Initializes the sin calculation cache for performance optimization.
+     */
+    private static void initializeSinCache() {
+        if (sinCacheInitialized) return;
+        
+        for (int i = 0; i < SIN_CACHE_SIZE; i++) {
+            float normalizedTime = (float) i / SIN_CACHE_SIZE;
+            SIN_CACHE[i] = (float) Math.sin(normalizedTime * Math.PI);
+        }
+        sinCacheInitialized = true;
+    }
+
+    /**
+     * Gets cached sin value for the given normalized time of day.
+     * @param timeOfDay Normalized time from 0.0 to 1.0
+     * @return Cached sin value
+     */
+    private float getCachedSin(float timeOfDay) {
+        int index = (int) (timeOfDay * (SIN_CACHE_SIZE - 1));
+        index = Math.max(0, Math.min(SIN_CACHE_SIZE - 1, index));
+        cacheHits++;
+        return SIN_CACHE[index];
+    }
 
     /**
      * Updates the time of day.
@@ -43,16 +86,37 @@ public class SceneLightingManager {
     }
 
     /**
+     * Sets the threshold for time calculation updates.
+     * @param threshold The new threshold value (recommended range: 0.001f to 0.1f)
+     */
+    public void setTimeCalculationThreshold(float threshold) {
+        this.timeCalculationThreshold = Math.max(0.0001f, Math.min(0.1f, threshold));
+    }
+
+    /**
+     * Gets the current time calculation threshold.
+     * @return The current threshold value
+     */
+    public float getTimeCalculationThreshold() {
+        return timeCalculationThreshold;
+    }
+
+    /**
      * Recalculates lighting and fog values if the time of day has changed significantly.
      * This should be called once per frame before rendering.
      */
     public void update() {
-        if (Math.abs(currentTimeOfDay - lastCalculatedTimeOfDay) < TIME_CALCULATION_THRESHOLD) {
+        totalUpdateCalls++;
+        
+        if (Math.abs(currentTimeOfDay - lastCalculatedTimeOfDay) < timeCalculationThreshold) {
             return; // Skip recalculation if time hasn't changed enough
         }
 
-        // Calculate time-based light intensity (0 at midnight, 1 at midday)
-        float lightIntensityFactor = (float) Math.sin(this.currentTimeOfDay * Math.PI);
+        // OPTIMIZATION: Profile recalculation time
+        long startTime = System.nanoTime();
+
+        // OPTIMIZATION: Use cached sin calculation instead of Math.sin
+        float lightIntensityFactor = getCachedSin(this.currentTimeOfDay);
         lightIntensityFactor = Math.max(0.0f, Math.min(1.0f, lightIntensityFactor));
 
         // Interpolate light properties
@@ -62,6 +126,11 @@ public class SceneLightingManager {
         interpolateVector(midnightFogColor, middayFogColor, lightIntensityFactor, cachedFogColor);
 
         lastCalculatedTimeOfDay = currentTimeOfDay;
+        actualRecalculations++;
+
+        // OPTIMIZATION: Track recalculation time
+        long endTime = System.nanoTime();
+        totalRecalculationTime += (endTime - startTime) / 1_000_000.0; // Convert to milliseconds
     }
 
     /**
@@ -86,6 +155,58 @@ public class SceneLightingManager {
      */
     public Vector3f getFogColor() {
         return cachedFogColor;
+    }
+
+    /**
+     * Gets performance metrics for the lighting manager.
+     * @return Performance metrics as a formatted string
+     */
+    public String getPerformanceMetrics() {
+        if (totalUpdateCalls == 0) {
+            return "SceneLighting: No data available";
+        }
+        
+        double recalculationRate = (double) actualRecalculations / totalUpdateCalls * 100.0;
+        double avgRecalcTime = actualRecalculations > 0 ? totalRecalculationTime / actualRecalculations : 0.0;
+        long elapsedSeconds = (System.currentTimeMillis() - lastResetTime) / 1000;
+        
+        return String.format("SceneLighting: %.1f%% recalc rate, %.3fms avg time, %d cache hits, %ds elapsed",
+                recalculationRate, avgRecalcTime, cacheHits, elapsedSeconds);
+    }
+
+    /**
+     * Gets the recalculation rate as a percentage.
+     * @return Percentage of update calls that resulted in actual recalculation
+     */
+    public double getRecalculationRate() {
+        return totalUpdateCalls > 0 ? (double) actualRecalculations / totalUpdateCalls * 100.0 : 0.0;
+    }
+
+    /**
+     * Gets the average recalculation time in milliseconds.
+     * @return Average time spent on recalculations
+     */
+    public double getAverageRecalculationTimeMs() {
+        return actualRecalculations > 0 ? totalRecalculationTime / actualRecalculations : 0.0;
+    }
+
+    /**
+     * Gets the total number of cache hits.
+     * @return Number of times cached sin values were used
+     */
+    public long getCacheHits() {
+        return cacheHits;
+    }
+
+    /**
+     * Resets all performance metrics.
+     */
+    public void resetPerformanceMetrics() {
+        totalUpdateCalls = 0;
+        actualRecalculations = 0;
+        cacheHits = 0;
+        totalRecalculationTime = 0.0;
+        lastResetTime = System.currentTimeMillis();
     }
 
     /**

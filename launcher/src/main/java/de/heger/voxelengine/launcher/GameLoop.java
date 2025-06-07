@@ -27,7 +27,6 @@ import de.heger.voxelengine.world.generation.thread.TaskResultHandler;
 import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.stream.Collectors;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Collection;
@@ -304,6 +303,12 @@ public class GameLoop {
                     debugData.peakMemoryMB = performanceMonitor.getPeakMemoryUsageMB();
                     debugData.totalAllocationsMB = performanceMonitor.getTotalAllocationsMB();
                     debugData.gcSuggestionCount = gcSuggestionCount;
+                    
+                    // OPTIMIZATION: Add lighting performance metrics
+                    debugData.lightingRecalcRate = renderer.getLightingRecalculationRate();
+                    debugData.lightingAvgRecalcTimeMs = renderer.getAverageLightingRecalculationTimeMs();
+                    debugData.lightingCacheHits = renderer.getLightingCacheHits();
+                    debugData.lightingThreshold = renderer.getLightingCalculationThreshold();
                 }
             }
         } catch (Exception e) {
@@ -741,6 +746,10 @@ public class GameLoop {
             // Reset chunk generation performance tracking if possible
             // This depends on the implementation of PerformanceTrackingTaskResultHandler
         }
-        LOGGER.info("Performance statistics reset for benchmarking");
+        // OPTIMIZATION: Reset lighting performance metrics
+        if (renderer != null) {
+            renderer.resetLightingPerformanceMetrics();
+        }
+        LOGGER.info("Performance statistics reset for benchmarking (including lighting metrics)");
     }
 }

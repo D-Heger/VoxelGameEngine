@@ -3,7 +3,6 @@ package de.heger.voxelengine.renderer.ui.menus;
 import de.heger.voxelengine.renderer.ui.UIManager;
 import de.heger.voxelengine.renderer.ui.elements.TextElement;
 import de.heger.voxelengine.renderer.ui.elements.BoxElement;
-import de.heger.voxelengine.renderer.ui.elements.ButtonElement;
 import de.heger.voxelengine.renderer.ui.font.Font;
 
 import org.joml.Vector2f;
@@ -45,6 +44,12 @@ public class DebugMenu {
     private TextElement peakMemoryText;
     private TextElement totalAllocationsText;
     private TextElement gcSuggestionsText;
+    
+    // Lighting performance metrics
+    private TextElement lightingRecalcRateText;
+    private TextElement lightingAvgTimeText;
+    private TextElement lightingCacheHitsText;
+    private TextElement lightingThresholdText;
 
 
     public DebugMenu(UIManager uiManager, Font font) {
@@ -62,7 +67,7 @@ public class DebugMenu {
 
         float firstTextBaselineY = visualTextTopY + scaledAscent; 
 
-        int numTextElements = 20; // Increased for new memory monitoring elements + spacing
+        int numTextElements = 25; // Increased for lighting performance metrics + spacing
 
         // Calculate dimensions for the text block content itself
         // Estimate max text width. A more accurate way would be to render all text once, get max width.
@@ -128,6 +133,17 @@ public class DebugMenu {
         gcSuggestionsText = createTextElement("GC Suggestions: -", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
         
+        // Lighting performance section
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        lightingRecalcRateText = createTextElement("Lighting Recalc Rate: -%", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        lightingAvgTimeText = createTextElement("Lighting Avg Time: - ms", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        lightingCacheHitsText = createTextElement("Lighting Cache Hits: -", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        lightingThresholdText = createTextElement("Lighting Threshold: -", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        
         // Time of day section
         timeOfDayEnabledText = createTextElement("Day/Night cycle: ", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
@@ -174,6 +190,12 @@ public class DebugMenu {
         peakMemoryText.setText(String.format(Locale.US, "Peak Memory: %d MB", data.peakMemoryMB));
         totalAllocationsText.setText(String.format(Locale.US, "Est. Allocations: %d MB", data.totalAllocationsMB));
         gcSuggestionsText.setText(String.format(Locale.US, "GC Suggestions: %d", data.gcSuggestionCount));
+        
+        // Lighting performance optimization metrics
+        lightingRecalcRateText.setText(String.format(Locale.US, "Lighting Recalc Rate: %.1f%%", data.lightingRecalcRate));
+        lightingAvgTimeText.setText(String.format(Locale.US, "Lighting Avg Time: %.3f ms", data.lightingAvgRecalcTimeMs));
+        lightingCacheHitsText.setText(String.format(Locale.US, "Lighting Cache Hits: %d", data.lightingCacheHits));
+        lightingThresholdText.setText(String.format(Locale.US, "Lighting Threshold: %.3f", data.lightingThreshold));
         
         // Time of day
         timeOfDayEnabledText.setText(String.format(Locale.US, "Day/Night cycle: %s", data.isTimeOfDayEnabled ? "Enabled" : "Disabled"));
@@ -251,6 +273,12 @@ public class DebugMenu {
         // Time of day
         public boolean isTimeOfDayEnabled;
         public float normalizedTimeOfDay;
+        
+        // Lighting performance optimization
+        public double lightingRecalcRate;
+        public double lightingAvgRecalcTimeMs;
+        public long lightingCacheHits;
+        public float lightingThreshold;
 
         // Builder or constructor for convenience
         public DebugData() {} // Default constructor

@@ -372,4 +372,59 @@ public class Renderer {
     public void updateTimeOfDay(float timeOfDay) {
         sceneLightingManager.updateTimeOfDay(timeOfDay);
     }
+
+    /**
+     * Sets the threshold for scene lighting recalculation.
+     * @param threshold The new threshold value (recommended range: 0.001f to 0.1f)
+     */
+    public void setLightingCalculationThreshold(float threshold) {
+        sceneLightingManager.setTimeCalculationThreshold(threshold);
+    }
+
+    /**
+     * Gets the current lighting calculation threshold.
+     * @return The current threshold value
+     */
+    public float getLightingCalculationThreshold() {
+        return sceneLightingManager.getTimeCalculationThreshold();
+    }
+
+    /**
+     * Gets performance metrics for scene lighting calculations.
+     * @return Performance metrics as a formatted string
+     */
+    public String getLightingPerformanceMetrics() {
+        return sceneLightingManager.getPerformanceMetrics();
+    }
+
+    /**
+     * Gets the lighting recalculation rate as a percentage.
+     * @return Percentage of update calls that resulted in actual recalculation
+     */
+    public double getLightingRecalculationRate() {
+        return sceneLightingManager.getRecalculationRate();
+    }
+
+    /**
+     * Gets the average lighting recalculation time in milliseconds.
+     * @return Average time spent on lighting recalculations
+     */
+    public double getAverageLightingRecalculationTimeMs() {
+        return sceneLightingManager.getAverageRecalculationTimeMs();
+    }
+
+    /**
+     * Gets the number of lighting cache hits.
+     * @return Number of times cached sin values were used
+     */
+    public long getLightingCacheHits() {
+        return sceneLightingManager.getCacheHits();
+    }
+
+    /**
+     * Resets lighting performance metrics for benchmarking.
+     */
+    public void resetLightingPerformanceMetrics() {
+        sceneLightingManager.resetPerformanceMetrics();
+    }
 }
