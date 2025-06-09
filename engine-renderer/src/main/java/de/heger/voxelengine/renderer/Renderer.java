@@ -14,6 +14,7 @@ import de.heger.voxelengine.renderer.management.SceneLightingManager;
 import de.heger.voxelengine.renderer.management.TextureManager;
 import de.heger.voxelengine.renderer.mesh.ChunkMesh;
 import de.heger.voxelengine.renderer.shader.ShaderProgram;
+import de.heger.voxelengine.renderer.shader.UniformBuffer;
 import de.heger.voxelengine.renderer.texture.Texture;
 import de.heger.voxelengine.world.block.BlockRegistry;
 import de.heger.voxelengine.world.chunk.Chunk;
@@ -40,6 +41,7 @@ import static org.lwjgl.opengl.GL11.GL_BACK;
 import static org.lwjgl.opengl.GL30.glBindVertexArray;
 import static org.lwjgl.opengl.GL11.GL_VERSION;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -54,6 +56,14 @@ import java.util.HashMap;
 public class Renderer {
 
     private static final LoggerFacade logger = LoggerFacade.get(Renderer.class);
+
+    // UBO constants
+    private static final int UBO_BINDING_POINT_CAMERA = 0;
+    private static final int UBO_BINDING_POINT_LIGHTING = 1;
+    // mat4(64) * 2 + vec3(12) + pad(4) = 144 bytes
+    private static final int CAMERA_UBO_SIZE = 144;
+    // vec3(12)*3 + float(4)*5 + pad(4)*3 = 80 bytes
+    private static final int LIGHTING_UBO_SIZE = 80;
 
     private final Window window;
     private final Camera camera;
@@ -74,6 +84,10 @@ public class Renderer {
     private OcclusionCuller occlusionCuller;
     private WireframeRenderer wireframeRenderer;
     private boolean wireframeMode = false;
+
+    // UBOs for shader data
+    private UniformBuffer cameraUBO;
+    private UniformBuffer lightingUBO;
 
     private static final boolean USE_OCCLUSION_CULLING = true;
 
@@ -156,6 +170,7 @@ public class Renderer {
         try {
             loadShaders();
             textureManager.loadBlockTextures();
+            createUBOs();
         } catch (Exception e) {
             logger.error("Failed to initialize renderer resources", e);
             throw new RuntimeException("Failed to initialize renderer resources", e);
@@ -174,19 +189,20 @@ public class Renderer {
         defaultShaderProgram.link();
         logger.info("Default shader program loaded and linked successfully.");
 
-        // Create uniforms
-        defaultShaderProgram.createUniform("projection");
-        defaultShaderProgram.createUniform("view");
+        // Create uniforms for non-UBO data
         defaultShaderProgram.createUniform("model");
         defaultShaderProgram.createUniform("uTexture");
-        defaultShaderProgram.createUniform("lightDir");
-        defaultShaderProgram.createUniform("lightColor");
-        defaultShaderProgram.createUniform("ambientColor");
-        defaultShaderProgram.createUniform("ambientStrength");
-        defaultShaderProgram.createUniform("viewPos");
-        defaultShaderProgram.createUniform("fogColor");
-        defaultShaderProgram.createUniform("fogStart");
-        defaultShaderProgram.createUniform("fogEnd");
+    }
+
+    private void createUBOs() {
+        logger.info("Creating Uniform Buffer Objects (UBOs)...");
+        cameraUBO = new UniformBuffer(CAMERA_UBO_SIZE, UBO_BINDING_POINT_CAMERA);
+        lightingUBO = new UniformBuffer(LIGHTING_UBO_SIZE, UBO_BINDING_POINT_LIGHTING);
+
+        // Bind UBOs to the shader program's uniform blocks
+        cameraUBO.bindToShader(defaultShaderProgram, "CameraData");
+        lightingUBO.bindToShader(defaultShaderProgram, "Lighting");
+        logger.info("UBOs created and bound to shader blocks.");
     }
 
     /**
@@ -227,11 +243,26 @@ public class Renderer {
 
     private void setupShaderUniforms() {
         defaultShaderProgram.bind();
-        defaultShaderProgram.setUniform("projection", camera.getProjectionMatrix());
-        defaultShaderProgram.setUniform("view", camera.getViewMatrix());
-        defaultShaderProgram.setUniform("viewPos", camera.getPosition());
+
+        // Update Camera UBO
+        ByteBuffer cameraBuffer = cameraUBO.getBuffer();
+        camera.getProjectionMatrix().get(cameraBuffer);
+        cameraBuffer.position(64);
+        camera.getViewMatrix().get(cameraBuffer);
+        cameraBuffer.position(128);
+        camera.getPosition().get(cameraBuffer);
+        cameraBuffer.position(140); // to end of vec3
+        // No need to flip, getBuffer clears and prepares for writing
+
+        cameraUBO.updateData(cameraBuffer);
+
+        // Update Lighting UBO
+        ByteBuffer lightingBuffer = lightingUBO.getBuffer();
+        sceneLightingManager.fillLightingUboBuffer(lightingBuffer, camera.getViewDistance());
+        lightingUBO.updateData(lightingBuffer);
+
+        // Set remaining non-UBO uniforms
         defaultShaderProgram.setUniform("uTexture", 0);
-        sceneLightingManager.applyUniforms(defaultShaderProgram, camera.getViewDistance());
     }
 
     private Collection<Chunk> performCulling(Collection<Chunk> allChunks) {
@@ -394,6 +425,12 @@ public class Renderer {
 
         if (defaultShaderProgram != null) {
             defaultShaderProgram.cleanup();
+        }
+        if (cameraUBO != null) {
+            cameraUBO.cleanup();
+        }
+        if (lightingUBO != null) {
+            lightingUBO.cleanup();
         }
         if (debugCallback != null) {
             debugCallback.free();

@@ -8,10 +8,15 @@ out vec2 vTexCoords;
 out vec3 vNormal;
 out vec3 vFragPos;
 
-// Uniforms
+// UBO for Camera Data
+layout (std140) uniform CameraData {
+    mat4 projection;
+    mat4 view;
+    vec3 viewPos;
+};
+
+// Standard Uniforms
 uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
 
 void main()
 {

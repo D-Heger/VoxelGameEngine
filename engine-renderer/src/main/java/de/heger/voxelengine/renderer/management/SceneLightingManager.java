@@ -3,6 +3,8 @@ package de.heger.voxelengine.renderer.management;
 import de.heger.voxelengine.renderer.shader.ShaderProgram;
 import org.joml.Vector3f;
 
+import java.nio.ByteBuffer;
+
 /**
  * Manages scene lighting and fog, which change based on the time of day.
  */
@@ -134,20 +136,52 @@ public class SceneLightingManager {
     }
 
     /**
-     * Applies the calculated lighting and fog uniforms to the given shader program.
-     * @param shader The shader program to update.
-     * @param viewDistance The current camera view distance, used to calculate fog range.
+     * Fills the provided ByteBuffer with lighting and fog data for the UBO.
+     * The buffer should have a capacity of 80 bytes for the Lighting UBO.
+     * <p>
+     * UBO Layout (std140):
+     * - vec3 lightDir (12) + pad (4)
+     * - vec3 lightColor (12) + pad (4)
+     * - vec3 ambientColor (12)
+     * - float ambientStrength (4)
+     * - vec3 fogColor (12)
+     * - float fogStart (4)
+     * - float fogEnd (4)
+     * - float pad (4)
+     * </p>
+     * @param buffer The ByteBuffer to fill.
+     * @param viewDistance The current camera view distance.
      */
-    public void applyUniforms(ShaderProgram shader, float viewDistance) {
-        shader.setUniform("lightDir", DEFAULT_LIGHT_DIR);
-        shader.setUniform("lightColor", cachedLightColor);
-        shader.setUniform("ambientColor", cachedAmbientColor);
-        shader.setUniform("ambientStrength", cachedAmbientStrength);
+    public void fillLightingUboBuffer(ByteBuffer buffer, float viewDistance) {
+        if (buffer.capacity() < 80) {
+            throw new IllegalArgumentException("ByteBuffer capacity is less than the required 80 bytes for Lighting UBO.");
+        }
+        buffer.clear();
 
+        // Light Dir
+        DEFAULT_LIGHT_DIR.get(buffer);
+        buffer.position(buffer.position() + 12);
+        buffer.putFloat(0.0f); // Padding
+
+        // Light Color
+        cachedLightColor.get(buffer);
+        buffer.position(buffer.position() + 12);
+        buffer.putFloat(0.0f); // Padding
+
+        // Ambient Color & Strength
+        cachedAmbientColor.get(buffer);
+        buffer.position(buffer.position() + 12);
+        buffer.putFloat(cachedAmbientStrength);
+
+        // Fog Color & Range
         float fogStartDistance = viewDistance * 0.60f;
-        shader.setUniform("fogColor", cachedFogColor);
-        shader.setUniform("fogStart", fogStartDistance);
-        shader.setUniform("fogEnd", viewDistance);
+        cachedFogColor.get(buffer);
+        buffer.position(buffer.position() + 12);
+        buffer.putFloat(fogStartDistance);
+        buffer.putFloat(viewDistance);
+        buffer.putFloat(0.0f); // Padding
+
+        buffer.flip();
     }
 
     /**

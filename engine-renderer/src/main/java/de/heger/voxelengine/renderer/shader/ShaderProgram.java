@@ -108,6 +108,10 @@ public class ShaderProgram {
         }
     }
 
+    public int getProgramId() {
+        return programId;
+    }
+
      private int getUniformLocation(String uniformName) {
         Integer location = uniforms.get(uniformName);
         if (location == null) {

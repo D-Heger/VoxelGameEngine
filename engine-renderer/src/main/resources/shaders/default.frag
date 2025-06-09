@@ -6,18 +6,29 @@ in vec2 vTexCoords;
 in vec3 vNormal;
 in vec3 vFragPos;
 
-// Uniforms
-uniform sampler2D uTexture; // Texture sampler
-uniform vec3 lightDir; // Directional light direction (normalized)
-uniform vec3 lightColor; // Light color
-uniform vec3 ambientColor; // Ambient light color
-uniform float ambientStrength; // Ambient light strength
-uniform vec3 viewPos; // Camera position in world space
+// UBO for Camera Data (includes view position)
+layout (std140) uniform CameraData {
+    mat4 projection; // Not used in frag, but part of the shared block
+    mat4 view;       // Not used in frag, but part of the shared block
+    vec3 viewPos;
+};
 
-// Fog Uniforms
-uniform vec3 fogColor;
-uniform float fogStart;
-uniform float fogEnd;
+// UBO for Lighting Data
+layout (std140) uniform Lighting {
+    vec3 lightDir;
+    float pad1; // Padding for std140 alignment
+    vec3 lightColor;
+    float pad2; // Padding for std140 alignment
+    vec3 ambientColor;
+    float ambientStrength;
+    vec3 fogColor;
+    float fogStart;
+    float fogEnd;
+    float pad3; // Padding for std140 alignment
+};
+
+// Standard Uniforms
+uniform sampler2D uTexture; // Texture sampler
 
 void main()
 {
