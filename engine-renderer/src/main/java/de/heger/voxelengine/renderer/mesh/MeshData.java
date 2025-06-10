@@ -20,18 +20,16 @@ import java.nio.IntBuffer;
 public class MeshData {
     private FloatBuffer vertexBuffer;
     private IntBuffer indexBuffer;
-    private int vertexCapacity;
-    private int indexCapacity;
     int currentIndexOffset; // Tracks the number of vertices added to this specific mesh part for index calculation
 
-    private static final int INITIAL_VERTEX_CAPACITY = 1024; // Initial capacity for vertices
-    private static final int INITIAL_INDEX_CAPACITY = 1536;  // Initial capacity for indices (typically 1.5x vertices)
+    private static final int INITIAL_VERTEX_CAPACITY = 4096; // Corresponds to BufferPool's SMALL_VERTICES_CAPACITY
+    private static final int INITIAL_INDEX_CAPACITY = 6144;  // Corresponds to BufferPool's SMALL_INDICES_CAPACITY
+
+    private static final BufferPool bufferPool = BufferPool.getInstance();
 
     public MeshData() {
-        this.vertexCapacity = INITIAL_VERTEX_CAPACITY;
-        this.indexCapacity = INITIAL_INDEX_CAPACITY;
-        this.vertexBuffer = BufferUtils.createFloatBuffer(vertexCapacity);
-        this.indexBuffer = BufferUtils.createIntBuffer(indexCapacity);
+        this.vertexBuffer = bufferPool.borrowFloatBuffer(INITIAL_VERTEX_CAPACITY);
+        this.indexBuffer = bufferPool.borrowIntBuffer(INITIAL_INDEX_CAPACITY);
         this.currentIndexOffset = 0;
     }
 
@@ -93,31 +91,27 @@ public class MeshData {
 
     private void ensureVertexCapacity(int additionalElements) {
         if (vertexBuffer.remaining() < additionalElements) {
-            int newCapacity = Math.max(vertexCapacity * 2, vertexBuffer.position() + additionalElements);
-            FloatBuffer newBuffer = BufferUtils.createFloatBuffer(newCapacity);
-            
-            // Save current position, flip to read mode, copy data, restore write mode
-            int currentPosition = vertexBuffer.position();
+            int requiredCapacity = Math.max(vertexBuffer.capacity() * 2, vertexBuffer.position() + additionalElements);
+            FloatBuffer newBuffer = bufferPool.borrowFloatBuffer(requiredCapacity);
+
             vertexBuffer.flip();
             newBuffer.put(vertexBuffer);
             
+            bufferPool.releaseFloatBuffer(vertexBuffer);
             vertexBuffer = newBuffer;
-            vertexCapacity = newCapacity;
         }
     }
 
     private void ensureIndexCapacity(int additionalElements) {
         if (indexBuffer.remaining() < additionalElements) {
-            int newCapacity = Math.max(indexCapacity * 2, indexBuffer.position() + additionalElements);
-            IntBuffer newBuffer = BufferUtils.createIntBuffer(newCapacity);
+            int requiredCapacity = Math.max(indexBuffer.capacity() * 2, indexBuffer.position() + additionalElements);
+            IntBuffer newBuffer = bufferPool.borrowIntBuffer(requiredCapacity);
             
-            // Save current position, flip to read mode, copy data, restore write mode
-            int currentPosition = indexBuffer.position();
             indexBuffer.flip();
             newBuffer.put(indexBuffer);
             
+            bufferPool.releaseIntBuffer(indexBuffer);
             indexBuffer = newBuffer;
-            indexCapacity = newCapacity;
         }
     }
 
@@ -147,5 +141,20 @@ public class MeshData {
         IntBuffer readBuffer = indexBuffer.duplicate();
         readBuffer.flip();
         return readBuffer;
+    }
+
+    /**
+     * Releases the internal buffers back to the pool.
+     * This must be called when the MeshData is no longer needed.
+     */
+    public void cleanup() {
+        if (vertexBuffer != null) {
+            bufferPool.releaseFloatBuffer(vertexBuffer);
+            vertexBuffer = null;
+        }
+        if (indexBuffer != null) {
+            bufferPool.releaseIntBuffer(indexBuffer);
+            indexBuffer = null;
+        }
     }
 } 

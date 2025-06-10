@@ -57,6 +57,17 @@ public class ChunkMeshManager {
             }
             this.isEmpty = trulyEmpty;
         }
+
+        /**
+         * Releases all buffers from the contained MeshData objects back to the pool.
+         */
+        void cleanup() {
+            if (meshDataMap != null) {
+                for (MeshData md : meshDataMap.values()) {
+                    md.cleanup();
+                }
+            }
+        }
     }
 
     public ChunkMeshManager(ChunkManager chunkManager, BlockRegistry blockRegistry) {
@@ -78,52 +89,59 @@ public class ChunkMeshManager {
     public void processCompletedMeshData() {
         CompletedMeshData completedData;
         while ((completedData = completedMeshDataQueue.poll()) != null) {
-            ChunkPos chunkPos = completedData.chunkPos;
-            Chunk chunk = chunkManager.getChunk(chunkPos);
+            try {
+                ChunkPos chunkPos = completedData.chunkPos;
+                Chunk chunk = chunkManager.getChunk(chunkPos);
 
-            if (chunk == null) {
-                logger.warn("Completed mesh data for chunk {} but chunk is no longer loaded. Discarding.", chunkPos);
-                continue;
-            }
-
-            synchronized (chunk) {
-                if (chunk.getMeshState() == ChunkMeshState.NEEDS_REBUILD) {
-                    logger.debug("Chunk {} is marked NEEDS_REBUILD. Discarding completed mesh data as it's stale.",
-                            chunkPos);
+                if (chunk == null) {
+                    logger.warn("Completed mesh data for chunk {} but chunk is no longer loaded. Discarding.", chunkPos);
                     continue;
                 }
 
-                cleanupMeshesForChunk(chunkPos); // Clean up any old GL meshes
+                synchronized (chunk) {
+                    if (chunk.getMeshState() == ChunkMeshState.NEEDS_REBUILD) {
+                        logger.debug("Chunk {} is marked NEEDS_REBUILD. Discarding completed mesh data as it's stale.",
+                                chunkPos);
+                        continue;
+                    }
 
-                if (completedData.isEmpty) {
-                    chunk.setMeshState(ChunkMeshState.EMPTY);
-                    logger.debug("Processed completed EMPTY mesh data for chunk {}. State set to EMPTY.", chunkPos);
-                    continue;
-                }
+                    cleanupMeshesForChunk(chunkPos); // Clean up any old GL meshes
 
-                chunk.setMeshState(ChunkMeshState.BUILDING);
-                Map<String, ChunkMesh> newMeshesForChunk = new HashMap<>();
-                if (completedData.meshDataMap != null) {
-                    for (Map.Entry<String, MeshData> entry : completedData.meshDataMap.entrySet()) {
-                        MeshData md = entry.getValue();
-                        if (!md.isEmpty()) {
-                            ChunkMesh newMesh = new ChunkMesh(md.getVertexBuffer(), md.getIndexBuffer());
-                            if (!newMesh.isEmpty()) {
-                                newMeshesForChunk.put(entry.getKey(), newMesh);
+                    if (completedData.isEmpty) {
+                        chunk.setMeshState(ChunkMeshState.EMPTY);
+                        logger.debug("Processed completed EMPTY mesh data for chunk {}. State set to EMPTY.", chunkPos);
+                        continue;
+                    }
+
+                    chunk.setMeshState(ChunkMeshState.BUILDING);
+                    Map<String, ChunkMesh> newMeshesForChunk = new HashMap<>();
+                    if (completedData.meshDataMap != null) {
+                        for (Map.Entry<String, MeshData> entry : completedData.meshDataMap.entrySet()) {
+                            MeshData md = entry.getValue();
+                            if (!md.isEmpty()) {
+                                ChunkMesh newMesh = new ChunkMesh(md.getVertexBuffer(), md.getIndexBuffer());
+                                if (!newMesh.isEmpty()) {
+                                    newMeshesForChunk.put(entry.getKey(), newMesh);
+                                }
                             }
                         }
                     }
-                }
 
-                if (!newMeshesForChunk.isEmpty()) {
-                    activeChunkMeshes.put(chunkPos, newMeshesForChunk);
-                    chunk.setMeshState(ChunkMeshState.UP_TO_DATE);
-                    logger.debug("Created {} new submeshes for chunk {}. State: UP_TO_DATE", newMeshesForChunk.size(),
-                            chunkPos);
-                } else {
-                    chunk.setMeshState(ChunkMeshState.EMPTY);
-                    logger.debug("No renderable geometry created for chunk {} after mesh data processing. State: EMPTY",
-                            chunkPos);
+                    if (!newMeshesForChunk.isEmpty()) {
+                        activeChunkMeshes.put(chunkPos, newMeshesForChunk);
+                        chunk.setMeshState(ChunkMeshState.UP_TO_DATE);
+                        logger.debug("Created {} new submeshes for chunk {}. State: UP_TO_DATE", newMeshesForChunk.size(),
+                                chunkPos);
+                    } else {
+                        chunk.setMeshState(ChunkMeshState.EMPTY);
+                        logger.debug("No renderable geometry created for chunk {} after mesh data processing. State: EMPTY",
+                                chunkPos);
+                    }
+                }
+            } finally {
+                // Ensure buffers are always released back to the pool
+                if (completedData != null) {
+                    completedData.cleanup();
                 }
             }
         }
