@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     api(libs.joml)
-    implementation(projects.engineCore)
+    api(projects.engineCore)
     implementation(libs.fastutil)
 
     // Jackson for JSON parsing

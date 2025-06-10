@@ -12,8 +12,9 @@ dependencies {
     implementation(projects.enginePlatform)
     implementation(projects.engineRenderer)
     implementation(projects.engineWorld)
-    // implementation(projects.enginePhysics)
+    implementation(projects.enginePhysics)
     // implementation(projects.engineAssets)
+    implementation(projects.game)
 
     implementation(platform(libs.lwjgl.bom))
     implementation(libs.bundles.lwjgl.core)
