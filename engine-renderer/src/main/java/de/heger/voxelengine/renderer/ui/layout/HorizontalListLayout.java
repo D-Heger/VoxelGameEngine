@@ -17,6 +17,7 @@ public class HorizontalListLayout implements LayoutManager {
 
     private float spacing = 0f;
     private VerticalAlignment verticalAlignment = VerticalAlignment.TOP;
+    private final Vector2f tempContainerSize = new Vector2f();
     // Horizontal alignment is implicitly LEFT for a horizontal list.
 
     public HorizontalListLayout() {}
@@ -53,7 +54,8 @@ public class HorizontalListLayout implements LayoutManager {
         }
 
         Insets padding = container.getPadding();
-        float containerInnerHeight = container.getComputedSize().y - padding.top - padding.bottom;
+        container.getComputedSize(tempContainerSize);
+        float containerInnerHeight = tempContainerSize.y - padding.top - padding.bottom;
 
         float currentX = padding.left;
 

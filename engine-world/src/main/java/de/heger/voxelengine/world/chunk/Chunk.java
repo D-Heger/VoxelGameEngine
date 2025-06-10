@@ -42,9 +42,6 @@ public class Chunk {
     // Index corresponds to Direction.ordinal()
     private final Chunk[] neighbors = new Chunk[6]; // DOWN, UP, NORTH, SOUTH, WEST, EAST
 
-    // Added for P3-T4.6: Reference to the BlockRegistry instance
-    private final BlockRegistry blockRegistry = BlockRegistry.getInstance();
-
     // Added for P4-T2.4: Mesh state management
     private volatile ChunkMeshState meshState = ChunkMeshState.NEEDS_REBUILD;
     // The actual Map<String, ChunkMesh> will be cached renderer-side to avoid circular dependency.
@@ -124,7 +121,7 @@ public class Chunk {
      */
     public BlockProperties getBlockProperties(int localX, int localY, int localZ) {
         short blockId = getBlock(localX, localY, localZ);
-        BlockProperties properties = blockRegistry.getBlock(blockId);
+        BlockProperties properties = BlockRegistry.getInstance().getBlock(blockId);
         // Return AIR as a safe default if lookup fails (e.g., invalid ID, registry not ready)
         return properties != null ? properties : BlockRegistry.AIR;
     }

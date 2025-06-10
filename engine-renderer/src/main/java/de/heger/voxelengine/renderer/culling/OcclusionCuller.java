@@ -34,6 +34,8 @@ public class OcclusionCuller {
     private final List<ChunkWithDistance> reusableChunkList = new ArrayList<>();
     private final Set<Chunk> reusableVisibleChunks = new HashSet<>();
     private final Set<ChunkPos> reusablePotentialOccluders = new HashSet<>();
+    private final List<ChunkWithDistance> chunkWithDistancePool = new ArrayList<>();
+    private int poolIndex = 0;
     
     /**
      * Filters the input collection of chunks to remove those that are likely
@@ -57,6 +59,7 @@ public class OcclusionCuller {
         }
         
         // OPTIMIZATION: Reuse collections instead of creating new ones
+        poolIndex = 0; // Reset the pool for this frame
         reusableChunkList.clear();
         reusableVisibleChunks.clear();
         reusablePotentialOccluders.clear();
@@ -80,7 +83,7 @@ public class OcclusionCuller {
             // Check if this chunk is potentially opaque (full of solid blocks)
             boolean isOpaque = isChunkOpaque(chunk);
             
-            reusableChunkList.add(new ChunkWithDistance(chunk, distanceSquared, isOpaque));
+            reusableChunkList.add(borrowChunkWithDistance(chunk, distanceSquared, isOpaque));
         }
         
         // Sort by distance (closest to camera first)
@@ -115,6 +118,20 @@ public class OcclusionCuller {
             occludedChunkCounter.accept(culledCount); // Report the count
         }
         return reusableVisibleChunks;
+    }
+    
+    private ChunkWithDistance borrowChunkWithDistance(Chunk chunk, float distanceSquared, boolean isOpaque) {
+        if (poolIndex < chunkWithDistancePool.size()) {
+            ChunkWithDistance obj = chunkWithDistancePool.get(poolIndex);
+            obj.init(chunk, distanceSquared, isOpaque);
+            poolIndex++;
+            return obj;
+        } else {
+            ChunkWithDistance obj = new ChunkWithDistance(chunk, distanceSquared, isOpaque);
+            chunkWithDistancePool.add(obj);
+            poolIndex++;
+            return obj;
+        }
     }
     
     // OPTIMIZATION: Static comparator to avoid lambda allocation
@@ -259,11 +276,15 @@ public class OcclusionCuller {
      * Helper class to store a chunk with its distance from camera.
      */
     private static class ChunkWithDistance {
-        final Chunk chunk;
-        final float distanceSquared;
-        final boolean isOpaque;
+        Chunk chunk;
+        float distanceSquared;
+        boolean isOpaque;
         
         ChunkWithDistance(Chunk chunk, float distanceSquared, boolean isOpaque) {
+            this.init(chunk, distanceSquared, isOpaque);
+        }
+
+        void init(Chunk chunk, float distanceSquared, boolean isOpaque) {
             this.chunk = chunk;
             this.distanceSquared = distanceSquared;
             this.isOpaque = isOpaque;

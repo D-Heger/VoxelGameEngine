@@ -7,6 +7,8 @@ import de.heger.voxelengine.renderer.ui.UIShader;
 import de.heger.voxelengine.renderer.ui.font.Font;
 import de.heger.voxelengine.renderer.ui.font.FontManager;
 import de.heger.voxelengine.renderer.ui.font.GlyphInfo;
+import de.heger.voxelengine.renderer.ui.layout.LayoutManager;
+import de.heger.voxelengine.renderer.mesh.MeshData;
 
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
@@ -134,120 +136,106 @@ public class TextElement extends UIElement {
     }
 
     private void buildMesh() {
-        if (font == null || text == null || text.isEmpty() || scale <= 0) {
-            cleanupMesh(); 
-            this.size.set(0,0);
-            return;
-        }
         cleanupMesh();
-
-        int numChars = text.length();
-        if (numChars == 0) {
-            this.size.set(0,0);
+        if (text == null || text.isEmpty() || font == null) {
             return;
         }
 
-        FloatBuffer verticesBuffer = null;
-        IntBuffer indicesBuffer = null;
-        float calculatedWidth = 0;
-        float calculatedHeight = font.getLineHeight() * scale; // Use line height for vertical alignment and clarity, scaled
+        meshDirty = false;
+        lastBuiltText = text;
+        lastBuiltFont = font;
+        lastBuiltScale = scale;
 
-        STBTTBakedChar.Buffer charData = font.getBakedCharData();
-        int atlasW = font.getAtlasWidth();
-        int atlasH = font.getAtlasHeight();
-        int firstBakedChar = FontManager.DEFAULT_FIRST_CHAR; 
+        MeshData meshData = new MeshData(); // Uses BufferPool for its internal buffers
 
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            verticesBuffer = stack.mallocFloat(numChars * 4 * 4); 
-            indicesBuffer = stack.mallocInt(numChars * 6);    
+            STBTTAlignedQuad q = STBTTAlignedQuad.mallocStack(stack);
+            FloatBuffer x = stack.floats(0f);
+            FloatBuffer y = stack.floats(0f);
+            
+            STBTTBakedChar.Buffer charData = font.getBakedCharData();
+            int atlasWidth = font.getAtlasWidth();
+            int atlasHeight = font.getAtlasHeight();
+            int firstChar = FontManager.DEFAULT_FIRST_CHAR;
 
-            FloatBuffer xPos = stack.floats(0.0f); // Represents current cursor X
-            FloatBuffer yPos = stack.floats(0.0f); // Represents current cursor Y (baseline)
+            float textWidth = 0;
+            float textHeight = font.getLineHeight() * this.scale;
 
-            for (int i = 0; i < numChars; i++) {
-                char character = text.charAt(i);
-                int charIndexInBakedBuffer = character - firstBakedChar;
+            // Reusable arrays, moved outside the loop
+            float[] vertices = new float[16]; // 4 vertices * 4 floats (pos, uv)
+            int[] indices = new int[6];
+            int vertexOffset = 0;
 
-                if (charIndexInBakedBuffer < 0 || charIndexInBakedBuffer >= charData.capacity()) {
-                    GlyphInfo spaceGlyph = font.getGlyph(' ');
-                    if (spaceGlyph != null) {
-                         xPos.put(0, xPos.get(0) + spaceGlyph.xadvance);
-                    } else { 
-                         xPos.put(0, xPos.get(0) + font.getFontSize() / 2); 
-                    }
-                    continue;
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
+                if (c < firstChar || c >= firstChar + charData.limit()) {
+                    c = '?'; // Fallback for unsupported characters
                 }
 
-                STBTTAlignedQuad q = STBTTAlignedQuad.malloc(stack);
-                // Note: stbtt_GetBakedQuad advances xpos and ypos internally.
-                // It treats y as top-down, so yoff is typically positive downwards.
-                stbtt_GetBakedQuad(charData, atlasW, atlasH, charIndexInBakedBuffer, xPos, yPos, q, false); // false for non-power-of-two textures
-                
-                // q.x0, q.y0 etc are screen coords. y is from top-left. 
-                // Font ascent is height from baseline to top. yPos is baseline from top. We need to adjust glyphs to be positioned relative to (0,0) of the TextElement.
-                // STBTTBakedChar yoff is from baseline, positive downwards.
-                // Ascent is from baseline, positive upwards.
-                // Target: final quad y coords should be relative to the TextElement's (0,0) top-left.
-                // If yPos starts at 0 (baseline), q.y0 is like yPos_baseline + glyph_y_offset_from_baseline.
-                // We want final y relative to overall text box top. Font line height is ascent - descent + lineGap.
-                // Ascent is positive. q.y0 is distance from baseline to top of char. For top-left, this is fine if yPos is 0.
-                float final_y0 = q.y0(); //q.y0() already incorporates yPos and yoffset from stbtt_bakedchar
-                float final_y1 = q.y1();
+                stbtt_GetBakedQuad(charData, atlasWidth, atlasHeight, c - firstChar, x, y, q, true);
 
-                // Top-left
-                verticesBuffer.put(q.x0() * scale).put(final_y0 * scale).put(q.s0()).put(q.t0());
-                // Bottom-left
-                verticesBuffer.put(q.x0() * scale).put(final_y1 * scale).put(q.s0()).put(q.t1());
-                // Bottom-right
-                verticesBuffer.put(q.x1() * scale).put(final_y1 * scale).put(q.s1()).put(q.t1());
-                // Top-right
-                verticesBuffer.put(q.x1() * scale).put(final_y0 * scale).put(q.s1()).put(q.t0());
+                float x0 = q.x0() * this.scale;
+                float y0 = q.y0() * this.scale;
+                float x1 = q.x1() * this.scale;
+                float y1 = q.y1() * this.scale;
 
-                int baseIndex = i * 4;
-                indicesBuffer.put(baseIndex + 0).put(baseIndex + 1).put(baseIndex + 2);
-                indicesBuffer.put(baseIndex + 0).put(baseIndex + 2).put(baseIndex + 3);
+                // Vertex data for the quad
+                vertices[0] = x0;  vertices[1] = y0;  vertices[2] = q.s0(); vertices[3] = q.t0(); // Top-left
+                vertices[4] = x0;  vertices[5] = y1;  vertices[6] = q.s0(); vertices[7] = q.t1(); // Bottom-left
+                vertices[8] = x1;  vertices[9] = y1;  vertices[10] = q.s1(); vertices[11] = q.t1(); // Bottom-right
+                vertices[12] = x1; vertices[13] = y0; vertices[14] = q.s1(); vertices[15] = q.t0(); // Top-right
+
+                meshData.addVertices(vertices);
+
+                // Index data for the quad
+                indices[0] = vertexOffset;
+                indices[1] = vertexOffset + 1;
+                indices[2] = vertexOffset + 2;
+                indices[3] = vertexOffset;
+                indices[4] = vertexOffset + 2;
+                indices[5] = vertexOffset + 3;
+
+                meshData.addIndices(indices);
+                vertexOffset += 4;
             }
-            calculatedWidth = xPos.get(0) * scale; 
-            // The actual height of rendered text might be different from font.getLineHeight() if some chars are taller.
-            // For simplicity, using font.getLineHeight(). A more accurate way would be to track min/max Y of rendered quads.
-            // STBTTBakedChar yoff and yoff2 can give bbox. We used y0 and y1 from GetBakedQuad.
-            // Height should be max(y1) - min(y0) over all quads, or more simply, font line height.
-            calculatedHeight = font.getLineHeight() * scale; // Re-affirm scaled height
+
+            textWidth = x.get(0) * this.scale;
+            // Update the element's size based on the computed text dimensions
+            super.setSize(textWidth, textHeight);
+
+            // Now create the VAO from the MeshData's buffers
+            FloatBuffer finalVertexBuffer = meshData.getVertexBuffer();
+            IntBuffer finalIndexBuffer = meshData.getIndexBuffer();
+            indexCount = finalIndexBuffer.remaining();
+
+            if (indexCount == 0) {
+                return; // Nothing to render
+            }
+
+            vaoId = glGenVertexArrays();
+            glBindVertexArray(vaoId);
+
+            vboId = glGenBuffers();
+            glBindBuffer(GL_ARRAY_BUFFER, vboId);
+            glBufferData(GL_ARRAY_BUFFER, finalVertexBuffer, GL_STATIC_DRAW);
+
+            eboId = glGenBuffers();
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, finalIndexBuffer, GL_STATIC_DRAW);
+
+            // Position attribute
+            glVertexAttribPointer(UIShader.ATTRIB_POSITION, 2, GL_FLOAT, false, 4 * Float.BYTES, 0);
+            glEnableVertexAttribArray(UIShader.ATTRIB_POSITION);
+            // Texture coordinate attribute
+            glVertexAttribPointer(UIShader.ATTRIB_TEX_COORDS, 2, GL_FLOAT, false, 4 * Float.BYTES, 2 * Float.BYTES);
+            glEnableVertexAttribArray(UIShader.ATTRIB_TEX_COORDS);
+
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+            glBindVertexArray(0);
+
+        } finally {
+            meshData.cleanup(); // IMPORTANT: Release buffers back to the pool
         }
-
-        verticesBuffer.flip();
-        indicesBuffer.flip();
-
-        if (verticesBuffer.remaining() == 0) {
-            cleanupMesh();
-            this.size.set(0,0);
-            return;
-        }
-
-        indexCount = indicesBuffer.remaining();
-
-        vaoId = glGenVertexArrays();
-        glBindVertexArray(vaoId);
-
-        vboId = glGenBuffers();
-        glBindBuffer(GL_ARRAY_BUFFER, vboId);
-        glBufferData(GL_ARRAY_BUFFER, verticesBuffer, GL_STATIC_DRAW);
-
-        eboId = glGenBuffers();
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesBuffer, GL_STATIC_DRAW);
-
-        glVertexAttribPointer(UIShader.ATTRIB_POSITION, 2, GL_FLOAT, false, 4 * Float.BYTES, 0);
-        glEnableVertexAttribArray(UIShader.ATTRIB_POSITION);
-        glVertexAttribPointer(UIShader.ATTRIB_TEX_COORDS, 2, GL_FLOAT, false, 4 * Float.BYTES, 2 * Float.BYTES);
-        glEnableVertexAttribArray(UIShader.ATTRIB_TEX_COORDS);
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-
-        this.size.set(calculatedWidth, calculatedHeight);
-        LOGGER.trace("Built mesh for text \"{}\", VAO: {}, Indices: {}, Size: {}x{}", 
-                     this.text, vaoId, indexCount, calculatedWidth, calculatedHeight);
     }
 
     @Override

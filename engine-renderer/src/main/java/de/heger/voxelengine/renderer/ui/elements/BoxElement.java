@@ -25,6 +25,7 @@ public class BoxElement extends UIElement {
     private int vaoId = -1, vboId = -1, eboId = -1;
     private int indexCount = 0;
     private final Matrix4f modelMatrix = new Matrix4f();
+    private final Vector2f screenPos = new Vector2f(); // Reusable vector for position calculation
 
     public BoxElement(Vector4f color) {
         super();
@@ -128,7 +129,7 @@ public class BoxElement extends UIElement {
             UIShader shader = renderer.getUIShader();
             shader.loadUseTexture(false); // Tell shader not to use a texture
             // Use getComputedPosition() to ensure correct placement by layout system
-            Vector2f screenPos = getComputedPosition(); 
+            getComputedPosition(screenPos);
             modelMatrix.identity().translate(screenPos.x, screenPos.y, 0);
             shader.loadModelMatrix(modelMatrix);
             shader.loadColor(this.color);

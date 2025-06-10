@@ -96,6 +96,8 @@ public class Renderer {
     private final Matrix4f viewProjectionMatrixForCulling = new Matrix4f();
     private final List<Chunk> reusableChunkList = new ArrayList<>();
     private final List<Chunk> reusableOcclusionList = new ArrayList<>();
+    private final List<RenderableChunkData> renderableDataPool = new ArrayList<>();
+    private int renderableDataPoolIndex = 0;
 
     // Texture batching optimization - reusable collections
     private final Map<String, List<RenderableChunkData>> textureToChunkDataMap = new HashMap<>();
@@ -108,12 +110,16 @@ public class Renderer {
      * Helper class to store renderable chunk data for texture batching optimization.
      */
     private static class RenderableChunkData {
-        final Chunk chunk;
-        final String textureName;
-        final ChunkMesh mesh;
-        final Vec3i chunkOriginWorld;
+        Chunk chunk;
+        String textureName;
+        ChunkMesh mesh;
+        Vec3i chunkOriginWorld;
 
         RenderableChunkData(Chunk chunk, String textureName, ChunkMesh mesh, Vec3i chunkOriginWorld) {
+            this.init(chunk, textureName, mesh, chunkOriginWorld);
+        }
+
+        void init(Chunk chunk, String textureName, ChunkMesh mesh, Vec3i chunkOriginWorld) {
             this.chunk = chunk;
             this.textureName = textureName;
             this.mesh = mesh;
@@ -217,6 +223,7 @@ public class Renderer {
         chunkMeshManager.processCompletedMeshData();
         sceneLightingManager.update();
         renderStats.reset();
+        renderableDataPoolIndex = 0; // Reset pool for the new frame
 
         Vector3f fogColor = sceneLightingManager.getFogColor();
         glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
@@ -342,7 +349,7 @@ public class Renderer {
                 if (chunkMeshToRender.isEmpty()) continue;
 
                 String textureName = meshEntry.getKey();
-                RenderableChunkData renderableData = new RenderableChunkData(
+                RenderableChunkData renderableData = borrowRenderableChunkData(
                     chunk, textureName, chunkMeshToRender, chunkOriginWorld
                 );
 
@@ -390,6 +397,20 @@ public class Renderer {
 
         if (lastBoundVaoId != 0) {
             glBindVertexArray(0);
+        }
+    }
+
+    private RenderableChunkData borrowRenderableChunkData(Chunk chunk, String textureName, ChunkMesh mesh, Vec3i chunkOriginWorld) {
+        if (renderableDataPoolIndex < renderableDataPool.size()) {
+            RenderableChunkData obj = renderableDataPool.get(renderableDataPoolIndex);
+            obj.init(chunk, textureName, mesh, chunkOriginWorld);
+            renderableDataPoolIndex++;
+            return obj;
+        } else {
+            RenderableChunkData obj = new RenderableChunkData(chunk, textureName, mesh, chunkOriginWorld);
+            renderableDataPool.add(obj);
+            renderableDataPoolIndex++;
+            return obj;
         }
     }
 

@@ -33,6 +33,10 @@ public abstract class UIElement {
     protected boolean needsRenderUpdate = true;
     // --- End of new properties ---
 
+    // Reusable vectors to avoid allocations in getComputedPosition
+    private final Vector2f tempParentPos = new Vector2f();
+    private final Vector2f tempParentSize = new Vector2f();
+
     // --- New constructor ---
     public UIElement() {
         this.position = new Vector2f(0,0);
@@ -53,6 +57,7 @@ public abstract class UIElement {
         this.minSize = new Vector2f(0, 0);
         this.maxSize = new Vector2f(Float.MAX_VALUE, Float.MAX_VALUE);
         this.preferredSize = new Vector2f(-1, -1);
+        setNeedsLayoutUpdate(false);
     }
     // --- End of new constructor ---
 
@@ -503,6 +508,8 @@ public abstract class UIElement {
             child.setParent(this);
             setNeedsLayoutUpdate(true);
             setNeedsRenderUpdate(true);
+            boundsDirty = true; // Bounds likely changed
+            needsRenderUpdate = true; // Usually layout change means render update too
         }
     }
 
@@ -565,82 +572,46 @@ public abstract class UIElement {
     /**
      * Calculates the final screen position of this element, considering its parent,
      * anchor point, and positioning mode.
-     * @return The computed absolute screen position (top-left). Vector2f should be new instance or use an out-param.
+     * @param dest The Vector2f to store the result in, avoiding allocation.
      */
-    public Vector2f getComputedPosition() {
-        if (needsLayoutUpdate) {
-            // This is a simplified view; ideally, parent would call updateLayout on children.
-            // For now, ensure this element's layout is resolved before computing position.
-            // updateLayout(); // Recursive call risk if not managed carefully. Layout pass should handle this.
+    public void getComputedPosition(Vector2f dest) {
+        if (positioningMode == PositioningMode.ABSOLUTE || parent == null) {
+            dest.set(position);
+            return;
         }
 
-        Vector2f basePosition = new Vector2f(this.position); // Start with local position
+        parent.getComputedPosition(tempParentPos);
+        parent.getComputedSize(tempParentSize);
 
-        if (parent != null && positioningMode == PositioningMode.RELATIVE_TO_PARENT) {
-            Vector2f parentComputedPosition = parent.getComputedPosition();
-            Vector2f parentPaddingOffset = new Vector2f(parent.padding.left, parent.padding.top);
-            basePosition.add(parentComputedPosition).add(parentPaddingOffset);
+        float newX = tempParentPos.x + position.x + parent.getPadding().left;
+        float newY = tempParentPos.y + position.y + parent.getPadding().top;
+
+        // Anchor point adjustments relative to parent's size
+        if (anchorPoint.x > 0) {
+            newX += (tempParentSize.x - this.size.x - parent.getPadding().left - parent.getPadding().right) * anchorPoint.x;
         }
-        // ABSOLUTE positioning uses this.position directly as screen coordinates (or relative to viewport later)
+        if (anchorPoint.y > 0) {
+            newY += (tempParentSize.y - this.size.y - parent.getPadding().top - parent.getPadding().bottom) * anchorPoint.y;
+        }
 
-        // Adjust for margin (affects spacing relative to siblings or parent content edge)
-        // This simple model assumes margin pushes the element itself.
-        // More complex layouts might handle margin spacing within the layout manager.
-        basePosition.add(this.margin.left, this.margin.top);
-
-        // Anchor point adjustment: The computed position is where the anchor point of the element should be.
-        // So, we need to shift the element *back* by its anchorPoint * its own size.
-        // This logic is complex if size is also computed. Assume size is known for now.
-        // Vector2f computedSize = getComputedSize(); // Potential recursion
-        // basePosition.sub(computedSize.x * anchorPoint.x, computedSize.y * anchorPoint.y);
-
-        return basePosition; // Note: This is a simplified version. Full version in UI-P1-T3.
+        dest.set(newX, newY);
     }
 
     /**
      * Calculates the final size of this element, considering its content, children, layout, and min/max constraints.
-     * @return The computed size. Vector2f should be new instance or use an out-param.
+     * @param dest The Vector2f to store the result in, avoiding allocation.
      */
-    public Vector2f getComputedSize() {
-        if (needsLayoutUpdate) {
-            // updateLayout(); // Similar to getComputedPosition, layout pass should handle this.
-        }
-        Vector2f currentSize = new Vector2f(this.size); // Start with base size
+    public void getComputedSize(Vector2f dest) {
+        // Simple for now. In a real system, this would consider content size, parent constraints etc.
+        // For STRETCH modes in layouts, the layout manager would have already set our size.
+        float finalWidth = size.x;
+        float finalHeight = size.y;
+        
+        // Clamp to min/max size
+        finalWidth = Math.max(minSize.x, Math.min(finalWidth, maxSize.x));
+        finalHeight = Math.max(minSize.y, Math.min(finalHeight, maxSize.y));
 
-        if (layout != null && preferredSize.x < 0 && preferredSize.y < 0) {
-            // If layout manager exists and preferredSize is not set, layout manager might determine size.
-            // This would typically be called by the layout manager itself during arrangeChildren.
-            // For now, this is a placeholder.
-            // currentSize.set(layout.calculatePreferredSize(this, children));
-        } else if (preferredSize.x >= 0 && preferredSize.y >= 0) {
-            currentSize.set(preferredSize);
-        }
-
-        // Apply min/max constraints
-        currentSize.x = Math.max(minSize.x, Math.min(currentSize.x, maxSize.x));
-        currentSize.y = Math.max(minSize.y, Math.min(currentSize.y, maxSize.y));
-
-        return currentSize; // Note: This is a simplified version. Full version in UI-P1-T3.
-    }
-
-    /**
-     * Returns the actual screen-space bounding box of the element.
-     * This considers the computed position and computed size.
-     * Result is an array [left, top, right, bottom].
-     * @return float array [left, top, right, bottom] or a Rect class if available.
-     */
-    public float[] getBoundingBox() {
-        Vector2f computedPos = getComputedPosition();
-        Vector2f computedSize = getComputedSize();
-
-        // Update cached bounds used by isMouseOver
-        cachedLeft = computedPos.x;
-        cachedTop = computedPos.y;
-        cachedRight = computedPos.x + computedSize.x;
-        cachedBottom = computedPos.y + computedSize.y;
-        boundsDirty = false; // Bounds are now fresh
-
-        return new float[]{cachedLeft, cachedTop, cachedRight, cachedBottom};
+        dest.set(finalWidth, finalHeight);
     }
 
     // --- End of Core Methods ---

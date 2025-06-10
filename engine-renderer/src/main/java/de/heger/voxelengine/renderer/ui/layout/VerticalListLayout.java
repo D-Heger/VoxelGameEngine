@@ -17,6 +17,7 @@ public class VerticalListLayout implements LayoutManager {
 
     private float spacing = 0f;
     private HorizontalAlignment horizontalAlignment = HorizontalAlignment.LEFT;
+    private final Vector2f tempContainerSize = new Vector2f();
     // Vertical alignment is implicitly TOP for a vertical list.
     // STRETCH_VERTICAL would be handled by children if they want to fill height.
 
@@ -54,7 +55,8 @@ public class VerticalListLayout implements LayoutManager {
         }
 
         Insets padding = container.getPadding();
-        float containerInnerWidth = container.getComputedSize().x - padding.left - padding.right;
+        container.getComputedSize(tempContainerSize);
+        float containerInnerWidth = tempContainerSize.x - padding.left - padding.right;
 
         float currentY = padding.top;
 
