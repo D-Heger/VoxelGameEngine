@@ -705,7 +705,7 @@
   - **Description:** Implement a raycasting algorithm (e.g., Amanatides & Woo) to determine the block the player is looking at.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P2-T3, P3-T2, P4-T3, `engine-physics`, `engine-world`, `game` modules
-  - **Subtasks:** 
+  - **Subtasks:**
     - [ ] **Subtask ID:** P4-T9.1
       - **Name:** Design a raycasting solution
       - **Description:** Design a raycasting solution that can be used to raycast through the world and determine the block the player is looking at.
