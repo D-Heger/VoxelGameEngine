@@ -13,7 +13,7 @@ This document outlines performance optimization opportunities identified in the 
 
 ## Easy Optimizations
 
-### 1. Reduce VAO Binding/Unbinding in ChunkMesh.render()
+### 1. Reduce VAO Binding/Unbinding in ChunkMesh.render() [x]
 
 **Affected Classes:**
 
@@ -45,7 +45,7 @@ Remove the `glBindVertexArray(0)` call from `ChunkMesh.render()` and manage VAO 
 
 ---
 
-### 2. Cache Computed Chunk AABBs More Efficiently
+### 2. Cache Computed Chunk AABBs More Efficiently [x]
 
 **Affected Classes:**
 
@@ -74,7 +74,7 @@ Pre-compute AABBs when chunks are loaded or when mesh generation begins, not dur
 
 ---
 
-### 3. Optimize Chunk List Allocation in Culling
+### 3. Optimize Chunk List Allocation in Culling [x]
 
 **Affected Classes:**
 
@@ -102,7 +102,7 @@ Return the reusable list directly or use a secondary reusable list for occlusion
 
 ---
 
-### 4. Optimize Scene Lighting Recalculation Threshold
+### 4. Optimize Scene Lighting Recalculation Threshold [x]
 
 **Affected Classes:**
 
@@ -126,7 +126,7 @@ Analyze actual time progression rate and adjust threshold accordingly. Also cach
 
 ## Medium Optimizations
 
-### 5. Batch Texture Binding by Grouping Meshes
+### 5. Batch Texture Binding by Grouping Meshes [x]
 
 **Affected Classes:**
 
@@ -157,7 +157,7 @@ Group all meshes by texture before rendering to minimize texture state changes.
 
 ---
 
-### 6. Implement Instanced Rendering for Chunks
+### 6. Implement Instanced Rendering for Chunks [ ]
 
 **Affected Classes:**
 
@@ -182,7 +182,7 @@ Use instanced rendering to draw multiple chunks with the same texture in a singl
 
 ---
 
-### 7. Use Uniform Buffer Objects (UBOs) for Shader Data
+### 7. Use Uniform Buffer Objects (UBOs) for Shader Data [x]
 
 **Affected Classes:**
 
@@ -214,7 +214,7 @@ Bundle related uniforms into UBOs for efficient batch updates.
 
 ---
 
-### 8. Optimize MeshData Buffer Management
+### 8. Optimize MeshData Buffer Management [ ]
 
 **Affected Classes:**
 
@@ -244,7 +244,7 @@ Implement a buffer pool with pre-allocated buffers of common sizes.
 
 ## Hard Optimizations
 
-### 9. Implement Level-of-Detail (LOD) System
+### 9. Implement Level-of-Detail (LOD) System [ ]
 
 **Affected Classes:**
 
@@ -270,7 +270,7 @@ Generate multiple LOD levels for chunks and select appropriate detail based on d
 
 ---
 
-### 10. GPU-Based Frustum Culling
+### 10. GPU-Based Frustum Culling [ ]
 
 **Affected Classes:**
 
@@ -295,7 +295,7 @@ Move frustum culling to GPU compute shaders for massive parallelization.
 
 ---
 
-### 11. Multi-Draw Indirect (MDI) Rendering
+### 11. Multi-Draw Indirect (MDI) Rendering [ ]
 
 **Affected Classes:**
 
@@ -321,7 +321,7 @@ Use `glMultiDrawElementsIndirect` to submit multiple draw commands in a single c
 
 ---
 
-### 12. Temporal Coherence in Occlusion Culling
+### 12. Temporal Coherence in Occlusion Culling [ ]
 
 **Affected Classes:**
 
@@ -348,7 +348,7 @@ Use frame-to-frame coherence to avoid re-testing recently visible objects.
 
 ## Very Hard Optimizations
 
-### 13. Clustered/Tiled Deferred Rendering
+### 13. Clustered/Tiled Deferred Rendering [ ]
 
 **Affected Classes:**
 
@@ -374,7 +374,7 @@ Implement deferred or clustered forward rendering for better lighting scalabilit
 
 ---
 
-### 14. GPU-Driven Rendering Pipeline
+### 14. GPU-Driven Rendering Pipeline [ ]
 
 **Affected Classes:**
 
@@ -400,7 +400,7 @@ Move entire rendering pipeline to GPU, eliminating CPU bottlenecks.
 
 ---
 
-### 15. Mesh Shaders Implementation
+### 15. Mesh Shaders Implementation [ ]
 
 **Affected Classes:**
 
