@@ -116,6 +116,9 @@
       - **Name:** Update `UIManager` input processing to use `UIEvent` objects.
     - [ ] **Subtask ID:** UI-P2-T2.3
       - **Name:** Implement basic event bubbling (target first, then parent).
+    - [ ] **Subtask ID:** UI-P2-T2.4
+      - **Name:** Update existing menus to use the new event system.
+      - **Description:** Update `PauseMenu` and `SettingsMenu` to use the new event system.
   - **Implementation Context:** (TBD)
 
 - [ ] **Task ID:** UI-P2-T3
