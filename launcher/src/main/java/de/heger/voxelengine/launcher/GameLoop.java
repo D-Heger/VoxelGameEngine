@@ -24,12 +24,17 @@ import de.heger.voxelengine.world.generation.service.ChunkGenerationService;
 import de.heger.voxelengine.world.generation.thread.LoggingTaskResultHandler;
 import de.heger.voxelengine.world.generation.thread.PerformanceTrackingTaskResultHandler;
 import de.heger.voxelengine.world.generation.thread.TaskResultHandler;
+import de.heger.voxelengine.physics.PhysicsService;
+import de.heger.voxelengine.physics.CollisionResolver;
+import de.heger.voxelengine.game.Player;
+import de.heger.voxelengine.game.PlayerController;
 import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Collection;
+import org.joml.Vector3f;
 
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F1;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F2;
@@ -54,6 +59,9 @@ public class GameLoop {
     private final Camera camera;
     private final ChunkManager chunkManager;
     private final BlockRegistry blockRegistry;
+    private final Player player;
+    private final PlayerController playerController;
+    private final PhysicsService physicsService;
     private ChunkGenerationService chunkGenerationService;
     private boolean running = false;
 
@@ -212,6 +220,13 @@ public class GameLoop {
         this.previousWindowWidth = window.getWidth();
         this.previousWindowHeight = window.getHeight();
 
+        // ------------------------------------------------------------
+        // Player Entity / Controller & Physics setup
+        // ------------------------------------------------------------
+        player = new Player(new Vector3f(camera.getPosition()));
+        playerController = new PlayerController(player, camera);
+        physicsService = new PhysicsService(new CollisionResolver(chunkManager));
+
         LOGGER.info("Game loop initialized.");
     }
 
@@ -309,6 +324,10 @@ public class GameLoop {
                     debugData.lightingAvgRecalcTimeMs = renderer.getAverageLightingRecalculationTimeMs();
                     debugData.lightingCacheHits = renderer.getLightingCacheHits();
                     debugData.lightingThreshold = renderer.getLightingCalculationThreshold();
+
+                    // Player state
+                    debugData.isFlying = playerController.isFlying();
+                    debugData.isNoClip = playerController.isNoClipEnabled();
                 }
             }
         } catch (Exception e) {
@@ -392,7 +411,14 @@ public class GameLoop {
                 // However, if a different UI element (not pause menu) takes focus, this might
                 // be relevant.
             } else {
-                camera.processKeyboard(inputManager, deltaTime);
+                // Update player controller & basic physics
+                playerController.update(inputManager, deltaTime);
+                physicsService.update(player, deltaTime, !playerController.isFlying(), !playerController.isNoClipEnabled());
+
+                // Sync camera position with player (eye level ~1.6 blocks above feet)
+                camera.getPosition().set(player.getPosition().x,
+                        player.getPosition().y + (Player.PLAYER_HEIGHT - 0.2f),
+                        player.getPosition().z);
             }
         } else { // Game is paused
             // UI has focus during pause state

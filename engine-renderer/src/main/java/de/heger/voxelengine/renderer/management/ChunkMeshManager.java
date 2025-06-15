@@ -1,7 +1,7 @@
 package de.heger.voxelengine.renderer.management;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
-import de.heger.voxelengine.renderer.culling.AABB;
+import de.heger.voxelengine.core.math.AABB;
 import de.heger.voxelengine.renderer.mesh.ChunkMesh;
 import de.heger.voxelengine.renderer.mesh.ChunkMeshBuilder;
 import de.heger.voxelengine.renderer.mesh.MeshData;
@@ -181,7 +181,7 @@ public class ChunkMeshManager {
                     // Also pre-compute AABB in background thread as a safety measure
                     // This ensures AABB is available even if the main thread computation was
                     // skipped
-                    AABB chunkAABB = AABB.fromChunk(chunk);
+                    AABB chunkAABB = createAABBForChunk(chunk);
                     chunkAABBCache.put(chunk.getPosition(), chunkAABB);
 
                     Map<String, MeshData> generatedData = ChunkMeshBuilder.generateMeshDataByTexture(chunk,
@@ -266,7 +266,7 @@ public class ChunkMeshManager {
             // This can happen if the chunk was just loaded and ensureMeshForChunk hasn't
             // been called yet
             logger.warn("AABB not found in cache for chunk {}, computing fallback.", chunkPos);
-            cachedAABB = AABB.fromChunk(chunk);
+            cachedAABB = createAABBForChunk(chunk);
             chunkAABBCache.put(chunkPos, cachedAABB);
         }
 
@@ -342,10 +342,28 @@ public class ChunkMeshManager {
     public void precomputeAABBForChunk(Collection<Chunk> chunks) {
         for (Chunk chunk : chunks) {
             if (chunk != null && !chunkAABBCache.containsKey(chunk.getPosition())) {
-                AABB aabb = AABB.fromChunk(chunk);
+                AABB aabb = createAABBForChunk(chunk);
                 chunkAABBCache.put(chunk.getPosition(), aabb);
                 logger.debug("Pre-computed AABB for chunk {}", chunk.getPosition());
             }
         }
+    }
+
+    /**
+     * Utility method to create an {@link AABB} for the given chunk without relying on
+     * engine-core having a dependency on engine-world.
+     */
+    private static AABB createAABBForChunk(Chunk chunk) {
+        if (chunk == null) {
+            throw new IllegalArgumentException("Chunk cannot be null when creating AABB.");
+        }
+        ChunkPos chunkPos = chunk.getPosition();
+        float minX = (float) chunkPos.x * Chunk.SIZE_X;
+        float minY = (float) chunkPos.y * Chunk.SIZE_Y;
+        float minZ = (float) chunkPos.z * Chunk.SIZE_Z;
+        float maxX = minX + Chunk.SIZE_X;
+        float maxY = minY + Chunk.SIZE_Y;
+        float maxZ = minZ + Chunk.SIZE_Z;
+        return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
     }
 }

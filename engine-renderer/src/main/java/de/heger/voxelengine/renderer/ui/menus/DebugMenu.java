@@ -51,6 +51,9 @@ public class DebugMenu {
     private TextElement lightingCacheHitsText;
     private TextElement lightingThresholdText;
 
+    // Player state
+    private TextElement flyingStateText;
+    private TextElement noClipStateText;
 
     public DebugMenu(UIManager uiManager, Font font) {
         this.uiManager = uiManager;
@@ -67,7 +70,7 @@ public class DebugMenu {
 
         float firstTextBaselineY = visualTextTopY + scaledAscent; 
 
-        int numTextElements = 25; // Increased for lighting performance metrics + spacing
+        int numTextElements = 27; // plus flying & noclip
 
         // Calculate dimensions for the text block content itself
         // Estimate max text width. A more accurate way would be to render all text once, get max width.
@@ -144,6 +147,12 @@ public class DebugMenu {
         lightingThresholdText = createTextElement("Lighting Threshold: -", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
         
+        // Player state section
+        flyingStateText = createTextElement("Flying: -", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        noClipStateText = createTextElement("No Clip: -", textX, currentTextBaselineY);
+        currentTextBaselineY += scaledLineHeight + lineSpacing;
+        
         // Time of day section
         timeOfDayEnabledText = createTextElement("Day/Night cycle: ", textX, currentTextBaselineY);
         currentTextBaselineY += scaledLineHeight + lineSpacing;
@@ -196,6 +205,10 @@ public class DebugMenu {
         lightingAvgTimeText.setText(String.format(Locale.US, "Lighting Avg Time: %.3f ms", data.lightingAvgRecalcTimeMs));
         lightingCacheHitsText.setText(String.format(Locale.US, "Lighting Cache Hits: %d", data.lightingCacheHits));
         lightingThresholdText.setText(String.format(Locale.US, "Lighting Threshold: %.3f", data.lightingThreshold));
+        
+        // Player state
+        flyingStateText.setText(String.format(Locale.US, "Flying: %s", data.isFlying ? "ON" : "OFF"));
+        noClipStateText.setText(String.format(Locale.US, "No Clip: %s", data.isNoClip ? "ON" : "OFF"));
         
         // Time of day
         timeOfDayEnabledText.setText(String.format(Locale.US, "Day/Night cycle: %s", data.isTimeOfDayEnabled ? "Enabled" : "Disabled"));
@@ -279,6 +292,10 @@ public class DebugMenu {
         public double lightingAvgRecalcTimeMs;
         public long lightingCacheHits;
         public float lightingThreshold;
+
+        // Player state
+        public boolean isFlying;
+        public boolean isNoClip;
 
         // Builder or constructor for convenience
         public DebugData() {} // Default constructor

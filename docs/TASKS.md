@@ -639,62 +639,70 @@
       - **Deliverables:** Pause menu with its requirements.
       - **Implementation Context:** Created a `PauseMenu` class in `engine-renderer/src/main/java/de/heger/voxelengine/renderer/ui/displays/`. It extends `UIElement` and uses a `BoxElement` for background. It also includes a `ButtonElement` for the continue and quit buttons. The menu is integrated into the `GameLoop` and handles the escape key to toggle its visibility.
 
-- - [ ] **Task ID:** P4-T6
+- - [x] **Task ID:** P4-T6
   - **Name:** Player Entity (`game`, `engine-world`)
   - **Description:** Create an `Entity` class to represent objects in the world and a `Player` class for the user. The architecture is designed to avoid circular dependencies between `game` and `engine-physics`.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T2, `game` module, `engine-world` module
   - **Subtasks:**
-    - [ ] **Subtask ID:** P4-T6.1
+    - [x] **Subtask ID:** P4-T6.1
       - **Name:** Create `Entity` class (`engine-world`)
-      - **Description:** Create a generic `Entity` class in the `engine-world` module's `entity` package. This class will serve as the base for any object with a physical presence, such as players, mobs, or items. It must include core attributes like position, velocity, orientation (using JOML vectors), and an `AABB` for its physical bounds. The `AABB` class will be moved from `engine-renderer` to `engine-core` for broad, dependency-free access.
+      - **Description:** Create a generic `Entity` class in the `engine-world` module's `entity` package. This class will serve as the base for any object with a physical presence, such as players, mobs, or items. It must include core attributes like position, velocity, orientation (using JOML vectors), and an `AABB` for its physical bounds. The `AABB` class was relocated from `engine-renderer` to `engine-core` (`de.heger.voxelengine.core.math.AABB`) to eliminate renderer-specific dependencies and make it universally accessible. Utility methods that rely on chunk knowledge were removed to avoid cyclic dependencies.
       - **Deliverables:** `Entity` class in `engine-world`. `AABB` class moved to `engine-core`.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T6.2
+      - **Implementation Context:** The `AABB` class was relocated from `engine-renderer` to `engine-core` (`de.heger.voxelengine.core.math.AABB`) to eliminate renderer-specific dependencies and make it universally accessible. Utility methods that rely on chunk knowledge were removed to avoid cyclic dependencies.
+
+        A new `Entity` base class was added under `engine-world/src/main/java/de/heger/voxelengine/world/entity/Entity.java`. It encapsulates position, velocity, and orientation using JOML `Vector3f` instances and exposes a lazily-computed `getAABB()` method based on configurable width/height/depth fields. A simple Euler‐integration helper (`integrate`) is included for future physics updates.
+
+        Renderer-side code that previously depended on `AABB.fromChunk` now uses an internal helper in `ChunkMeshManager` to compute bounding boxes, removing the cross-module dependency. All imports were updated to the new `engine-core` path.
+    - [x] **Subtask ID:** P4-T6.2
       - **Name:** Create `Player` class (`game`)
       - **Description:** In the `game` module, create a `Player` class that extends `Entity` from `engine-world`. This class will hold state and logic specific to the player, which can be expanded later with systems like inventory, health, and player stats.
       - **Deliverables:** Player class extending `Entity`.
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** A minimal `Player` class was introduced in the `game` module (`game/src/main/java/de/heger/voxelengine/game/Player.java`). It extends `Entity` with default Minecraft-like dimensions (0.6 × 1.8 × 0.6) and placeholder health handling, providing a clear starting point for future gameplay-specific features.
 
-- - [ ] **Task ID:** P4-T7
+- - [x] **Task ID:** P4-T7
   - **Name:** Basic Player Movement (`game`, `engine-physics`)
   - **Description:** Implement player movement logic, connecting user input to the physics simulation. This involves a `PlayerController` in the `game` module to handle input and delegate movement actions to the `engine-physics` module.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P1-T5, P4-T6, `game`, `engine-physics` modules
   - **Subtasks:** 
-    - [ ] **Subtask ID:** P4-T7.1
+    - [x] **Subtask ID:** P4-T7.1
       - **Name:** Create `PlayerController` class (`game`)
       - **Description:** Create a `PlayerController` class within the `game` module. This controller will be the bridge between the player and the engine systems. It will hold a reference to the `Player` entity, process input from `InputManager` (`engine-platform`), interact with the `Camera` (`engine-renderer`) for orientation, and command the physics systems in `engine-physics` to apply movement.
       - **Deliverables:** `PlayerController` class in the `game` module.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T7.2
+      - **Implementation Context:** Introduced `PlayerController` in the `game` module. It processes keyboard input (WASD, sprint, ascend/descend, F9 toggle for creative flight) in conjunction with the renderer's `Camera`, updating the player's velocity vector each frame. Edge-detected F9 toggles a persistent flying mode. Movement is relative to the camera's orientation, and sprinting multiplies speed. The class lives at `game/src/main/java/de/heger/voxelengine/game/PlayerController.java`.
+    - [x] **Subtask ID:** P4-T7.2
       - **Name:** Implement basic player movement (`engine-physics`, `game`)
       - **Description:** In `engine-physics`, implement methods that apply forces and velocity changes to an `Entity` to simulate walking and jumping. The `PlayerController` in `game` will invoke these methods in response to keyboard inputs.
       - **Deliverables:** Movement logic in `engine-physics` and input handling in `PlayerController`.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T7.3
+      - **Implementation Context:** Added `PhysicsService` in `engine-physics` (`engine-physics/src/main/java/de/heger/voxelengine/physics/PhysicsService.java`). It currently performs simple Euler integration and optional gravity application (`GRAVITY = -9.81f`). GameLoop now instantiates a single `PhysicsService` instance and updates the player entity each tick. Gravity is skipped while in flying mode.
+    - [x] **Subtask ID:** P4-T7.3
       - **Name:** Implement creative movement (`game`, `engine-physics`)
       - **Description:** Add a "flying" mode, toggled by a key (`F9`). In `PlayerController`, when flying is active, it should signal the physics engine to ignore gravity for the player entity and allow direct velocity control for vertical and horizontal movement. The debug menu should be updated to show the player's current movement state (e.g., "Flying").
       - **Deliverables:** Creative flight mode implementation.
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** The `PlayerController` implements a creative flight mode. Pressing F9 toggles flight on/off via edge detection; while flying, vertical movement with SPACE/SHIFT is enabled and gravity is disabled. The performance display's debug data will later be extended to show the flying state.
 
-- - [ ] **Task ID:** P4-T8
+- - [x] **Task ID:** P4-T8
   - **Name:** AABB Collision Detection & Physics (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement an AABB-based collision detection and response system in `engine-physics`. This system will prevent entities from moving through solid blocks by checking against the world data from `engine-world`.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P3-T2, P4-T6, P4-T7, `engine-physics`, `engine-world`, `game` modules
   - **Subtasks:** 
-    - [ ] **Subtask ID:** P4-T8.1
+    - [x] **Subtask ID:** P4-T8.1
       - **Name:** Create `PhysicsService` and `CollisionResolver` classes (`engine-physics`)
       - **Description:** In `engine-physics`, create a `PhysicsService` to manage the physics simulation loop (applying gravity, updating positions). Also, create a `CollisionResolver` class dedicated to handling entity-vs-world collision detection and response.
       - **Deliverables:** `PhysicsService` and `CollisionResolver` classes.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T8.2
+      - **Implementation Context:**
+        • Created `CollisionResolver` (engine-physics) leveraging `ChunkManager` & `CoordinateUtils` to sweep the entity's AABB along each axis and clamp it against solid blocks.
+        • `PhysicsService` rewritten to accept a `CollisionResolver`. It now applies gravity, forms a desired movement vector, and delegates collision resolution each tick.
+        • `GameLoop` instantiates `PhysicsService` using a new `CollisionResolver` and calls it every update. Camera position is synced to the resolved player position.
+        • Utility import fixes and helper `setPosition` added to `Entity`.
+    - [x] **Subtask ID:** P4-T8.2
       - **Name:** Implement AABB collision detection (`engine-physics`)
       - **Description:** Implement the core collision detection logic inside `CollisionResolver`. The algorithm will take an entity's `AABB` and its velocity, query `ChunkManager` for blocks along the entity's path, and calculate a new velocity to prevent intersection with solid blocks. This requires `engine-physics` to depend on `engine-world`.
       - **Deliverables:** AABB collision detection and response algorithm.
       - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T8.3
+    - [x] **Subtask ID:** P4-T8.3
       - **Name:** Integrate physics into game loop (`game`, `launcher`)
       - **Description:** In the `GameLoop` (`launcher`), instantiate and run the `PhysicsService` during the `update` phase. The `PlayerController` (`game`) will set the player's intended velocity based on input, and the `PhysicsService` will then simulate one physics tick, applying gravity and resolving collisions for the player entity before its final position is updated.
       - **Deliverables:** Physics simulation integrated into the main game loop.

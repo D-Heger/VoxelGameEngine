@@ -1,7 +1,6 @@
 package de.heger.voxelengine.renderer.mesh;
 
 import de.heger.voxelengine.core.math.Vec3i;
-import de.heger.voxelengine.renderer.culling.AABB;
 import de.heger.voxelengine.world.block.BlockProperties;
 import de.heger.voxelengine.world.block.BlockRegistry;
 import de.heger.voxelengine.world.block.TextureRef;

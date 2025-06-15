@@ -4,7 +4,7 @@ import de.heger.voxelengine.core.logging.LoggerFacade;
 import de.heger.voxelengine.core.math.Vec3i;
 import de.heger.voxelengine.platform.Window;
 import de.heger.voxelengine.renderer.camera.Camera;
-import de.heger.voxelengine.renderer.culling.AABB;
+import de.heger.voxelengine.core.math.AABB;
 import de.heger.voxelengine.renderer.culling.FrustumCuller;
 import de.heger.voxelengine.renderer.culling.OcclusionCuller;
 import de.heger.voxelengine.renderer.debug.WireframeRenderer;

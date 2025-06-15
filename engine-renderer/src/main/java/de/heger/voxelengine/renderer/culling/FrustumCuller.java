@@ -2,6 +2,7 @@ package de.heger.voxelengine.renderer.culling;
 
 import org.joml.FrustumIntersection;
 import org.joml.Matrix4f;
+import de.heger.voxelengine.core.math.AABB;
 
 /**
  * Handles frustum culling operations.

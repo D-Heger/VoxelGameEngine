@@ -8,6 +8,10 @@ dependencies {
     implementation(project(":engine-renderer"))
     implementation(project(":engine-physics"))
 
+    implementation(platform(libs.lwjgl.bom))
+    implementation(libs.lwjgl.opengl)
+    implementation(libs.lwjgl.glfw)
+
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
