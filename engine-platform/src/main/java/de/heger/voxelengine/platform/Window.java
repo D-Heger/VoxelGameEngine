@@ -60,8 +60,8 @@ public class Window {
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
         glfwWindowHint(GLFW.GLFW_RESIZABLE, GLFW.GLFW_TRUE);
-        glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 6);
         glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE); // Required for macOS
         glfwWindowHint(GLFW.GLFW_FOCUS_ON_SHOW, GLFW.GLFW_TRUE);
