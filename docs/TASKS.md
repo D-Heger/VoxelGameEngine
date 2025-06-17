@@ -708,32 +708,47 @@
       - **Deliverables:** Physics simulation integrated into the main game loop.
       - **Implementation Context:** (TBD)
 
-- - [ ] **Task ID:** P4-T9
+- - [x] **Task ID:** P4-T9
   - **Name:** Raycasting (`engine-physics`, `engine-world`, `game`)
   - **Description:** Implement a raycasting algorithm (e.g., Amanatides & Woo) to determine the block the player is looking at.
   - **Phase:** 4 - Chunk Rendering & Basic Physics
   - **Dependencies:** P2-T3, P3-T2, P4-T3, `engine-physics`, `engine-world`, `game` modules
   - **Subtasks:**
-    - [ ] **Subtask ID:** P4-T9.1
+    - [x] **Subtask ID:** P4-T9.1
       - **Name:** Design a raycasting solution
       - **Description:** Design a raycasting solution that can be used to raycast through the world and determine the block the player is looking at.
       - **Deliverables:** Raycasting solution.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T9.2
+      - **Implementation Context:** Designed a DDA (3-D Digital Differential Analyzer) based ray-casting approach (Amanatides & Woo algorithm). The algorithm marches the ray through the discrete voxel grid one block at a time, computing parametric distances (`tMax`/`tDelta`) for the next voxel boundary along each axis.  A hit is reported as soon as a solid block (according to `BlockProperties.isSolid()`) is encountered. Un-loaded chunks are treated as air to avoid main-thread blocking. The design supports retrieving the hit block position, the face that was intersected, and the travelled distance.  Access to world data is done via the already thread-safe `ChunkManager` and `BlockRegistry`.
+    - [x] **Subtask ID:** P4-T9.2
       - **Name:** Implement the raycasting solution
       - **Description:** Implement the raycasting solution.
       - **Deliverables:** Raycasting solution.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T9.3
+      - **Implementation Context:** Added `RaycastResult` (immutable `record`) and `Raycaster` utility classes in `engine-physics/src/main/java/de/heger/voxelengine/physics/raycast/`.  `Raycaster.raycast(Vec3f origin, Vec3f direction, float maxDistance)` performs the DDA traversal, returning the first solid block as a `RaycastResult` or `null` if none is hit within the distance.  It relies on `CoordinateUtils` for conversions, `ChunkManager` for block look-ups and `BlockRegistry` for solidity checks.  Integration: `GameLoop.update()` now casts a ray every tick from the camera's eye position along its front vector (max distance 6 blocks) and stores the result in `lastRaycastResult`, ready for future interaction/outline rendering.
+    - [x] **Subtask ID:** P4-T9.3
       - **Name:** Integrate the raycasting solution into the game loop
       - **Description:** Integrate the raycasting solution into the game loop.
       - **Deliverables:** Raycasting solution integrated into the game loop.
-      - **Implementation Context:** (TBD)
-    - [ ] **Subtask ID:** P4-T9.4
+      - **Implementation Context:** `GameLoop.render()` and `GameLoop.update()` now call the new DDA ray-caster each frame from the camera eye along its front vector (max reach 6 blocks).  The result is cached in `lastRaycastResult` and forwarded to the renderer for visualisation.  This supplies real-time block targeting information for upcoming interactions.
+    - [x] **Subtask ID:** P4-T9.4
       - **Name:** Add a outline to the block the player is looking at
-      - **Description:** Add a outline to the block the player is looking at.
+      - **Description:** Add a outline to the block the player is looking at. Solve this by creating a custom outline shader and using it to outline the block the player is looking at. The outline should be a a semi-transparent gray line along the edges of the block.
       - **Deliverables:** Outline.
-      - **Implementation Context:** (TBD)
+      - **Implementation Context:** Added `BlockOutlineRenderer` in `engine-renderer` with a lightweight shader pair (`outline.vert` / `outline.frag`) and a unit-cube line VAO rendered using `GL_LINES`.  The renderer builds an MVP matrix from the camera projection/view and the hit block's translation, rendering a semi-transparent (o = 0.5) grey outline with 2 px line width.  `Renderer.renderBlockOutline(Vec3i)` is invoked from `GameLoop.render()` whenever `lastRaycastResult` is non-null, completing visual feedback for targeted blocks.
+
+- - [x] **Task ID:** P4-T10
+  - **Name:** Add a crosshair
+  - **Description:** Add a crosshair to the game. The crosshair should be a simple x-shape that is rendered in the center of the screen and is 16px wide and 16px high. The crosshair should be a semi-transparent gray. The crosshair should be updated every frame and should be rendered after the 3D scene is rendered.
+  - **Phase:** 4 - Chunk Rendering & Basic Physics
+  - **Dependencies:** P4-T9, `engine-renderer` module
+  - **Subtasks:** (none)
+  - **Implementation Context:** Implemented `CrosshairElement` in `engine-renderer` (`de.heger.voxelengine.renderer.ui.elements.CrosshairElement`).
+    • Renders a 16 × 16 px semi-transparent grey X-shape using two GL_LINES inside an orthographic UI pass (utilising the existing `UIShader`).
+    • Mesh (VAO/VBO/EBO) is built once; vertices contain dummy UVs to satisfy the shader's attribute layout.
+    • Non-interactive: overrides `isMouseOver` to always return false so it never intercepts UI input.
+    • Uses the `Window` dimensions each frame to compute model matrix, ensuring it stays centred after resizes; line width set to 2 px for clarity.
+    • Added field `crosshairElement` to `GameLoop` (launcher). It is instantiated after UI initialisation and registered with `UIManager`; visibility toggles automatically based on pause/settings menu state (`!isPaused && !isSettingsMenuOpen`).
+    • Visibility is updated each render frame before `UIManager.render()` so changes take effect immediately; element is included in UI cleanup.
+    • No additional shaders or textures required – integrated seamlessly into existing UI batching as a CUSTOM element.
 
 ## Phase 5: MVP Completion (Gameplay Loop)
 

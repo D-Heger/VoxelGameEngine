@@ -8,6 +8,7 @@ import de.heger.voxelengine.core.math.AABB;
 import de.heger.voxelengine.renderer.culling.FrustumCuller;
 import de.heger.voxelengine.renderer.culling.OcclusionCuller;
 import de.heger.voxelengine.renderer.debug.WireframeRenderer;
+import de.heger.voxelengine.renderer.debug.BlockOutlineRenderer;
 import de.heger.voxelengine.renderer.management.ChunkMeshManager;
 import de.heger.voxelengine.renderer.management.RenderStats;
 import de.heger.voxelengine.renderer.management.SceneLightingManager;
@@ -83,6 +84,7 @@ public class Renderer {
     private FrustumCuller frustumCuller;
     private OcclusionCuller occlusionCuller;
     private WireframeRenderer wireframeRenderer;
+    private BlockOutlineRenderer blockOutlineRenderer;
     private boolean wireframeMode = false;
 
     // UBOs for shader data
@@ -142,6 +144,7 @@ public class Renderer {
         // Initialize rendering tools
         this.occlusionCuller = new OcclusionCuller();
         this.wireframeRenderer = new WireframeRenderer();
+        this.blockOutlineRenderer = new BlockOutlineRenderer();
     }
 
     /**
@@ -176,6 +179,7 @@ public class Renderer {
         try {
             loadShaders();
             textureManager.loadBlockTextures();
+            blockOutlineRenderer.init();
             createUBOs();
         } catch (Exception e) {
             logger.error("Failed to initialize renderer resources", e);
@@ -459,6 +463,12 @@ public class Renderer {
         if (occlusionCuller != null) {
             occlusionCuller.clearOpaqueCache();
         }
+        if (wireframeRenderer != null) {
+            // nothing to cleanup
+        }
+        if (blockOutlineRenderer != null) {
+            blockOutlineRenderer.cleanup();
+        }
         logger.info("Renderer cleanup complete.");
     }
 
@@ -564,5 +574,22 @@ public class Renderer {
      */
     public void resetLightingPerformanceMetrics() {
         sceneLightingManager.resetPerformanceMetrics();
+    }
+
+    // -------------------------------------------------------------------------
+    // Block Outline Rendering
+    // -------------------------------------------------------------------------
+
+    public void renderBlockOutline(Vec3i blockPos) {
+        if (blockPos == null || blockOutlineRenderer == null) return;
+
+        // Build model matrix translating the unit cube to block world position
+        Matrix4f model = new Matrix4f().translation(blockPos.x, blockPos.y, blockPos.z);
+
+        Matrix4f mvp = new Matrix4f(camera.getProjectionMatrix())
+                .mul(camera.getViewMatrix())
+                .mul(model);
+
+        blockOutlineRenderer.render(mvp);
     }
 }

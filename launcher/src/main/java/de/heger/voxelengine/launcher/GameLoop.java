@@ -94,6 +94,9 @@ public class GameLoop {
     private DebugMenu.DebugData debugData;
     private Config config;
 
+    // Crosshair UI element
+    private de.heger.voxelengine.renderer.ui.elements.CrosshairElement crosshairElement;
+
     // Track previous window dimensions for proper resize detection
     private int previousWindowWidth = -1;
     private int previousWindowHeight = -1;
@@ -109,6 +112,9 @@ public class GameLoop {
     // Performance monitoring
     private final PerformanceMonitor performanceMonitor = PerformanceMonitor.getInstance();
     private int gcSuggestionCount = 0; // Track number of GC suggestions made
+
+    // Raycasting
+    private de.heger.voxelengine.physics.raycast.RaycastResult lastRaycastResult = null;
 
     public GameLoop(String windowTitle, int width, int height, boolean vsync, boolean fullscreen, float viewDistance) {
         LOGGER.info("Initializing game loop...");
@@ -180,6 +186,10 @@ public class GameLoop {
             } else {
                 LOGGER.error("Default font not available, PauseMenu and SettingsMenu cannot be created.");
             }
+
+            // Create and add crosshair element (always on top)
+            crosshairElement = new de.heger.voxelengine.renderer.ui.elements.CrosshairElement(window);
+            uiManager.addElement(crosshairElement);
         }
         debugData = new DebugMenu.DebugData();
 
@@ -419,6 +429,16 @@ public class GameLoop {
                 camera.getPosition().set(player.getPosition().x,
                         player.getPosition().y + (Player.PLAYER_HEIGHT - 0.2f),
                         player.getPosition().z);
+
+                // ------------------------------------------------------------
+                // Raycasting: Determine targeted block each update
+                // ------------------------------------------------------------
+                float maxRayDistance = 6.0f; // Reach distance similar to Minecraft creative
+                de.heger.voxelengine.physics.raycast.RaycastResult hit = de.heger.voxelengine.physics.raycast.Raycaster.raycast(
+                        new de.heger.voxelengine.core.math.Vec3f(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z),
+                        new de.heger.voxelengine.core.math.Vec3f(camera.getFront().x, camera.getFront().y, camera.getFront().z),
+                        maxRayDistance);
+                lastRaycastResult = hit;
             }
         } else { // Game is paused
             // UI has focus during pause state
@@ -440,6 +460,16 @@ public class GameLoop {
     private void render() {
         renderer.clear();
         renderer.renderChunks(chunkManager.getAllLoadedChunks());
+
+        // Render targeted block outline if available
+        if (lastRaycastResult != null) {
+            renderer.renderBlockOutline(lastRaycastResult.blockPos());
+        }
+
+        // Update crosshair visibility based on pause/settings state BEFORE UI render
+        if (crosshairElement != null) {
+            crosshairElement.setVisible(!isPaused && !isSettingsMenuOpen);
+        }
 
         if (uiManager != null && uiManager.isInitialized()) {
             uiManager.render();
