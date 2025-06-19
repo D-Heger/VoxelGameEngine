@@ -36,7 +36,8 @@ import java.util.Set;
 import java.util.Collection;
 import org.joml.Vector3f;
 import de.heger.voxelengine.world.chunk.CoordinateUtils;
-import de.heger.voxelengine.world.chunk.Direction;
+import de.heger.voxelengine.core.math.AABB;
+import de.heger.voxelengine.core.math.Vec3i;
 
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F1;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F2;
@@ -430,7 +431,7 @@ public class GameLoop {
                         Chunk chunk = chunkManager.getChunk(placeChunkPos);
                         if (chunk != null) {
                             var localPos = CoordinateUtils.worldToLocalCoords(placePos);
-                            if (chunk.isAir(localPos)) {
+                            if (chunk.isAir(localPos) && !isPlayerIntersectingBlock(placePos)) {
                                 short dirtId = (short) blockRegistry.getId("core:block/dirt");
                                 chunk.setBlock(localPos, dirtId);
                                 renderer.rebuildChunkMeshImmediately(chunk);
@@ -853,5 +854,18 @@ public class GameLoop {
             renderer.resetLightingPerformanceMetrics();
         }
         LOGGER.info("Performance statistics reset for benchmarking (including lighting metrics)");
+    }
+
+    private boolean isPlayerIntersectingBlock(Vec3i blockPos) {
+        AABB playerBox = player.getAABB();
+        float minX = blockPos.x;
+        float minY = blockPos.y;
+        float minZ = blockPos.z;
+        float maxX = blockPos.x + 1.0f;
+        float maxY = blockPos.y + 1.0f;
+        float maxZ = blockPos.z + 1.0f;
+        return (playerBox.maxX > minX && playerBox.minX < maxX &&
+                playerBox.maxY > minY && playerBox.minY < maxY &&
+                playerBox.maxZ > minZ && playerBox.minZ < maxZ);
     }
 }
