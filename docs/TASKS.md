@@ -752,12 +752,13 @@
 
 ## Phase 5: MVP Completion (Gameplay Loop)
 
-- - [ ] **Task ID:** P5-T1
+- - [x] **Task ID:** P5-T1
   - **Name:** Block Placement/Destruction (`game`, `engine-world`)
   - **Description:** Use raycasting results to allow the player to destroy the targeted block and place a new block adjacent to the targeted face. Update chunk data and trigger mesh regeneration.
   - **Phase:** 5 - MVP Completion
   - **Dependencies:** P3-T5, P4-T1, P4-T6, `game`, `engine-world` modules
   - **Subtasks:** (none)
+  - **Implementation Context:** Implemented interactive block manipulation in `GameLoop.update()`. Left mouse button places a dirt block (`core:block/dirt`) adjacent to the face hit by the raycast, while right mouse button converts the targeted block to air. The logic converts world coordinates to chunk/local coordinates via `CoordinateUtils`, calls `Chunk.setBlock`, and relies on existing mesh state tracking to rebuild geometry efficiently, including neighbor updates when boundary blocks change. Actions are processed only when the game is unpaused and UI is not focused. Inline comments outline future extensions such as inventory-based block selection, undo queues, and sound/particle effects.
 
 - - [ ] **Task ID:** P5-T2
   - **Name:** Basic Lighting Implementation (`engine-world`, `engine-renderer`)

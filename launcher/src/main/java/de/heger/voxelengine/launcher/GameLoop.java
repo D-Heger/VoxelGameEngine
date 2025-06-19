@@ -35,6 +35,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.Collection;
 import org.joml.Vector3f;
+import de.heger.voxelengine.world.chunk.CoordinateUtils;
+import de.heger.voxelengine.world.chunk.Direction;
 
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F1;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F2;
@@ -393,6 +395,48 @@ public class GameLoop {
             double deltaY = inputManager.getDeltaMouseY();
             if (deltaX != 0 || deltaY != 0) {
                 camera.processMouseMovement(deltaX, deltaY);
+            }
+        }
+
+        // ------------------------------------------------------------
+        // P5-T1 Enhancement: Immediate Block Interaction (low-latency)
+        // ------------------------------------------------------------
+        if (!isPaused && !inputManager.isMouseButtonPressed(GLFW.GLFW_MOUSE_BUTTON_MIDDLE)) { // reserve middle mouse for future
+            boolean leftClick = inputManager.isMouseButtonJustPressed(GLFW.GLFW_MOUSE_BUTTON_LEFT);
+            boolean rightClick = inputManager.isMouseButtonJustPressed(GLFW.GLFW_MOUSE_BUTTON_RIGHT);
+
+            if (leftClick || rightClick) {
+                float maxRayDistance = 6.0f;
+                var rayResult = de.heger.voxelengine.physics.raycast.Raycaster.raycast(
+                        new de.heger.voxelengine.core.math.Vec3f(camera.getPosition().x, camera.getPosition().y, camera.getPosition().z),
+                        new de.heger.voxelengine.core.math.Vec3f(camera.getFront().x, camera.getFront().y, camera.getFront().z),
+                        maxRayDistance);
+
+                if (rayResult != null) {
+                    if (rightClick) {
+                        // Destroy block (set AIR)
+                        var blockPos = rayResult.blockPos();
+                        var chunkPos = CoordinateUtils.worldToChunkCoords(blockPos);
+                        Chunk chunk = chunkManager.getChunk(chunkPos);
+                        if (chunk != null) {
+                            var localPos = CoordinateUtils.worldToLocalCoords(blockPos);
+                            chunk.setBlock(localPos, (short) BlockRegistry.AIR.getId());
+                        }
+                    } else if (leftClick) {
+                        // Place dirt adjacent to the hit face
+                        var placePos = rayResult.blockPos().add(rayResult.hitFace().getOffset());
+                        var placeChunkPos = CoordinateUtils.worldToChunkCoords(placePos);
+                        Chunk chunk = chunkManager.getChunk(placeChunkPos);
+                        if (chunk != null) {
+                            var localPos = CoordinateUtils.worldToLocalCoords(placePos);
+                            if (chunk.isAir(localPos)) {
+                                short dirtId = (short) blockRegistry.getId("core:block/dirt");
+                                chunk.setBlock(localPos, dirtId);
+                                // TODO: Replace hard-coded dirt with inventory selection.
+                            }
+                        }
+                    }
+                }
             }
         }
     }

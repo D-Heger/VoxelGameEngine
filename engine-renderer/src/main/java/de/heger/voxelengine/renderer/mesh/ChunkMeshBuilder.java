@@ -31,10 +31,10 @@ public class ChunkMeshBuilder {
     };
     private static final float[] DOWN_FACE_VERTICES = {
         // Positions          // TexCoords    // Normals (0,-1,0)
-        -0.5f, -0.5f,  0.5f,   0.0f, 0.0f,     0.0f, -1.0f, 0.0f, // Bottom-Front-Left
-         0.5f, -0.5f,  0.5f,   1.0f, 0.0f,     0.0f, -1.0f, 0.0f, // Bottom-Front-Right
-         0.5f, -0.5f, -0.5f,   1.0f, 1.0f,     0.0f, -1.0f, 0.0f, // Bottom-Back-Right
-        -0.5f, -0.5f, -0.5f,   0.0f, 1.0f,     0.0f, -1.0f, 0.0f  // Bottom-Back-Left
+        -0.5f, -0.5f, -0.5f,   0.0f, 1.0f,     0.0f, -1.0f, 0.0f, // Bottom-Back-Left (v0)
+         0.5f, -0.5f, -0.5f,   1.0f, 1.0f,     0.0f, -1.0f, 0.0f, // Bottom-Back-Right (v1)
+         0.5f, -0.5f,  0.5f,   1.0f, 0.0f,     0.0f, -1.0f, 0.0f, // Bottom-Front-Right (v2)
+        -0.5f, -0.5f,  0.5f,   0.0f, 0.0f,     0.0f, -1.0f, 0.0f  // Bottom-Front-Left  (v3)
     };
     private static final float[] NORTH_FACE_VERTICES = { // Z-
         // Positions          // TexCoords    // Normals (0,0,-1)
