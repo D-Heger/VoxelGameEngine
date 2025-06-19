@@ -299,14 +299,6 @@ public class Renderer {
         }
 
         final Vector3f cameraPosForSorting = camera.getPosition();
-        reusableChunkList.sort(Comparator.comparingDouble(chunk -> {
-            Vec3i worldPos = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
-            return cameraPosForSorting.distanceSquared(
-                    worldPos.x + Chunk.SIZE_X / 2f,
-                    worldPos.y + Chunk.SIZE_Y / 2f,
-                    worldPos.z + Chunk.SIZE_Z / 2f
-            );
-        }));
 
         // Occlusion cull the remaining chunks
         if (occlusionCuller != null && USE_OCCLUSION_CULLING) {
@@ -317,6 +309,16 @@ public class Renderer {
                     renderStats::setOcclusionCulledChunks
             );
         } else {
+            // If occlusion culling is disabled we still sort chunks front-to-back for better depth testing.
+            reusableChunkList.sort(Comparator.comparingDouble(chunk -> {
+                Vec3i worldPos = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
+                return cameraPosForSorting.distanceSquared(
+                        worldPos.x + Chunk.SIZE_X / 2f,
+                        worldPos.y + Chunk.SIZE_Y / 2f,
+                        worldPos.z + Chunk.SIZE_Z / 2f
+                );
+            }));
+
             renderStats.setOcclusionCulledChunks(0);
             reusableOcclusionList.addAll(reusableChunkList);
             return reusableOcclusionList;

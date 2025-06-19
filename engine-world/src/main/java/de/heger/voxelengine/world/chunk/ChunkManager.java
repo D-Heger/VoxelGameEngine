@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 
 import de.heger.voxelengine.core.utils.Validate;
+import de.heger.voxelengine.world.chunk.Direction;
 
 /**
  * Manages loaded chunks by their positions in the world.
@@ -47,7 +48,28 @@ public class ChunkManager {
      */
     public synchronized void addChunk(Chunk chunk) {
         Validate.notNull(chunk, "Chunk cannot be null");
+
+        // Insert the chunk first so getChunk works during neighbor linkage
         chunks.put(chunk.getPosition(), chunk);
+
+        // Establish two-way neighbour links and request mesh rebuild for affected neighbours.
+        for (Direction direction : Direction.values()) {
+            ChunkPos neighborPos = new ChunkPos(
+                    chunk.getPosition().x + direction.getOffset().x,
+                    chunk.getPosition().y + direction.getOffset().y,
+                    chunk.getPosition().z + direction.getOffset().z);
+
+            Chunk neighborChunk = chunks.get(neighborPos);
+            if (neighborChunk != null) {
+                // Link both ways
+                chunk.setNeighbor(direction, neighborChunk);
+                neighborChunk.setNeighbor(direction.getOpposite(), chunk);
+
+                // The neighbor already had a mesh built without knowledge of this new chunk.
+                // Flag it for rebuild so internal faces at the shared border are removed.
+                neighborChunk.flagForMeshRebuild();
+            }
+        }
     }
 
     /**

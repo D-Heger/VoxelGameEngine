@@ -37,6 +37,12 @@ public class OcclusionCuller {
     private final List<ChunkWithDistance> chunkWithDistancePool = new ArrayList<>();
     private int poolIndex = 0;
     
+    // Pre-computed diagonal length of a chunk. Used for occlusion thresholding.
+    private static final float CHUNK_DIAGONAL = (float) Math.sqrt(Chunk.SIZE_X * Chunk.SIZE_X +
+                                                                   Chunk.SIZE_Y * Chunk.SIZE_Y +
+                                                                   Chunk.SIZE_Z * Chunk.SIZE_Z);
+    private static final float CHUNK_DIAGONAL_SQUARED = CHUNK_DIAGONAL * CHUNK_DIAGONAL;
+    
     /**
      * Filters the input collection of chunks to remove those that are likely
      * fully occluded by other chunks from the given viewpoint.
@@ -98,7 +104,7 @@ public class OcclusionCuller {
             ChunkPos pos = chunk.getPosition();
             
             // Check if this chunk is "behind" any occluders from the camera's perspective
-            if (isPotentiallyOccluded(pos, cameraPosition, reusablePotentialOccluders, reusableChunkList)) {
+            if (isPotentiallyOccluded(pos, cameraPosition, cameraDirection, reusablePotentialOccluders, reusableChunkList)) {
                 culledCount++; // Increment culled counter
                 // Skipping this chunk as it might be occluded
                 continue;
@@ -173,13 +179,15 @@ public class OcclusionCuller {
      * 
      * @param posToCheck The position of the chunk to check.
      * @param cameraPos The camera position.
+     * @param cameraDir The camera's view direction vector.
      * @param occluderPositions Set of chunk positions known to be occluders.
      * @param allChunks All chunks sorted by distance, for reference.
      * @return True if the chunk at posToCheck is potentially occluded.
      */
     private boolean isPotentiallyOccluded(
-            ChunkPos posToCheck, 
+            ChunkPos posToCheck,
             Vector3f cameraPos,
+            Vector3f cameraDir,
             Set<ChunkPos> occluderPositions,
             List<ChunkWithDistance> allChunks) {
         
@@ -187,10 +195,10 @@ public class OcclusionCuller {
             return false; // No occluders yet
         }
         
-        // Get chunk center
-        float chunkCenterX = (posToCheck.x * Chunk.SIZE_X) + (Chunk.SIZE_X / 2.0f);
-        float chunkCenterY = (posToCheck.y * Chunk.SIZE_Y) + (Chunk.SIZE_Y / 2.0f);
-        float chunkCenterZ = (posToCheck.z * Chunk.SIZE_Z) + (Chunk.SIZE_Z / 2.0f);
+        // Get chunk center in world space
+        float chunkCenterX = (posToCheck.x * Chunk.SIZE_X) + (Chunk.SIZE_X * 0.5f);
+        float chunkCenterY = (posToCheck.y * Chunk.SIZE_Y) + (Chunk.SIZE_Y * 0.5f);
+        float chunkCenterZ = (posToCheck.z * Chunk.SIZE_Z) + (Chunk.SIZE_Z * 0.5f);
         
         // Direction vector from camera to chunk
         float dirX = chunkCenterX - cameraPos.x;
@@ -201,8 +209,18 @@ public class OcclusionCuller {
         float distanceSquared = dirX*dirX + dirY*dirY + dirZ*dirZ;
         
         // OPTIMIZATION: Early exit if distance is too small
-        if (distanceSquared < 0.001f) {
+        if (distanceSquared < 1e-3f) {
             return false; // Camera is too close to the chunk
+        }
+        
+        // Reject chunks that are outside the camera's forward hemisphere (minimises false positives)
+        float toChunkX = chunkCenterX - cameraPos.x;
+        float toChunkY = chunkCenterY - cameraPos.y;
+        float toChunkZ = chunkCenterZ - cameraPos.z;
+        // Normalize only enough for dot product sign (no sqrt needed)
+        float dotForward = toChunkX * cameraDir.x + toChunkY * cameraDir.y + toChunkZ * cameraDir.z;
+        if (dotForward <= 0) {
+            return false; // Chunk is behind the camera – treat as visible for safety
         }
         
         // Normalize
@@ -210,11 +228,6 @@ public class OcclusionCuller {
         dirX *= invDistance;
         dirY *= invDistance;
         dirZ *= invDistance;
-        
-        // OPTIMIZATION: Pre-calculate chunk diagonal size once
-        final float chunkDiagonal = (float) Math.sqrt(Chunk.SIZE_X*Chunk.SIZE_X + 
-                                                      Chunk.SIZE_Y*Chunk.SIZE_Y + 
-                                                      Chunk.SIZE_Z*Chunk.SIZE_Z);
         
         // Check if there are occluders along the line of sight
         for (ChunkWithDistance otherChunk : allChunks) {
@@ -254,8 +267,8 @@ public class OcclusionCuller {
                 float deviationSquared = devX*devX + devY*devY + devZ*devZ;
                 
                 // If occluder is close enough to the line of sight, consider it occluding
-                // We use the chunk diagonal size as a threshold
-                if (deviationSquared < chunkDiagonal * chunkDiagonal) {
+                // We use the chunk diagonal size squared as a threshold
+                if (deviationSquared < CHUNK_DIAGONAL_SQUARED) {
                     return true;  // This chunk is likely occluded
                 }
             }

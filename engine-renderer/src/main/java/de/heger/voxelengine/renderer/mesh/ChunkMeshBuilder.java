@@ -223,11 +223,22 @@ public class ChunkMeshBuilder {
             neighborBlockProps = neighborChunk.getBlockProperties(localPosInNeighborChunk);
         }
 
-        // If neighborBlockProps is null (e.g., BlockRegistry.getBlock(id) returned null for an unregistered ID),
-        // treat it as AIR, which is transparent.
+        // If neighborBlockProps is null treat as AIR (visible)
         if (neighborBlockProps == null) {
-             return true; // Treat as transparent if properties are null
+            return true;
         }
-        return neighborBlockProps.isTransparent();
+
+        // Faces should be visible when the adjacent block is truly empty (AIR)
+        if (neighborBlockProps.getId() == BlockRegistry.AIR.getId()) {
+            return true;
+        }
+
+        // Determine the block type of the current block for comparison.
+        BlockProperties thisBlockProps = currentChunk.getBlockProperties(localBlockPosInCurrentChunk);
+        short thisBlockId = thisBlockProps != null ? thisBlockProps.getId() : BlockRegistry.AIR.getId();
+
+        // Suppress internal faces between blocks of the same block type, even if transparent (e.g., stacked glass).
+        // If neighbor is transparent BUT a different block id, we still render to create the correct visual separation.
+        return neighborBlockProps.isTransparent() && neighborBlockProps.getId() != thisBlockId;
     }
 } 
