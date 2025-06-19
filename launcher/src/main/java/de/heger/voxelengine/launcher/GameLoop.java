@@ -421,6 +421,7 @@ public class GameLoop {
                         if (chunk != null) {
                             var localPos = CoordinateUtils.worldToLocalCoords(blockPos);
                             chunk.setBlock(localPos, (short) BlockRegistry.AIR.getId());
+                            renderer.rebuildChunkMeshImmediately(chunk);
                         }
                     } else if (leftClick) {
                         // Place dirt adjacent to the hit face
@@ -432,6 +433,7 @@ public class GameLoop {
                             if (chunk.isAir(localPos)) {
                                 short dirtId = (short) blockRegistry.getId("core:block/dirt");
                                 chunk.setBlock(localPos, dirtId);
+                                renderer.rebuildChunkMeshImmediately(chunk);
                                 // TODO: Replace hard-coded dirt with inventory selection.
                             }
                         }

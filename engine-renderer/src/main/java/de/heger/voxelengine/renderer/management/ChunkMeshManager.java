@@ -23,7 +23,8 @@ import java.util.concurrent.*;
 public class ChunkMeshManager {
     private static final LoggerFacade logger = LoggerFacade.get(ChunkMeshManager.class);
 
-    private static final int MESH_BUILDER_THREADS = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+    // Allocate almost all logical cores for mesh building but keep at least one core free for the main/game thread.
+    private static final int MESH_BUILDER_THREADS = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
 
     private final Map<ChunkPos, Map<String, ChunkMesh>> activeChunkMeshes = new ConcurrentHashMap<>();
     private final Map<ChunkPos, AABB> chunkAABBCache = new ConcurrentHashMap<>();
@@ -168,10 +169,10 @@ public class ChunkMeshManager {
                 && currentMeshState != ChunkMeshState.EMPTY;
 
         if ((needsRebuild || isUpToDateButMissing) && !pendingMeshTasks.containsKey(chunkPos)) {
-            if (meshesForChunk != null) {
-                cleanupMeshesForChunk(chunkPos);
-            }
-
+            // IMPORTANT: Do NOT immediately dispose existing meshes here. Keeping the current meshes
+            // rendered until the replacement is ready avoids a visual "flash" (missing geometry) that
+            // could last for tens of milliseconds. They will be safely cleaned up once the new meshes
+            // are uploaded in the main thread (see processCompletedMeshData()).
             logger.debug("Submitting mesh data generation task for chunk {} (State: {}, MissingMeshes: {})...",
                     chunkPos, currentMeshState, isUpToDateButMissing);
             chunk.setMeshState(ChunkMeshState.BUILDING_DATA);
@@ -365,5 +366,67 @@ public class ChunkMeshManager {
         float maxY = minY + Chunk.SIZE_Y;
         float maxZ = minZ + Chunk.SIZE_Z;
         return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    /**
+     * Immediately rebuilds the mesh for the given chunk on the calling thread. This is useful for
+     * latency-sensitive edits (e.g. the player broke/placed a single block) where waiting for the
+     * background thread pool would create a noticeable delay. The method is thread-safe but should
+     * only be invoked from the main/render thread because it creates OpenGL objects directly.
+     *
+     * If a background task is already queued/running for this chunk it will be cancelled and its
+     * result discarded.
+     *
+     * @param chunk the chunk to rebuild; must not be null and must be loaded.
+     */
+    public void rebuildChunkImmediately(Chunk chunk) {
+        if (chunk == null) return;
+
+        ChunkPos chunkPos = chunk.getPosition();
+
+        // Cancel any pending async build for this chunk
+        Future<?> pending = pendingMeshTasks.remove(chunkPos);
+        if (pending != null && !pending.isDone()) {
+            pending.cancel(true);
+        }
+
+        try {
+            logger.debug("Synchronously rebuilding mesh for chunk {}…", chunkPos);
+
+            // Generate mesh data (CPU-only part)
+            Map<String, MeshData> dataMap = ChunkMeshBuilder.generateMeshDataByTexture(chunk, chunkManager, blockRegistry);
+
+            // Clean up existing GL meshes (but only after generation to minimise visual gaps)
+            cleanupMeshesForChunk(chunkPos);
+
+            // Upload GL meshes
+            Map<String, ChunkMesh> newMeshes = new HashMap<>();
+            boolean trulyEmpty = true;
+            for (Map.Entry<String, MeshData> e : dataMap.entrySet()) {
+                MeshData md = e.getValue();
+                if (!md.isEmpty()) {
+                    ChunkMesh cm = new ChunkMesh(md.getVertexBuffer(), md.getIndexBuffer());
+                    if (!cm.isEmpty()) {
+                        newMeshes.put(e.getKey(), cm);
+                        trulyEmpty = false;
+                    }
+                }
+                // release cpu buffers back to pool
+                e.getValue().cleanup();
+            }
+
+            if (!newMeshes.isEmpty()) {
+                activeChunkMeshes.put(chunkPos, newMeshes);
+                chunk.setMeshState(ChunkMeshState.UP_TO_DATE);
+            } else {
+                chunk.setMeshState(ChunkMeshState.EMPTY);
+            }
+
+            // Update / create AABB cache entry (cheap)
+            chunkAABBCache.put(chunkPos, createAABBForChunk(chunk));
+        } catch (Exception ex) {
+            logger.error("Failed to synchronously rebuild mesh for chunk {}", chunkPos, ex);
+            chunk.setMeshState(ChunkMeshState.NEEDS_REBUILD);
+        }
     }
 }

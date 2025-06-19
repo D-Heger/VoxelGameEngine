@@ -592,4 +592,20 @@ public class Renderer {
 
         blockOutlineRenderer.render(mvp);
     }
+
+    // -------------------------------------------------------------------------
+    // Mesh rebuild helper (forwarder)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Immediately rebuilds the mesh for the supplied chunk, blocking until the new GL meshes are
+     * uploaded.  This is primarily intended for player-initiated edits where latency should be
+     * minimal (e.g. block break / placement).
+     *
+     * @param chunk the chunk to rebuild; ignored if null.
+     */
+    public void rebuildChunkMeshImmediately(Chunk chunk) {
+        if (chunk == null) return;
+        chunkMeshManager.rebuildChunkImmediately(chunk);
+    }
 }
