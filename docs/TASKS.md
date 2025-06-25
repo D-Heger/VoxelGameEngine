@@ -761,29 +761,54 @@
   - **Implementation Context:** Implemented interactive block manipulation in `GameLoop.update()`. Left mouse button places a dirt block (`core:block/dirt`) adjacent to the face hit by the raycast, while right mouse button converts the targeted block to air. The logic converts world coordinates to chunk/local coordinates via `CoordinateUtils`, calls `Chunk.setBlock`, and relies on existing mesh state tracking to rebuild geometry efficiently, including neighbor updates when boundary blocks change. Actions are processed only when the game is unpaused and UI is not focused. Inline comments outline future extensions such as inventory-based block selection, undo queues, and sound/particle effects.
 
 - - [ ] **Task ID:** P5-T2
-  - **Name:** Basic Lighting Implementation (`engine-world`, `engine-renderer`)
-  - **Description:** Implement simple ambient light and potentially a basic directional light source. Pass light information to shaders. Modify chunk meshing/shaders to include basic light values.
+  - **Name:** Advanced Lighting Implementation (`engine-world`, `engine-renderer`)
+  - **Description:** Implement advanced lighting, trying to achieve the look of nice looking shader packs for minecraft.
   - **Phase:** 5 - MVP Completion
   - **Dependencies:** P4-T1, P4-T2, `engine-world`, `engine-renderer` modules
-  - **Subtasks:** (none)
+  - **Subtasks:**
+    - [x] **Subtask ID:** P5-T2.1
+      - **Name:** Implement Directional Shadow Mapping
+      - **Description:** Add dynamic shadows cast from the sun. This involves creating a depth map from the light's perspective in a separate rendering pass and then using that map in the main shader to determine if a fragment is in shadow.
+      - **Implementation Context:** Implemented sun-shadow pipeline via shadow mapping. Added `shadow_depth.vert/frag` shaders; renderer now builds a 4096² depth FBO & texture, renders all visible chunk meshes from the sun's orthographic view each frame (`renderShadowPass`) and uploads a `lightSpaceMatrix` uniform. The forward `default.vert/frag` were extended with the new matrix, shadow-map sampler, Gaussian-weighted 5×5 PCF kernel with adaptive bias and linear-filtered depth texture. SceneLightingManager exposes `getLightDirection()`; renderer computes light view/projection centred on the camera and binds the depth texture (unit 1). Resources are cleaned up in `Renderer.cleanup()`.
+    - [x] **Subtask ID:** P5-T2.2
+      - **Name:** Add Specular Reflections
+      - **Description:** Implement Blinn-Phong or a similar specular reflection model to give surfaces a shininess, making them appear less flat. This involves calculating the reflection based on the light source, viewer position, and surface normal.
+      - **Implementation Context:** Added Blinn-Phong specular highlights. `default.frag` now contains uniforms `specularStrength` and `shininess`, computes view & halfway vectors, and blends the specular term with ambient/diffuse lighting while respecting the shadow factor. Renderer creates these uniforms and sets default values (0.4, 32.0) each frame.
+    - [ ] **Subtask ID:** P5-T2.3
+      - **Name:** Implement Screen-Space Ambient Occlusion (SSAO)
+      - **Description:** Add SSAO to create realistic soft shadows in corners and crevices. This will be tackled incrementally through the subtasks below.
+      - **Subtasks:**
+        - [ ] **Subtask ID:** P5-T2.3.1
+          - **Name:** Extend Renderer with G-Buffer Pass
+          - **Description:** Add a geometry pass that renders world data into multiple framebuffer textures (position, normal, albedo) required for SSAO.
+        - [ ] **Subtask ID:** P5-T2.3.2
+          - **Name:** Generate SSAO Kernel & Noise Texture
+          - **Description:** Implement CPU-side generation of a random sample kernel and a small noise texture; upload both to the GPU and expose them to shaders.
+        - [ ] **Subtask ID:** P5-T2.3.3
+          - **Name:** Implement SSAO Calculation Shader Pass
+          - **Description:** Create a fullscreen SSAO shader that samples the G-Buffer using the kernel and noise textures to compute per-pixel occlusion.
+        - [ ] **Subtask ID:** P5-T2.3.4
+          - **Name:** Implement Blur Pass for SSAO Texture
+          - **Description:** Apply a separable Gaussian blur (horizontal & vertical) to the raw SSAO output to smooth noise artifacts.
+        - [ ] **Subtask ID:** P5-T2.3.5
+          - **Name:** Integrate SSAO into Lighting Composition
+          - **Description:** Combine the blurred SSAO texture with the existing lighting/shading pipeline; add a toggle to enable/disable the effect.
+        - [ ] **Subtask ID:** P5-T2.3.6
+          - **Name:** Add Debug & Performance Controls
+          - **Description:** Provide on-screen visualization of the SSAO buffer, quality presets (sample count, radius), and display performance metrics in the debug overlay.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P5-T2.4
+      - **Name:** Implement Bloom Effect
+      - **Description:** Add a bloom effect to make bright light sources and surfaces glow. This involves extracting the bright parts of the scene, blurring them, and additively blending them back onto the original image.
+      - **Implementation Context:** (TBD)
+    - [ ] **Subtask ID:** P5-T2.6
+      - **Name:** Implement Volumetric Lighting (God Rays)
+      - **Description:** Simulate light scattering in the atmosphere, creating visible light rays (god rays) from the sun. This is often done as a post-processing effect using a screen-space radial blur from the sun's position.
+      - **Implementation Context:** (TBD)
 
 - - [ ] **Task ID:** P5-T3
-  - **Name:** Minecraft Texture Pack Loading (`engine-assets`)
-  - **Description:** Implement the logic to parse the directory structure and metadata (if any) of standard Minecraft texture packs. Load appropriate textures into an atlas.
-  - **Phase:** 5 - MVP Completion
-  - **Dependencies:** P2-T5, `engine-assets` module
-  - **Subtasks:** (none)
-
-- - [ ] **Task ID:** P5-T4
   - **Name:** Basic Sound Playback (`engine-assets`, `game`)
   - **Description:** Integrate LWJGL OpenAL bindings. Implement basic sound loading (e.g., Ogg Vorbis) and playback for simple events (e.g., block breaking).
   - **Phase:** 5 - MVP Completion
   - **Dependencies:** P1-T1, LWJGL (OpenAL), `engine-assets`, `game` modules
-  - **Subtasks:** (none)
-
-- - [ ] **Task ID:** P5-T5
-  - **Name:** Integration Testing & Bug Fixing
-  - **Description:** Perform thorough testing of all MVP features working together. Identify and fix bugs found during integration.
-  - **Phase:** 5 - MVP Completion
-  - **Dependencies:** All previous tasks.
   - **Subtasks:** (none)

@@ -7,6 +7,7 @@ layout (location = 2) in vec3 aNormal; // Normal attribute
 out vec2 vTexCoords;
 out vec3 vNormal;
 out vec3 vFragPos;
+out vec4 vFragPosLightSpace;
 
 // UBO for Camera Data
 layout (std140) uniform CameraData {
@@ -17,11 +18,14 @@ layout (std140) uniform CameraData {
 
 // Standard Uniforms
 uniform mat4 model;
+uniform mat4 lightSpaceMatrix;
 
 void main()
 {
-    gl_Position = projection * view * model * vec4(aPos, 1.0);
+    vec4 worldPos = model * vec4(aPos, 1.0);
+    gl_Position = projection * view * worldPos;
     vTexCoords = aTexCoords;
     vNormal = mat3(transpose(inverse(model))) * aNormal; // Transform normal to world space
-    vFragPos = vec3(model * vec4(aPos, 1.0)); // Transform position to world space
+    vFragPos = vec3(worldPos); // World space position
+    vFragPosLightSpace = lightSpaceMatrix * worldPos;
 }

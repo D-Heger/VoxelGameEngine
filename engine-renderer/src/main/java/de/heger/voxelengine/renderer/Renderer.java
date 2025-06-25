@@ -1,14 +1,14 @@
 package de.heger.voxelengine.renderer;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
+import de.heger.voxelengine.core.math.AABB;
 import de.heger.voxelengine.core.math.Vec3i;
 import de.heger.voxelengine.platform.Window;
 import de.heger.voxelengine.renderer.camera.Camera;
-import de.heger.voxelengine.core.math.AABB;
 import de.heger.voxelengine.renderer.culling.FrustumCuller;
 import de.heger.voxelengine.renderer.culling.OcclusionCuller;
-import de.heger.voxelengine.renderer.debug.WireframeRenderer;
 import de.heger.voxelengine.renderer.debug.BlockOutlineRenderer;
+import de.heger.voxelengine.renderer.debug.WireframeRenderer;
 import de.heger.voxelengine.renderer.management.ChunkMeshManager;
 import de.heger.voxelengine.renderer.management.RenderStats;
 import de.heger.voxelengine.renderer.management.SceneLightingManager;
@@ -18,37 +18,22 @@ import de.heger.voxelengine.renderer.shader.ShaderProgram;
 import de.heger.voxelengine.renderer.shader.UniformBuffer;
 import de.heger.voxelengine.renderer.texture.Texture;
 import de.heger.voxelengine.world.block.BlockRegistry;
-import de.heger.voxelengine.world.chunk.Chunk;
-import de.heger.voxelengine.world.chunk.ChunkManager;
-import de.heger.voxelengine.world.chunk.ChunkPos;
-import de.heger.voxelengine.world.chunk.CoordinateUtils;
+import de.heger.voxelengine.world.chunk.*;
+
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GLCapabilities;
-import org.lwjgl.opengl.GLUtil;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.*; // Provides GL, GL11, GL13, GL14, GL20, GL30, etc.
 import org.lwjgl.system.Callback;
 
-import static org.lwjgl.opengl.GL11.glClear;
-import static org.lwjgl.opengl.GL11.glClearColor;
-import static org.lwjgl.opengl.GL11.glCullFace;
-import static org.lwjgl.opengl.GL11.glEnable;
-import static org.lwjgl.opengl.GL11.glGetString;
-import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
-import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
-import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
-import static org.lwjgl.opengl.GL11.GL_CULL_FACE;
-import static org.lwjgl.opengl.GL11.GL_BACK;
-import static org.lwjgl.opengl.GL30.glBindVertexArray;
-import static org.lwjgl.opengl.GL11.GL_VERSION;
-
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
+import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
+import java.util.*;
+
+import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL13.*;
+import static org.lwjgl.opengl.GL30.*;
 
 /**
  * The main rendering class for the voxel engine. It orchestrates the entire rendering process,
@@ -108,12 +93,19 @@ public class Renderer {
     // Texture binding state tracking
     private String currentlyBoundTexture = null;
 
+    // Shadow mapping resources
+    private int shadowFbo;
+    private int shadowDepthTexture;
+    private static final int SHADOW_MAP_SIZE = 4096;
+    private ShaderProgram depthShaderProgram;
+    private final Matrix4f lightViewMatrix = new Matrix4f();
+    private final Matrix4f lightProjectionMatrix = new Matrix4f();
+    private final Matrix4f lightSpaceMatrix = new Matrix4f();
+
     /**
      * Helper class to store renderable chunk data for texture batching optimization.
      */
     private static class RenderableChunkData {
-        Chunk chunk;
-        String textureName;
         ChunkMesh mesh;
         Vec3i chunkOriginWorld;
 
@@ -122,8 +114,6 @@ public class Renderer {
         }
 
         void init(Chunk chunk, String textureName, ChunkMesh mesh, Vec3i chunkOriginWorld) {
-            this.chunk = chunk;
-            this.textureName = textureName;
             this.mesh = mesh;
             this.chunkOriginWorld = chunkOriginWorld;
         }
@@ -181,6 +171,7 @@ public class Renderer {
             textureManager.loadBlockTextures();
             blockOutlineRenderer.init();
             createUBOs();
+            initShadowMapResources();
         } catch (Exception e) {
             logger.error("Failed to initialize renderer resources", e);
             throw new RuntimeException("Failed to initialize renderer resources", e);
@@ -202,6 +193,10 @@ public class Renderer {
         // Create uniforms for non-UBO data
         defaultShaderProgram.createUniform("model");
         defaultShaderProgram.createUniform("uTexture");
+        defaultShaderProgram.createUniform("lightSpaceMatrix");
+        defaultShaderProgram.createUniform("shadowMap");
+        defaultShaderProgram.createUniform("specularStrength");
+        defaultShaderProgram.createUniform("shininess");
     }
 
     private void createUBOs() {
@@ -229,6 +224,9 @@ public class Renderer {
         renderStats.reset();
         renderableDataPoolIndex = 0; // Reset pool for the new frame
 
+        // --- Compute light matrices for shadow mapping ---
+        computeLightSpaceMatrix();
+
         Vector3f fogColor = sceneLightingManager.getFogColor();
         glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
         clear();
@@ -240,6 +238,10 @@ public class Renderer {
 
         Collection<Chunk> visibleChunks = performCulling(chunks);
 
+        // Render depth from light's perspective first (shadow map)
+        renderShadowPass(visibleChunks);
+
+        // Render scene normally with shadow map applied
         renderVisibleChunks(visibleChunks);
 
         chunkMeshManager.evictStaleMeshes();
@@ -274,6 +276,15 @@ public class Renderer {
 
         // Set remaining non-UBO uniforms
         defaultShaderProgram.setUniform("uTexture", 0);
+        defaultShaderProgram.setUniform("shadowMap", 1);
+        defaultShaderProgram.setUniform("lightSpaceMatrix", lightSpaceMatrix);
+        defaultShaderProgram.setUniform("specularStrength", 0.4f);
+        defaultShaderProgram.setUniform("shininess", 32.0f);
+
+        // Bind shadow map texture to texture unit 1
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, shadowDepthTexture);
+        glActiveTexture(GL_TEXTURE0);
     }
 
     private Collection<Chunk> performCulling(Collection<Chunk> allChunks) {
@@ -330,6 +341,7 @@ public class Renderer {
      * Groups all meshes by texture to minimize texture binding calls.
      */
     private void renderVisibleChunks(Collection<Chunk> visibleChunks) {
+        defaultShaderProgram.bind();
         Matrix4f modelMatrix = reusableMatrix4f;
         int lastBoundVaoId = 0;
 
@@ -471,6 +483,15 @@ public class Renderer {
         if (blockOutlineRenderer != null) {
             blockOutlineRenderer.cleanup();
         }
+        if (depthShaderProgram != null) {
+            depthShaderProgram.cleanup();
+        }
+        if (shadowDepthTexture != 0) {
+            glDeleteTextures(shadowDepthTexture);
+        }
+        if (shadowFbo != 0) {
+            glDeleteFramebuffers(shadowFbo);
+        }
         logger.info("Renderer cleanup complete.");
     }
 
@@ -594,11 +615,7 @@ public class Renderer {
 
         blockOutlineRenderer.render(mvp);
     }
-
-    // -------------------------------------------------------------------------
-    // Mesh rebuild helper (forwarder)
-    // -------------------------------------------------------------------------
-
+    
     /**
      * Immediately rebuilds the mesh for the supplied chunk, blocking until the new GL meshes are
      * uploaded.  This is primarily intended for player-initiated edits where latency should be
@@ -609,5 +626,109 @@ public class Renderer {
     public void rebuildChunkMeshImmediately(Chunk chunk) {
         if (chunk == null) return;
         chunkMeshManager.rebuildChunkImmediately(chunk);
+    }
+
+    private void initShadowMapResources() {
+        logger.info("Initializing shadow mapping resources ({}x{})...", SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+
+        // 1. Create depth texture
+        shadowDepthTexture = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, shadowDepthTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, 0,
+                GL_DEPTH_COMPONENT, GL_FLOAT, (java.nio.ByteBuffer) null);
+        // Use linear filtering so hardware automatically performs 2x2 PCF between neighbouring texels
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        // Set border color to 1.0 to ensure fragments outside shadow map are lit
+        float[] borderColor = {1.0f, 1.0f, 1.0f, 1.0f};
+        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+        // 2. Create framebuffer and attach depth texture
+        shadowFbo = glGenFramebuffers();
+        glBindFramebuffer(GL_FRAMEBUFFER, shadowFbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowDepthTexture, 0);
+        glDrawBuffer(GL_NONE);
+        glReadBuffer(GL_NONE);
+        int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE) {
+            throw new IllegalStateException("Shadow framebuffer is not complete: status=" + status);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // 3. Load depth-only shader program
+        try {
+            depthShaderProgram = new ShaderProgram();
+            String vs = ShaderProgram.loadShaderSourceFromResources("/shaders/shadow_depth.vert");
+            String fs = ShaderProgram.loadShaderSourceFromResources("/shaders/shadow_depth.frag");
+            depthShaderProgram.createVertexShader(vs);
+            depthShaderProgram.createFragmentShader(fs);
+            depthShaderProgram.link();
+            depthShaderProgram.createUniform("model");
+            depthShaderProgram.createUniform("lightSpaceMatrix");
+        } catch (Exception e) {
+            logger.error("Failed to create depth shader program for shadow mapping", e);
+            throw new RuntimeException(e);
+        }
+
+        logger.info("Shadow mapping resources initialized.");
+    }
+
+    private void computeLightSpaceMatrix() {
+        Vector3f lightDir = sceneLightingManager.getLightDirection();
+        Vector3f cameraPos = camera.getPosition();
+
+        float shadowDistance = 100.0f;
+        Vector3f lightPos = new Vector3f(cameraPos).sub(new Vector3f(lightDir).normalize().mul(shadowDistance));
+
+        lightViewMatrix.identity().lookAt(lightPos, cameraPos, new Vector3f(0, 1, 0));
+        float orthoSize = camera.getViewDistance();
+        lightProjectionMatrix.identity().ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 1.0f, 300.0f);
+
+        lightProjectionMatrix.mul(lightViewMatrix, lightSpaceMatrix);
+    }
+
+    private void renderShadowPass(Collection<Chunk> visibleChunks) {
+        // Configure viewport to shadow map size
+        glViewport(0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+        glBindFramebuffer(GL_FRAMEBUFFER, shadowFbo);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        depthShaderProgram.bind();
+        depthShaderProgram.setUniform("lightSpaceMatrix", lightSpaceMatrix);
+
+        Matrix4f modelMatrix = reusableMatrix4f;
+        int lastVao = 0;
+
+        for (Chunk chunk : visibleChunks) {
+            chunkMeshManager.ensureMeshForChunk(chunk);
+            Map<String, ChunkMesh> meshes = chunkMeshManager.getMeshesForChunk(chunk.getPosition());
+            if (meshes == null) continue;
+
+            Vec3i chunkOriginWorld = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
+            modelMatrix.identity().translation(chunkOriginWorld.x, chunkOriginWorld.y, chunkOriginWorld.z);
+            depthShaderProgram.setUniform("model", modelMatrix);
+
+            for (ChunkMesh mesh : meshes.values()) {
+                if (mesh.isEmpty()) continue;
+                int vao = mesh.getVaoId();
+                if (vao != lastVao) {
+                    glBindVertexArray(vao);
+                    lastVao = vao;
+                }
+                mesh.render();
+            }
+        }
+
+        if (lastVao != 0) {
+            glBindVertexArray(0);
+        }
+
+        depthShaderProgram.unbind();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // Restore viewport to window size
+        glViewport(0, 0, window.getWidth(), window.getHeight());
     }
 }

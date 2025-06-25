@@ -255,4 +255,8 @@ public class SceneLightingManager {
         result.y = start.y + (end.y - start.y) * factor;
         result.z = start.z + (end.z - start.z) * factor;
     }
+
+    public Vector3f getLightDirection() {
+        return DEFAULT_LIGHT_DIR;
+    }
 } 
