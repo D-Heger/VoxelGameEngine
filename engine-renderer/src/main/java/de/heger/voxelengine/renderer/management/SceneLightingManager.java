@@ -13,8 +13,8 @@ public class SceneLightingManager {
     private float currentTimeOfDay = 0.5f; // 0.0 (midnight) to 1.0 (next midnight), 0.5 is midday
     private float lastCalculatedTimeOfDay = -1.0f;
 
-    // Static light direction
-    private static final Vector3f DEFAULT_LIGHT_DIR = new Vector3f(-0.5f, -1.0f, -0.5f);
+    // Dynamic light direction (updated each frame based on timeOfDay)
+    private final Vector3f lightDir = new Vector3f(-0.5f, -1.0f, -0.5f);
 
     // Define light properties for key times
     private final Vector3f middayLightColor = new Vector3f(1.0f, 0.95f, 0.8f);
@@ -34,8 +34,8 @@ public class SceneLightingManager {
     private final Vector3f cachedFogColor = new Vector3f();
     private float cachedAmbientStrength = 0.0f;
 
-    // OPTIMIZATION: Configurable threshold - increased from 0.001f to 0.01f for better performance
-    private static final float DEFAULT_TIME_CALCULATION_THRESHOLD = 0.01f;
+    // Threshold for expensive color/fog recalculations. Small value keeps lighting smooth.
+    private static final float DEFAULT_TIME_CALCULATION_THRESHOLD = 0.001f;
     private float timeCalculationThreshold = DEFAULT_TIME_CALCULATION_THRESHOLD;
 
     // OPTIMIZATION: Sin calculation cache for common time values
@@ -109,9 +109,14 @@ public class SceneLightingManager {
      */
     public void update() {
         totalUpdateCalls++;
-        
+
+        // --- Always update directional light to avoid jumps ---
+        float azimuth = currentTimeOfDay * (float) (2.0 * Math.PI); // 0..2π
+        lightDir.set((float) Math.sin(azimuth), -1.0f, (float) Math.cos(azimuth)).normalize();
+
+        // --- Early-out if we don't need to recompute expensive color/fog data ---
         if (Math.abs(currentTimeOfDay - lastCalculatedTimeOfDay) < timeCalculationThreshold) {
-            return; // Skip recalculation if time hasn't changed enough
+            return; // Shadows updated; skip color/fog work
         }
 
         // OPTIMIZATION: Profile recalculation time
@@ -159,7 +164,7 @@ public class SceneLightingManager {
         buffer.clear();
 
         // Light Dir
-        DEFAULT_LIGHT_DIR.get(buffer);
+        lightDir.get(buffer);
         buffer.position(buffer.position() + 12);
         buffer.putFloat(0.0f); // Padding
 
@@ -257,6 +262,6 @@ public class SceneLightingManager {
     }
 
     public Vector3f getLightDirection() {
-        return DEFAULT_LIGHT_DIR;
+        return lightDir;
     }
 } 

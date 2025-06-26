@@ -7,7 +7,9 @@ layout (location = 2) out vec3 gNormal;   // location 2
 in vec2 vTexCoords;
 in vec3 vNormal;
 in vec3 vFragPos;
-in vec4 vFragPosLightSpace;
+in vec4 vFragPosLightSpace[4];
+
+#define NUM_CASCADES 4
 
 // UBO for Camera Data (includes view position)
 layout (std140) uniform CameraData {
@@ -34,32 +36,35 @@ layout (std140) uniform Lighting {
 uniform float specularStrength;
 uniform float shininess;
 
+// Cascaded shadow uniforms
+uniform float cascadeSplits[NUM_CASCADES];
+uniform vec4 cascadeAtlasRects[NUM_CASCADES];
+
 // Standard Uniforms
 uniform sampler2D uTexture; // Texture sampler
-uniform sampler2D shadowMap; // Shadow map sampler
+uniform sampler2D shadowMap; // Shadow map sampler (atlas)
 
 // Percentage-closer filtering with a 5x5 kernel and adaptive bias.
-float calculateShadow(vec4 fragPosLightSpace, float bias) {
-    // Perform perspective divide
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    // Transform to [0,1] range
-    projCoords = projCoords * 0.5 + 0.5;
-
+float calculateShadow(int cascadeIdx, vec3 projCoords, float bias) {
     // If fragment is outside the light's orthographic frustum
-    if (projCoords.z > 1.0) {
+    if (projCoords.z > 1.0)
         return 0.0;
-    }
+
+    // Transform coords from [0,1] cascade space to atlas space
+    vec4 rect = cascadeAtlasRects[cascadeIdx];
+    vec2 uv = projCoords.xy * rect.zw + rect.xy;
+
+    // Compute texel size for this cascade region
+    vec2 texelSize = rect.zw / textureSize(shadowMap, 0);
 
     float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
-
     // 5x5 weighted kernel (Gaussian-like weights for smoother result)
     float kernel[5] = float[](0.06, 0.11, 0.17, 0.11, 0.06);
     float totalWeight = 0.0;
     for (int x = -2; x <= 2; ++x) {
         for (int y = -2; y <= 2; ++y) {
             float weight = kernel[x + 2] * kernel[y + 2];
-            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+            float pcfDepth = texture(shadowMap, uv + vec2(x, y) * texelSize).r;
             shadow += weight * (projCoords.z - bias > pcfDepth ? 1.0 : 0.0);
             totalWeight += weight;
         }
@@ -93,8 +98,18 @@ void main()
     // Adaptive bias reduces shadow acne and peter-panning on grazing angles
     float bias = max(0.002 * (1.0 - dot(normal, lightDirection)), 0.0005);
 
-    // Combine lighting with texture
-    float shadowFactor = 1.0 - calculateShadow(vFragPosLightSpace, bias);
+    // Determine which cascade this fragment belongs to based on distance from camera
+    float fragDist = length(vFragPos - viewPos);
+    int cascadeIdx = 0;
+    if (fragDist > cascadeSplits[0]) cascadeIdx = 1;
+    if (fragDist > cascadeSplits[1]) cascadeIdx = 2;
+    if (fragDist > cascadeSplits[2]) cascadeIdx = 3;
+
+    vec3 projCoords = vFragPosLightSpace[cascadeIdx].xyz / vFragPosLightSpace[cascadeIdx].w;
+    projCoords = projCoords * 0.5 + 0.5; // Transform to [0,1] range
+
+    // Combine lighting with texture taking shadow into account
+    float shadowFactor = 1.0 - calculateShadow(cascadeIdx, projCoords, bias);
     vec3 lighting = ambient + diffuse * shadowFactor + specular * shadowFactor;
     vec3 result = lighting * texColor.rgb;
 

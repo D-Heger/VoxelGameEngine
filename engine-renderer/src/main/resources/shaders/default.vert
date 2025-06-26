@@ -7,7 +7,9 @@ layout (location = 2) in vec3 aNormal; // Normal attribute
 out vec2 vTexCoords;
 out vec3 vNormal;
 out vec3 vFragPos;
-out vec4 vFragPosLightSpace;
+out vec4 vFragPosLightSpace[4];
+
+#define NUM_CASCADES 4
 
 // UBO for Camera Data
 layout (std140) uniform CameraData {
@@ -18,7 +20,7 @@ layout (std140) uniform CameraData {
 
 // Standard Uniforms
 uniform mat4 model;
-uniform mat4 lightSpaceMatrix;
+uniform mat4 lightSpaceMatrices[NUM_CASCADES];
 uniform vec4 uAtlasOffsetScale; // xy = offset, zw = scale
 
 void main()
@@ -28,5 +30,8 @@ void main()
     vTexCoords = aTexCoords * uAtlasOffsetScale.zw + uAtlasOffsetScale.xy;
     vNormal = mat3(transpose(inverse(model))) * aNormal; // Transform normal to world space
     vFragPos = vec3(worldPos); // World space position
-    vFragPosLightSpace = lightSpaceMatrix * worldPos;
+
+    for (int i = 0; i < NUM_CASCADES; ++i) {
+        vFragPosLightSpace[i] = lightSpaceMatrices[i] * worldPos;
+    }
 }

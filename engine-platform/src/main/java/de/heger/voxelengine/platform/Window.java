@@ -64,6 +64,7 @@ public class Window {
         glfwWindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 6);
         glfwWindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE); // Required for macOS
+        glfwWindowHint(GLFW.GLFW_OPENGL_DEBUG_CONTEXT, GLFW.GLFW_TRUE); // Enable OpenGL debug context
         glfwWindowHint(GLFW.GLFW_FOCUS_ON_SHOW, GLFW.GLFW_TRUE);
         glfwWindowHint(GLFW.GLFW_FLOATING, GLFW.GLFW_TRUE);
         glfwWindowHint(GLFW.GLFW_DECORATED, GLFW.GLFW_TRUE);

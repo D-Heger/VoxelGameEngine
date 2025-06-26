@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL43.*;
 
 public class ShaderProgram {
 
@@ -20,6 +21,7 @@ public class ShaderProgram {
     protected final int programId;
     private int vertexShaderId;
     private int fragmentShaderId;
+    private int computeShaderId;
     private final Map<String, Integer> uniforms;
 
     public ShaderProgram() {
@@ -39,6 +41,17 @@ public class ShaderProgram {
     public void createFragmentShader(String shaderCode) {
         fragmentShaderId = createShader(shaderCode, GL_FRAGMENT_SHADER);
          logger.debug("Created fragment shader with ID: {}", fragmentShaderId);
+    }
+
+    /**
+     * Creates and attaches a compute shader to this program.
+     * Note: Requires OpenGL 4.3 or the ARB_compute_shader extension.
+     *
+     * @param shaderCode GLSL source code for the compute shader.
+     */
+    public void createComputeShader(String shaderCode) {
+        computeShaderId = createShader(shaderCode, GL_COMPUTE_SHADER);
+        logger.debug("Created compute shader with ID: {}", computeShaderId);
     }
 
     protected int createShader(String shaderCode, int shaderType) {
@@ -75,6 +88,9 @@ public class ShaderProgram {
         }
         if (fragmentShaderId != 0) {
             glDetachShader(programId, fragmentShaderId);
+        }
+        if (computeShaderId != 0) {
+            glDetachShader(programId, computeShaderId);
         }
 
         // Validate the program (optional, but good for debugging)
@@ -178,6 +194,7 @@ public class ShaderProgram {
             // Shaders are detached in link(), but we can delete them explicitly if needed
             if (vertexShaderId != 0) glDeleteShader(vertexShaderId);
             if (fragmentShaderId != 0) glDeleteShader(fragmentShaderId);
+            if (computeShaderId != 0) glDeleteShader(computeShaderId);
             glDeleteProgram(programId);
             logger.debug("Deleted shader program with ID: {}", programId);
         }

@@ -94,14 +94,21 @@ public class Renderer {
     // Texture binding state tracking
     private String currentlyBoundTexture = null;
 
-    // Shadow mapping resources
+    // Shadow mapping resources (Cascaded Shadow Maps)
     private int shadowFbo;
     private int shadowDepthTexture;
     private static final int SHADOW_MAP_SIZE = 4096;
     private ShaderProgram depthShaderProgram;
+
+    // Cascaded Shadow Map parameters
+    private static final int NUM_CASCADES = 4; // We use a 4-split CSM
+    private static final int CASCADE_ATLAS_SPLIT = 2; // 2x2 grid in atlas (supports up to 4 cascades)
+
+    private final Matrix4f[] cascadeLightSpaceMatrices = new Matrix4f[NUM_CASCADES];
+    private final Vector4f[] cascadeAtlasRects = new Vector4f[NUM_CASCADES];
+    private final float[] cascadeSplits = new float[NUM_CASCADES];
+
     private final Matrix4f lightViewMatrix = new Matrix4f();
-    private final Matrix4f lightProjectionMatrix = new Matrix4f();
-    private final Matrix4f lightSpaceMatrix = new Matrix4f();
 
     /**
      * Helper class to store renderable chunk data for texture batching optimization.
@@ -132,10 +139,23 @@ public class Renderer {
         this.sceneLightingManager = new SceneLightingManager();
         this.chunkMeshManager = new ChunkMeshManager(chunkManager, blockRegistry);
 
+        // Initialize GPU-based occlusion culler (Hierarchical-Z). Falls back to CPU heuristic internally.
+        this.occlusionCuller = new de.heger.voxelengine.renderer.culling.HZBOcclusionCuller(
+                this.camera,
+                this.chunkMeshManager,
+                (int) window.getWidth(),
+                (int) window.getHeight()
+        );
+
         // Initialize rendering tools
-        this.occlusionCuller = new OcclusionCuller();
         this.wireframeRenderer = new WireframeRenderer();
         this.blockOutlineRenderer = new BlockOutlineRenderer();
+
+        // Allocate cascade-related objects
+        for (int i = 0; i < NUM_CASCADES; i++) {
+            cascadeLightSpaceMatrices[i] = new Matrix4f();
+            cascadeAtlasRects[i] = new Vector4f();
+        }
     }
 
     /**
@@ -194,11 +214,19 @@ public class Renderer {
         // Create uniforms for non-UBO data
         defaultShaderProgram.createUniform("model");
         defaultShaderProgram.createUniform("uTexture");
-        defaultShaderProgram.createUniform("lightSpaceMatrix");
         defaultShaderProgram.createUniform("shadowMap");
         defaultShaderProgram.createUniform("specularStrength");
         defaultShaderProgram.createUniform("shininess");
         defaultShaderProgram.createUniform("uAtlasOffsetScale");
+
+        // Cascaded shadow map uniforms
+        for (int i = 0; i < NUM_CASCADES; i++) {
+            defaultShaderProgram.createUniform("lightSpaceMatrices[" + i + "]");
+            defaultShaderProgram.createUniform("cascadeAtlasRects[" + i + "]");
+            if (i < NUM_CASCADES - 1) {
+                defaultShaderProgram.createUniform("cascadeSplits[" + i + "]");
+            }
+        }
     }
 
     private void createUBOs() {
@@ -228,7 +256,7 @@ public class Renderer {
         renderableDataPoolIndex = 0; // Reset pool for the new frame
 
         // --- Compute light matrices for shadow mapping ---
-        computeLightSpaceMatrix();
+        computeCascadedShadowMatrices();
 
         Vector3f fogColor = sceneLightingManager.getFogColor();
         glClearColor(fogColor.x, fogColor.y, fogColor.z, 1.0f);
@@ -280,7 +308,16 @@ public class Renderer {
         // Set remaining non-UBO uniforms
         defaultShaderProgram.setUniform("uTexture", 0);
         defaultShaderProgram.setUniform("shadowMap", 1);
-        defaultShaderProgram.setUniform("lightSpaceMatrix", lightSpaceMatrix);
+
+        // Upload cascaded shadow map uniforms
+        for (int i = 0; i < NUM_CASCADES; i++) {
+            defaultShaderProgram.setUniform("lightSpaceMatrices[" + i + "]", cascadeLightSpaceMatrices[i]);
+            defaultShaderProgram.setUniform("cascadeAtlasRects[" + i + "]", cascadeAtlasRects[i]);
+            if (i < NUM_CASCADES - 1) {
+                defaultShaderProgram.setUniform("cascadeSplits[" + i + "]", cascadeSplits[i]);
+            }
+        }
+
         defaultShaderProgram.setUniform("specularStrength", 0.4f);
         defaultShaderProgram.setUniform("shininess", 32.0f);
         defaultShaderProgram.setUniform("uAtlasOffsetScale", new Vector4f(0f, 0f, 1f, 1f));
@@ -685,49 +722,173 @@ public class Renderer {
         logger.info("Shadow mapping resources initialized.");
     }
 
-    private void computeLightSpaceMatrix() {
+    /**
+     * Computes the view-projection matrices for each cascade as well as the atlas UV rectangles
+     * and distance splits used by the shaders.
+     *
+     * NOTE: This is a simplified implementation that approximates each cascade with a bounding
+     * sphere around the camera. Although not as tight as the exhaustive frustum corner method,
+     * it is sufficient for first-pass CSM support and keeps the math fairly lightweight.
+     */
+    private void computeCascadedShadowMatrices() {
         Vector3f lightDir = sceneLightingManager.getLightDirection();
         Vector3f cameraPos = camera.getPosition();
 
-        float shadowDistance = 100.0f;
-        Vector3f lightPos = new Vector3f(cameraPos).sub(new Vector3f(lightDir).normalize().mul(shadowDistance));
+        // --- Calculate cascade split distances ---
+        float nearPlane = 0.1f; // Matches Camera near plane
+        float farPlane = camera.getViewDistance();
+        float lambda = 0.95f; // Weighting between uniform and logarithmic split
 
-        lightViewMatrix.identity().lookAt(lightPos, cameraPos, new Vector3f(0, 1, 0));
-        float orthoSize = camera.getViewDistance();
-        lightProjectionMatrix.identity().ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 1.0f, 300.0f);
+        for (int i = 0; i < NUM_CASCADES; i++) {
+            float p = (i + 1) / (float) NUM_CASCADES;
+            float log = nearPlane * (float) Math.pow(farPlane / nearPlane, p);
+            float uni = nearPlane + (farPlane - nearPlane) * p;
+            cascadeSplits[i] = lambda * log + (1.0f - lambda) * uni;
+        }
 
-        lightProjectionMatrix.mul(lightViewMatrix, lightSpaceMatrix);
+        // --- Calculate atlas rectangles (2x2 grid) ---
+        float tileSize = 1.0f / CASCADE_ATLAS_SPLIT;
+        for (int i = 0; i < NUM_CASCADES; i++) {
+            int row = i / CASCADE_ATLAS_SPLIT;
+            int col = i % CASCADE_ATLAS_SPLIT;
+            cascadeAtlasRects[i].set(col * tileSize, row * tileSize, tileSize, tileSize);
+        }
+
+        // --- Compute view-projection matrix for each cascade ---
+        Vector3f up = new Vector3f(0, 1, 0);
+        Vector3f invLightDir = new Vector3f(lightDir).normalize().negate();
+
+        float maxShadowDistance = 300.0f;
+
+        int tileResolution = SHADOW_MAP_SIZE / CASCADE_ATLAS_SPLIT;
+
+        Vector3f front = camera.getFront();
+        Vector3f right = new Vector3f(front).cross(up).normalize();
+        Vector3f camUp = new Vector3f(right).cross(front).normalize();
+
+        float fovRad = (float) Math.toRadians(camera.getFov());
+        float tanFov = (float) Math.tan(fovRad * 0.5f);
+
+        float prevSplitDist = nearPlane;
+
+        for (int i = 0; i < NUM_CASCADES; i++) {
+            float splitDist = cascadeSplits[Math.min(i, NUM_CASCADES - 2)];
+
+            // Build frustum slice corner points in world space
+            float nearDist = prevSplitDist;
+            float farDist = (i == NUM_CASCADES - 1) ? farPlane : splitDist;
+
+            float nearHeight = nearDist * tanFov;
+            float aspect = window.getAspectRatio();
+            float nearWidth = nearHeight * aspect;
+            float farHeight = farDist * tanFov;
+            float farWidth = farHeight * aspect;
+
+            Vector3f camPos = new Vector3f(cameraPos);
+
+            Vector3f nc = new Vector3f(camPos).add(new Vector3f(front).mul(nearDist));
+            Vector3f fc = new Vector3f(camPos).add(new Vector3f(front).mul(farDist));
+
+            // 8 corners
+            Vector3f[] corners = new Vector3f[8];
+            corners[0] = new Vector3f(nc).sub(right.mul(nearWidth, new Vector3f())).add(camUp.mul(nearHeight, new Vector3f()));
+            corners[1] = new Vector3f(nc).add(right.mul(nearWidth, new Vector3f())).add(camUp.mul(nearHeight, new Vector3f()));
+            corners[2] = new Vector3f(nc).add(right.mul(nearWidth, new Vector3f())).sub(camUp.mul(nearHeight, new Vector3f()));
+            corners[3] = new Vector3f(nc).sub(right.mul(nearWidth, new Vector3f())).sub(camUp.mul(nearHeight, new Vector3f()));
+
+            corners[4] = new Vector3f(fc).sub(right.mul(farWidth, new Vector3f())).add(camUp.mul(farHeight, new Vector3f()));
+            corners[5] = new Vector3f(fc).add(right.mul(farWidth, new Vector3f())).add(camUp.mul(farHeight, new Vector3f()));
+            corners[6] = new Vector3f(fc).add(right.mul(farWidth, new Vector3f())).sub(camUp.mul(farHeight, new Vector3f()));
+            corners[7] = new Vector3f(fc).sub(right.mul(farWidth, new Vector3f())).sub(camUp.mul(farHeight, new Vector3f()));
+
+            // Compute center of slice
+            Vector3f sliceCenter = new Vector3f();
+            for (Vector3f c : corners) sliceCenter.add(c);
+            sliceCenter.mul(1.0f / 8.0f);
+
+            // Build light view matrix
+            Vector3f lightPos = new Vector3f(sliceCenter).add(new Vector3f(invLightDir).mul(maxShadowDistance * 0.5f));
+            lightViewMatrix.identity().lookAt(lightPos, sliceCenter, up);
+
+            // Transform corners to light space & compute bounds
+            float minX = Float.POSITIVE_INFINITY, minY = Float.POSITIVE_INFINITY, minZ = Float.POSITIVE_INFINITY;
+            float maxX = Float.NEGATIVE_INFINITY, maxY = Float.NEGATIVE_INFINITY, maxZ = Float.NEGATIVE_INFINITY;
+
+            for (Vector3f c : corners) {
+                Vector4f tmp = new Vector4f(c, 1.0f).mul(lightViewMatrix);
+                minX = Math.min(minX, tmp.x);
+                minY = Math.min(minY, tmp.y);
+                minZ = Math.min(minZ, tmp.z);
+                maxX = Math.max(maxX, tmp.x);
+                maxY = Math.max(maxY, tmp.y);
+                maxZ = Math.max(maxZ, tmp.z);
+            }
+
+            // Make bounding box square to maintain texel stability
+            float extentX = maxX - minX;
+            float extentY = maxY - minY;
+            float orthoExtent = Math.max(extentX, extentY) * 0.5f;
+
+            Vector3f boxCenterLS = new Vector3f((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, (minZ + maxZ) * 0.5f);
+
+            // Snap to texel grid in light space
+            float texelSize = (orthoExtent * 2.0f) / tileResolution;
+            boxCenterLS.x = (float) Math.floor(boxCenterLS.x / texelSize) * texelSize;
+            boxCenterLS.y = (float) Math.floor(boxCenterLS.y / texelSize) * texelSize;
+
+            // Build light projection
+            Matrix4f lightProj = new Matrix4f().ortho(-orthoExtent, orthoExtent, -orthoExtent, orthoExtent, -maxShadowDistance, maxShadowDistance);
+
+            // Reconstruct view matrix with snapped translation
+            Matrix4f snappedView = new Matrix4f(lightViewMatrix);
+            snappedView.m30(snappedView.m30() - boxCenterLS.x);
+            snappedView.m31(snappedView.m31() - boxCenterLS.y);
+
+            lightProj.mul(snappedView, cascadeLightSpaceMatrices[i]);
+
+            prevSplitDist = farDist;
+        }
     }
 
     private void renderShadowPass(Collection<Chunk> visibleChunks) {
-        // Configure viewport to shadow map size
-        glViewport(0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+        int tileSize = SHADOW_MAP_SIZE / CASCADE_ATLAS_SPLIT;
+
         glBindFramebuffer(GL_FRAMEBUFFER, shadowFbo);
         glClear(GL_DEPTH_BUFFER_BIT);
-
-        depthShaderProgram.bind();
-        depthShaderProgram.setUniform("lightSpaceMatrix", lightSpaceMatrix);
 
         Matrix4f modelMatrix = reusableMatrix4f;
         int lastVao = 0;
 
-        for (Chunk chunk : visibleChunks) {
-            chunkMeshManager.ensureMeshForChunk(chunk);
-            Map<String, ChunkMesh> meshes = chunkMeshManager.getMeshesForChunk(chunk.getPosition());
-            if (meshes == null) continue;
+        depthShaderProgram.bind();
 
-            Vec3i chunkOriginWorld = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
-            modelMatrix.identity().translation(chunkOriginWorld.x, chunkOriginWorld.y, chunkOriginWorld.z);
-            depthShaderProgram.setUniform("model", modelMatrix);
+        for (int cascadeIndex = 0; cascadeIndex < NUM_CASCADES; cascadeIndex++) {
+            // Configure viewport for this cascade inside the atlas
+            int row = cascadeIndex / CASCADE_ATLAS_SPLIT;
+            int col = cascadeIndex % CASCADE_ATLAS_SPLIT;
+            glViewport(col * tileSize, row * tileSize, tileSize, tileSize);
 
-            for (ChunkMesh mesh : meshes.values()) {
-                if (mesh.isEmpty()) continue;
-                int vao = mesh.getVaoId();
-                if (vao != lastVao) {
-                    glBindVertexArray(vao);
-                    lastVao = vao;
+            // Upload cascade-specific light space matrix
+            depthShaderProgram.setUniform("lightSpaceMatrix", cascadeLightSpaceMatrices[cascadeIndex]);
+
+            // Render all visible chunks for this cascade
+            for (Chunk chunk : visibleChunks) {
+                chunkMeshManager.ensureMeshForChunk(chunk);
+                Map<String, ChunkMesh> meshes = chunkMeshManager.getMeshesForChunk(chunk.getPosition());
+                if (meshes == null) continue;
+
+                Vec3i chunkOriginWorld = CoordinateUtils.chunkOriginToWorldCoords(chunk.getPosition());
+                modelMatrix.identity().translation(chunkOriginWorld.x, chunkOriginWorld.y, chunkOriginWorld.z);
+                depthShaderProgram.setUniform("model", modelMatrix);
+
+                for (ChunkMesh mesh : meshes.values()) {
+                    if (mesh.isEmpty()) continue;
+                    int vao = mesh.getVaoId();
+                    if (vao != lastVao) {
+                        glBindVertexArray(vao);
+                        lastVao = vao;
+                    }
+                    mesh.render();
                 }
-                mesh.render();
             }
         }
 
