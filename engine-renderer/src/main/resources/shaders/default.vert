@@ -19,12 +19,13 @@ layout (std140) uniform CameraData {
 // Standard Uniforms
 uniform mat4 model;
 uniform mat4 lightSpaceMatrix;
+uniform vec4 uAtlasOffsetScale; // xy = offset, zw = scale
 
 void main()
 {
     vec4 worldPos = model * vec4(aPos, 1.0);
     gl_Position = projection * view * worldPos;
-    vTexCoords = aTexCoords;
+    vTexCoords = aTexCoords * uAtlasOffsetScale.zw + uAtlasOffsetScale.xy;
     vNormal = mat3(transpose(inverse(model))) * aNormal; // Transform normal to world space
     vFragPos = vec3(worldPos); // World space position
     vFragPosLightSpace = lightSpaceMatrix * worldPos;

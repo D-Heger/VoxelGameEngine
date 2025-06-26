@@ -26,6 +26,10 @@ public class TextureManager {
     private static final String FALLBACK_TEXTURE_NAME = "core:block/dirt";
     private Texture defaultFallbackTexture = null;
 
+    private int atlasTextureId = 0;
+    private final Map<String, float[]> atlasTransformMap = new HashMap<>(); // textureName -> {offsetU, offsetV, scaleU, scaleV}
+    private static final int ATLAS_TILE_SIZE = 16; // assumes all block textures are square 16×16
+
     public TextureManager(BlockRegistry blockRegistry) {
         this.blockRegistry = blockRegistry;
     }
@@ -86,6 +90,92 @@ public class TextureManager {
             logger.info("Default fallback texture set to: '{}'", FALLBACK_TEXTURE_NAME);
         }
         logger.info("Finished loading block textures. {} textures loaded.", textureMap.size());
+
+        buildTextureAtlas(); // NEW – build atlas after individual textures are on GPU
+    }
+
+    /**
+     * Builds a single atlas texture containing every loaded block texture arranged on a grid.<br/>
+     * This drastically reduces texture-bind traffic at run-time.  All tiles are assumed to be
+     * uniformly sized (currently 16×16).  For heterogeneous sizes, pre-scaling would be required.
+     */
+    private void buildTextureAtlas() {
+        if (textureMap.isEmpty()) {
+            logger.warn("No textures loaded – atlas creation skipped.");
+            return;
+        }
+
+        int tileSize = ATLAS_TILE_SIZE;
+        int tileCount = textureMap.size();
+        int tilesPerRow = (int) Math.ceil(Math.sqrt(tileCount));
+        int atlasSize = tilesPerRow * tileSize;
+
+        // Allocate empty RGBA8 atlas texture
+        int atlasTexId = org.lwjgl.opengl.GL11.glGenTextures();
+        org.lwjgl.opengl.GL11.glBindTexture(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, atlasTexId);
+        org.lwjgl.opengl.GL11.glTexImage2D(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, 0,
+                org.lwjgl.opengl.GL11.GL_RGBA8, atlasSize, atlasSize, 0,
+                org.lwjgl.opengl.GL11.GL_RGBA, org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE, (java.nio.ByteBuffer) null);
+
+        // Set sampler params (pixel-art style – nearest)
+        org.lwjgl.opengl.GL11.glTexParameteri(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, org.lwjgl.opengl.GL11.GL_TEXTURE_MIN_FILTER, org.lwjgl.opengl.GL11.GL_NEAREST_MIPMAP_NEAREST);
+        org.lwjgl.opengl.GL11.glTexParameteri(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, org.lwjgl.opengl.GL11.GL_TEXTURE_MAG_FILTER, org.lwjgl.opengl.GL11.GL_NEAREST);
+        org.lwjgl.opengl.GL11.glTexParameteri(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, org.lwjgl.opengl.GL11.GL_TEXTURE_WRAP_S, org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE);
+        org.lwjgl.opengl.GL11.glTexParameteri(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, org.lwjgl.opengl.GL11.GL_TEXTURE_WRAP_T, org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE);
+
+        // --- Copy each small texture into the atlas ---
+        java.nio.ByteBuffer scratch = org.lwjgl.BufferUtils.createByteBuffer(tileSize * tileSize * 4);
+        int index = 0;
+        for (Map.Entry<String, Texture> entry : textureMap.entrySet()) {
+            String texName = entry.getKey();
+            Texture srcTex = entry.getValue();
+
+            int tileX = index % tilesPerRow;
+            int tileY = index / tilesPerRow;
+            int destX = tileX * tileSize;
+            int destY = tileY * tileSize;
+
+            // Read back pixels from the GPU and upload into atlas (slow but done once at start-up)
+            org.lwjgl.opengl.GL11.glBindTexture(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, srcTex.getTextureId());
+            scratch.clear();
+            org.lwjgl.opengl.GL11.glGetTexImage(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, 0,
+                    org.lwjgl.opengl.GL11.GL_RGBA, org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE, scratch);
+
+            org.lwjgl.opengl.GL11.glBindTexture(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, atlasTexId);
+            org.lwjgl.opengl.GL11.glTexSubImage2D(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, 0,
+                    destX, destY, tileSize, tileSize,
+                    org.lwjgl.opengl.GL11.GL_RGBA, org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE, scratch);
+
+            float offsetU = (float) destX / atlasSize;
+            float offsetV = (float) destY / atlasSize;
+            float scaleU = (float) tileSize / atlasSize;
+            float scaleV = (float) tileSize / atlasSize;
+            atlasTransformMap.put(texName, new float[]{offsetU, offsetV, scaleU, scaleV});
+
+            index++;
+        }
+
+        // Generate mip-maps for the atlas
+        org.lwjgl.opengl.GL30.glGenerateMipmap(org.lwjgl.opengl.GL11.GL_TEXTURE_2D);
+
+        this.atlasTextureId = atlasTexId;
+        logger.info("Texture atlas built: {} × {} ({} tiles)", atlasSize, atlasSize, tileCount);
+    }
+
+    /**
+     * Returns the atlas texture ID.
+     */
+    public int getAtlasTextureId() {
+        return atlasTextureId;
+    }
+
+    /**
+     * Returns the UV transform for a specific block texture inside the atlas.
+     * The returned array has layout {offsetU, offsetV, scaleU, scaleV}.  Can be null if the
+     * texture name was not part of the atlas (should not happen for valid blocks).
+     */
+    public float[] getAtlasTransform(String textureName) {
+        return atlasTransformMap.get(textureName);
     }
 
     /**
@@ -115,6 +205,10 @@ public class TextureManager {
             } catch (Exception e) {
                 logger.error("Error cleaning up texture: {}", entry.getKey(), e);
             }
+        }
+        if (atlasTextureId != 0) {
+            org.lwjgl.opengl.GL11.glDeleteTextures(atlasTextureId);
+            atlasTextureId = 0;
         }
         textureMap.clear();
         logger.debug("Texture cleanup complete.");

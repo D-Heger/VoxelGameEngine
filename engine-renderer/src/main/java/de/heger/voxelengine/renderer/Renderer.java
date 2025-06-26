@@ -22,6 +22,7 @@ import de.heger.voxelengine.world.chunk.*;
 
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.*; // Provides GL, GL11, GL13, GL14, GL20, GL30, etc.
 import org.lwjgl.system.Callback;
@@ -197,6 +198,7 @@ public class Renderer {
         defaultShaderProgram.createUniform("shadowMap");
         defaultShaderProgram.createUniform("specularStrength");
         defaultShaderProgram.createUniform("shininess");
+        defaultShaderProgram.createUniform("uAtlasOffsetScale");
     }
 
     private void createUBOs() {
@@ -204,9 +206,10 @@ public class Renderer {
         cameraUBO = new UniformBuffer(CAMERA_UBO_SIZE, UBO_BINDING_POINT_CAMERA);
         lightingUBO = new UniformBuffer(LIGHTING_UBO_SIZE, UBO_BINDING_POINT_LIGHTING);
 
-        // Bind UBOs to the shader program's uniform blocks
+        // Bind the newly created UBOs to the corresponding uniform blocks in the default shader.
         cameraUBO.bindToShader(defaultShaderProgram, "CameraData");
         lightingUBO.bindToShader(defaultShaderProgram, "Lighting");
+
         logger.info("UBOs created and bound to shader blocks.");
     }
 
@@ -280,6 +283,7 @@ public class Renderer {
         defaultShaderProgram.setUniform("lightSpaceMatrix", lightSpaceMatrix);
         defaultShaderProgram.setUniform("specularStrength", 0.4f);
         defaultShaderProgram.setUniform("shininess", 32.0f);
+        defaultShaderProgram.setUniform("uAtlasOffsetScale", new Vector4f(0f, 0f, 1f, 1f));
 
         // Bind shadow map texture to texture unit 1
         glActiveTexture(GL_TEXTURE1);
@@ -381,8 +385,15 @@ public class Renderer {
             String textureName = textureGroup.getKey();
             List<RenderableChunkData> renderableDataList = textureGroup.getValue();
 
-            // Bind texture once for all meshes using this texture
+            // Bind atlas texture (only first call) and set per-texture UV transform
             bindTextureIfNeeded(textureName);
+            float[] uv = textureManager.getAtlasTransform(textureName);
+            if (uv != null) {
+                defaultShaderProgram.setUniform("uAtlasOffsetScale", new org.joml.Vector4f(uv[0], uv[1], uv[2], uv[3]));
+            } else {
+                // Fallback: full atlas
+                defaultShaderProgram.setUniform("uAtlasOffsetScale", new org.joml.Vector4f(0f, 0f, 1f, 1f));
+            }
 
             // Render all meshes for this texture
             for (RenderableChunkData renderableData : renderableDataList) {
@@ -432,25 +443,24 @@ public class Renderer {
         }
     }
 
-    /**
-     * Binds a texture only if it's different from the currently bound texture.
-     * This avoids redundant texture binding calls.
-     * 
-     * @param textureName The name of the texture to bind
-     */
     private void bindTextureIfNeeded(String textureName) {
-        if (!textureName.equals(currentlyBoundTexture)) {
-            Texture textureToRender = textureManager.getTexture(textureName);
-            if (textureToRender == null) {
-                textureToRender = textureManager.getDefaultFallbackTexture();
-                if (textureToRender == null) {
-                    logger.warn("No texture found for '{}' and no fallback texture available", textureName);
-                    return;
-                }
-            }
+        int atlasId = textureManager.getAtlasTextureId();
 
-            textureToRender.bind(0);
-            currentlyBoundTexture = textureName;
+        if (atlasId != 0) {
+            // Atlas path – bind once per frame (or when not yet bound).
+            if (!"ATLAS_BOUND".equals(currentlyBoundTexture)) {
+                org.lwjgl.opengl.GL13.glActiveTexture(org.lwjgl.opengl.GL13.GL_TEXTURE0);
+                org.lwjgl.opengl.GL11.glBindTexture(org.lwjgl.opengl.GL11.GL_TEXTURE_2D, atlasId);
+                currentlyBoundTexture = "ATLAS_BOUND";
+            }
+        } else {
+            // Legacy per-texture binding path.
+            if (!textureName.equals(currentlyBoundTexture)) {
+                Texture tex = textureManager.getTexture(textureName);
+                if (tex == null) tex = textureManager.getDefaultFallbackTexture();
+                if (tex != null) tex.bind(0);
+                currentlyBoundTexture = textureName;
+            }
         }
     }
 
@@ -634,8 +644,8 @@ public class Renderer {
         // 1. Create depth texture
         shadowDepthTexture = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, shadowDepthTexture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, 0,
-                GL_DEPTH_COMPONENT, GL_FLOAT, (java.nio.ByteBuffer) null);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE, 0,
+                GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, (java.nio.ByteBuffer) null);
         // Use linear filtering so hardware automatically performs 2x2 PCF between neighbouring texels
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -648,7 +658,7 @@ public class Renderer {
         // 2. Create framebuffer and attach depth texture
         shadowFbo = glGenFramebuffers();
         glBindFramebuffer(GL_FRAMEBUFFER, shadowFbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowDepthTexture, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, shadowDepthTexture, 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
         int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
