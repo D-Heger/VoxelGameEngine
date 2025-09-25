@@ -4,7 +4,6 @@ import org.joml.Vector2f;
 import de.heger.voxelengine.renderer.ui.layout.LayoutManager;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 public abstract class UIElement {
     protected Vector2f position;

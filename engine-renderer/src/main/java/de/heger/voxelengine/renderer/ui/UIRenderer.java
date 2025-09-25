@@ -313,15 +313,6 @@ public class UIRenderer {
         }
     }
     
-    /**
-     * @deprecated Use {@link #determineElementRenderState(UIElement)} instead.
-     * This method is kept for backwards compatibility but will be removed in a future version.
-     */
-    @Deprecated
-    private boolean isNonTexturedElement(UIElement element) {
-        return determineElementRenderState(element) == RenderState.SOLID_COLOR;
-    }
-    
     public void updateElements(List<UIElement> elementsToUpdate, float deltaTime) {
         if (elementsToUpdate == null) return;
         for (UIElement element : elementsToUpdate) {
