@@ -1,10 +1,7 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 version = "0.0.1-SNAPSHOT"
 
 plugins {
     application
-    alias(libs.plugins.shadow)
 }
 
 dependencies {
@@ -39,6 +36,7 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 application {
@@ -58,22 +56,4 @@ tasks.withType<Jar> {
             "Implementation-Vendor" to "D. Heger",
         )
     }
-}
-
-tasks.withType<ShadowJar> {
-    archiveBaseName.set("VoxelGameEngine-fat") // More descriptive name
-    archiveClassifier.set("") // Avoid classifier like 'all'
-    archiveVersion.set(project.version.toString())
-    manifest {
-        attributes(
-            "Implementation-Title" to "VoxelGameEngine",
-            "Implementation-Version" to project.version,
-            "Implementation-Vendor" to "D. Heger",
-            "Main-Class" to application.mainClass.get()
-        )
-    }
-    // It's often good practice to merge service files if libraries use ServiceLoader
-    mergeServiceFiles()
-    // You might need to exclude signature files if you encounter issues
-    // exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
