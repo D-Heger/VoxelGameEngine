@@ -76,7 +76,7 @@ public class ChunkMeshManager {
         this.blockRegistry = blockRegistry;
         this.meshBuilderExecutor = Executors.newFixedThreadPool(MESH_BUILDER_THREADS, r -> {
             Thread t = new Thread(r);
-            t.setName("MeshBuilderThread-" + t.getId());
+            t.setName("MeshBuilderThread-" + t.threadId());
             t.setDaemon(true);
             return t;
         });
@@ -401,14 +401,12 @@ public class ChunkMeshManager {
 
             // Upload GL meshes
             Map<String, ChunkMesh> newMeshes = new HashMap<>();
-            boolean trulyEmpty = true;
             for (Map.Entry<String, MeshData> e : dataMap.entrySet()) {
                 MeshData md = e.getValue();
                 if (!md.isEmpty()) {
                     ChunkMesh cm = new ChunkMesh(md.getVertexBuffer(), md.getIndexBuffer());
                     if (!cm.isEmpty()) {
                         newMeshes.put(e.getKey(), cm);
-                        trulyEmpty = false;
                     }
                 }
                 // release cpu buffers back to pool

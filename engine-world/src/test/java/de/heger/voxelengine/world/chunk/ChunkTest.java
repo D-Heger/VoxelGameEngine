@@ -1,10 +1,7 @@
 package de.heger.voxelengine.world.chunk;
 
 import de.heger.voxelengine.core.math.Vec3i;
-import de.heger.voxelengine.world.block.BlockProperties;
 import de.heger.voxelengine.world.block.BlockRegistry;
-import de.heger.voxelengine.world.block.TextureRef;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -13,22 +10,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.EnumMap;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 class ChunkTest {
 
     private ChunkPos testPos;
     private Chunk chunk;
-    private BlockRegistry blockRegistry;
-
     @BeforeEach
     void setUp() {
         testPos = new ChunkPos(1, 2, 3);
         chunk = new Chunk(testPos);
-        blockRegistry = BlockRegistry.getInstance();
+        BlockRegistry.getInstance();
     }
 
     @Test

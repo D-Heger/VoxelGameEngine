@@ -4,10 +4,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
-
 import de.heger.voxelengine.core.utils.Validate;
-import de.heger.voxelengine.world.chunk.Direction;
 
 /**
  * Manages loaded chunks by their positions in the world.

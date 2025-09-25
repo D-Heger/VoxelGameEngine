@@ -2,8 +2,6 @@ package de.heger.voxelengine.world.chunk;
 
 import de.heger.voxelengine.core.math.Vec3i;
 
-import java.util.Objects;
-
 /**
  * Represents the coordinates of a chunk in the world grid.
  * Chunks are typically 16x16x16 blocks.

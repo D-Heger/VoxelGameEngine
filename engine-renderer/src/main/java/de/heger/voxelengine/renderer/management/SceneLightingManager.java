@@ -1,6 +1,5 @@
 package de.heger.voxelengine.renderer.management;
 
-import de.heger.voxelengine.renderer.shader.ShaderProgram;
 import org.joml.Vector3f;
 
 import java.nio.ByteBuffer;

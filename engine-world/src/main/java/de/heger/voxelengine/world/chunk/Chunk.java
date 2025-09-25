@@ -8,8 +8,6 @@ import de.heger.voxelengine.world.block.BlockProperties; // Added import
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Map; // Required for Map type hint, even if not storing ChunkMesh directly
-// No import from engine-renderer allowed here for ChunkMesh
 
 /**
  * Represents a 16x16x16 segment of the world containing block data.

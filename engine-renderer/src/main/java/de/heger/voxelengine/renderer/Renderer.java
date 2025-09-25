@@ -23,13 +23,10 @@ import de.heger.voxelengine.world.chunk.*;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.*; // Provides GL, GL11, GL13, GL14, GL20, GL30, etc.
 import org.lwjgl.system.Callback;
 
 import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 import java.util.*;
 
 import static org.lwjgl.opengl.GL11.*;

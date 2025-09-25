@@ -25,7 +25,6 @@ public class PerformanceMonitor {
     private long maxMemoryUsed = 0;
     private long totalAllocations = 0;
     private long lastTotalMemory = 0;
-    private long lastFreeMemory = 0;
     
     private PerformanceMonitor() {
         // Private constructor for singleton
@@ -79,7 +78,6 @@ public class PerformanceMonitor {
         
         lastMemoryCheck = currentTime;
         lastTotalMemory = totalMemory;
-        lastFreeMemory = freeMemory;
     }
     
     /**
@@ -158,7 +156,6 @@ public class PerformanceMonitor {
         maxMemoryUsed = 0;
         totalAllocations = 0;
         lastTotalMemory = 0;
-        lastFreeMemory = 0;
         lastGcTime = 0;
         lastMemoryCheck = 0;
     }

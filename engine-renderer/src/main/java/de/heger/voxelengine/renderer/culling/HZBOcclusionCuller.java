@@ -6,10 +6,7 @@ import de.heger.voxelengine.renderer.shader.ShaderProgram;
 import de.heger.voxelengine.renderer.mesh.ChunkMesh;
 import de.heger.voxelengine.renderer.management.ChunkMeshManager;
 import de.heger.voxelengine.world.chunk.Chunk;
-import de.heger.voxelengine.world.chunk.ChunkPos;
 import org.joml.Vector3f;
-import org.lwjgl.opengl.*;
-
 import java.nio.IntBuffer;
 import java.util.*;
 import java.util.function.IntConsumer;
@@ -17,8 +14,6 @@ import java.util.function.IntConsumer;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.opengl.GL43.*;
-import static org.lwjgl.opengl.GL15.*;
-import static org.lwjgl.opengl.GL31.*;
 
 /**
  * Experimental GPU-driven occlusion culler that implements a Hierarchical-Z buffer (HZB) pipeline.

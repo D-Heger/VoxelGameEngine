@@ -31,8 +31,6 @@ import de.heger.voxelengine.game.PlayerController;
 import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.Collection;
 import org.joml.Vector3f;
 import de.heger.voxelengine.world.chunk.CoordinateUtils;
@@ -49,8 +47,6 @@ public class GameLoop {
 
     private static final LoggerFacade LOGGER = LoggerFacade.get(GameLoop.class);
     private static final float TARGET_UPS = 60.0f;
-    private static final float TARGET_FPS = 60.0f;
-
     private static final int MAX_WORLD_HEIGHT_CHUNKS = 16;
     private static final int CHUNK_LOAD_RADIUS = 16;
     private static final int CHUNK_UNLOAD_OFFSET = 2; // Unload if further than LOAD_RADIUS + OFFSET
@@ -107,8 +103,6 @@ public class GameLoop {
 
     // OPTIMIZATION: Reusable collections to reduce allocations
     private final List<ChunkPos> reusableChunkPosList = new ArrayList<>();
-    private final Set<ChunkPos> reusableChunkPosSet = new HashSet<>();
-    
     // OPTIMIZATION: Cache for chunk position calculations
     private final int unloadRadiusActual = CHUNK_LOAD_RADIUS + CHUNK_UNLOAD_OFFSET;
     
@@ -770,12 +764,6 @@ public class GameLoop {
         return significantChange || aspectRatioChanged;
     }
     
-    private void scheduleMenuRebuild() {
-        // This method could be expanded to use a proper scheduler, 
-        // but for now we'll handle it in the update loop
-        // The actual rebuild will happen in the update method after the delay
-    }
-
     private void rebuildMenusIfVisible() {
         if (uiManager == null || !uiManager.isInitialized()) {
             return;

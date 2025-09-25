@@ -1,7 +1,5 @@
 package de.heger.voxelengine.renderer.mesh;
 
-import org.lwjgl.BufferUtils;
-
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 

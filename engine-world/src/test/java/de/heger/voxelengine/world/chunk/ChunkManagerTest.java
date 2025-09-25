@@ -5,8 +5,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Collection;
 import java.util.List; // Import List
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger; // Import AtomicInteger if needed for thread IDs, though passing index is better
-
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
