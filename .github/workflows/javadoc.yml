@@ -1,0 +1,60 @@
+name: Publish Javadoc to GitHub Pages
+
+# Build the aggregated API docs and deploy them to GitHub Pages.
+# The published site ends up at:
+#   https://<user>.github.io/<repo>/
+#
+# One-time setup in the repository:
+#   Settings -> Pages -> "Build and deployment" -> Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+  # Allow running it by hand from the Actions tab.
+  workflow_dispatch:
+
+# Least-privilege token scopes needed for the Pages deployment.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only keep the most recent Pages deployment; cancel superseded runs.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build aggregated Javadoc
+        run: ./gradlew aggregatedJavadoc --no-daemon
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/docs/aggregated-javadoc
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
