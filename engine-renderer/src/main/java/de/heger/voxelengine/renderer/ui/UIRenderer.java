@@ -16,6 +16,17 @@ import java.util.HashMap;
 
 import static org.lwjgl.opengl.GL11.*;
 
+/**
+ * Draws the UI tree on top of the rendered world.
+ *
+ * <p>Where {@link UIManager} decides <em>what</em> the interface is and handles
+ * input, the {@code UIRenderer} is responsible for <em>painting</em> it. It sets
+ * up the orthographic (screen-space) projection, configures the GL state suited to
+ * 2D overlay drawing (blending on, depth testing off), and walks the visible
+ * elements, dispatching each to its type-specific draw routine via the shared
+ * {@link UIShader}. It also rebuilds that projection when the window is
+ * resized.</p>
+ */
 public class UIRenderer {
     private static final LoggerFacade LOGGER = LoggerFacade.get(UIRenderer.class);
 

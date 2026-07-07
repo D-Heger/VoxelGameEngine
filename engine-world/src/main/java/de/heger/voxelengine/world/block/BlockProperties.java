@@ -93,7 +93,7 @@ public final class BlockProperties {
     /**
      * Gets an unmodifiable view of the texture map for all faces.
      *
-     * @return An unmodifiable Map<Direction, TextureRef>.
+     * @return An unmodifiable {@code Map<Direction, TextureRef>}.
      */
     public Map<Direction, TextureRef> getTextures() {
         return textures; // Already unmodifiable

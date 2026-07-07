@@ -123,9 +123,9 @@ public class WorldThreadPool {
      * Initiates an orderly shutdown in which previously submitted tasks are
      * executed, but no new tasks will be accepted. Invocation has no
      * additional effect if already shut down.
-     * This method does not wait for previously submitted tasks to complete
-     * execution. Use {@link #awaitTermination} to do that.
-     * It will wait for a period for tasks to complete, then attempt a forceful shutdown if they don't.
+     * This method does not, by itself, wait indefinitely for previously submitted
+     * tasks to complete execution. It will wait for a bounded period for tasks to
+     * complete, then attempt a forceful shutdown if they don't.
      */
     public void shutdown() {
         LOGGER.info("Shutting down WorldThreadPool '{}'...", poolName);
@@ -153,9 +153,8 @@ public class WorldThreadPool {
     /**
      * Attempts to stop all actively executing tasks, halts the
      * processing of waiting tasks, and returns a list of the tasks that were
-     * awaiting execution. 
-     * This method does not wait for actively executing tasks to terminate. Use
-     * {@link #awaitTermination} to do that.
+     * awaiting execution.
+     * This method does not wait for actively executing tasks to terminate.
      */
     public void shutdownNow() {
         LOGGER.info("Attempting immediate shutdown of WorldThreadPool '{}'...", poolName);

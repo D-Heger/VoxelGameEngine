@@ -1,5 +1,13 @@
 package de.heger.voxelengine.renderer.ui;
 
+/**
+ * Empty space around the edges of a UI element: its padding or margin.
+ *
+ * <p>Holds four independent values (top, right, bottom, left), with
+ * convenience constructors for the common cases: one value for all sides, or a
+ * vertical/horizontal pair. Layout managers read these to leave space between
+ * elements and their contents.</p>
+ */
 public class Insets {
     public float top;
     public float right;

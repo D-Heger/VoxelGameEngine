@@ -7,6 +7,15 @@ import de.heger.voxelengine.renderer.ui.font.Font;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
 
+/**
+ * A clickable button: a labelled box that reacts to hover and click.
+ *
+ * <p>Internally it composes a {@link BoxElement} for its background and a
+ * {@link TextElement} for its label, so it inherits their rendering. Supply a
+ * {@link Runnable} click action and the button will fire it when the user
+ * presses and releases over it; it also updates its appearance on hover for
+ * interactive feedback.</p>
+ */
 public class ButtonElement extends UIElement {
     private static final LoggerFacade LOGGER = LoggerFacade.get(ButtonElement.class);
 

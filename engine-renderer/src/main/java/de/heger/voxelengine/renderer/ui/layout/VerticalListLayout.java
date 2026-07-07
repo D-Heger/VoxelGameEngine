@@ -6,6 +6,13 @@ import org.joml.Vector2f;
 
 import java.util.List;
 
+/**
+ * Arranges a container's children in a single top-to-bottom column.
+ *
+ * <p>Children are stacked vertically with configurable spacing and padding,
+ * and can be aligned horizontally within the column (left, centre, or right).
+ * Used for menus, where options sit in a vertical list.</p>
+ */
 public class VerticalListLayout implements LayoutManager {
 
     public enum HorizontalAlignment {

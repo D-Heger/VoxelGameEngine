@@ -14,7 +14,7 @@ public interface TerrainGenerator {
      * Populates the given chunk with block data according to the terrain generation algorithm.
      * The implementation should use {@link Chunk#setBlock(int, int, int, short)} to set block IDs.
      * The chunk's position can be obtained via {@link Chunk#getPosition()}.
-     * Access to the {@link de.heger.voxelengine.world.block.BlockRegistry} is available via {@link Chunk#getBlockRegistry()}.
+     * Block ids can be looked up through the {@link de.heger.voxelengine.world.block.BlockRegistry} singleton.
      *
      * @param chunk The chunk to be populated. Must not be null.
      */

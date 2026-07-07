@@ -14,6 +14,16 @@ import java.util.Map;
 
 import static org.lwjgl.stb.STBTruetype.*;
 
+/**
+ * A single loaded font, baked into a glyph atlas ready for rendering.
+ *
+ * <p>On creation the font's TrueType data is rasterised (via STB) at a fixed
+ * size into one texture atlas, and the position and metrics of each character
+ * are recorded as {@link GlyphInfo}. Text rendering then looks up glyphs by
+ * character and reads the vertical metrics (ascent, descent, line gap) held
+ * here to lay out lines. Fonts are typically obtained and cached through
+ * {@link FontManager}, not constructed directly.</p>
+ */
 public class Font {
     private final String fontName;
     private final float fontSize;

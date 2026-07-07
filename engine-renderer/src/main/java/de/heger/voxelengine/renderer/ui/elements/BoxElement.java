@@ -18,6 +18,16 @@ import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 
+/**
+ * A rectangular UI element filled with a solid colour or a texture.
+ *
+ * <p>This is the toolkit's basic visible building block: panels, button
+ * backgrounds, coloured bars. It owns its own quad geometry (VAO/VBO) and can
+ * be either a flat colour or textured, with an adjustable alpha for
+ * translucency. More complex widgets are often composed from one or more of
+ * these.</p>
+ */
+
 public class BoxElement extends UIElement {
     private static final LoggerFacade LOGGER = LoggerFacade.get(BoxElement.class);
 

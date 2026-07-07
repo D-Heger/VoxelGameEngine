@@ -25,7 +25,7 @@ public class CollisionResolver {
 
     /**
      * Resolves collisions for the given entity and desired movement. This method
-     * directly mutates the entity's position & velocity to ensure it does not
+     * directly mutates the entity's position &amp; velocity to ensure it does not
      * interpenetrate solid blocks.
      */
     public void resolve(Entity entity, Vector3f desiredMovement) {

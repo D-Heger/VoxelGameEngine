@@ -5,6 +5,22 @@ import de.heger.voxelengine.renderer.ui.layout.LayoutManager;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Base class for everything that can appear in the user interface.
+ *
+ * <p>A {@code UIElement} is a node in a UI tree: it has a position and size, an
+ * optional parent and a list of children, a {@link PositioningMode} describing
+ * how its coordinates are interpreted, and optional {@link Insets} for padding.
+ * It defines the shared machinery for laying out children (via a
+ * {@link de.heger.voxelengine.renderer.ui.layout.LayoutManager}), computing
+ * absolute screen positions, hit-testing against the mouse, and toggling
+ * visibility.</p>
+ *
+ * <p>Subclasses such as {@link de.heger.voxelengine.renderer.ui.elements.BoxElement},
+ * {@link de.heger.voxelengine.renderer.ui.elements.TextElement}, and
+ * {@link de.heger.voxelengine.renderer.ui.elements.ButtonElement} supply the
+ * actual drawing and interaction behaviour.</p>
+ */
 public abstract class UIElement {
     protected Vector2f position;
     protected Vector2f size;

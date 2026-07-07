@@ -2,6 +2,13 @@ package de.heger.voxelengine.core.utils;
 
 import de.heger.voxelengine.core.logging.LoggerFacade;
 
+/**
+ * Argument- and state-checking helpers for failing fast with clear messages.
+ *
+ * <p>These static methods let a method validate its inputs in one line and
+ * throw a descriptive exception when an input is wrong, instead of failing
+ * with a confusing null-pointer exception further down the call stack.</p>
+ */
 public class Validate {
 
     private static final LoggerFacade logger = LoggerFacade.get(Validate.class);

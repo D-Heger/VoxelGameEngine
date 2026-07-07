@@ -14,6 +14,19 @@ import java.util.Map;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL43.*;
 
+/**
+ * Base class for GLSL shader programs in the engine.
+ *
+ * <p>It handles the OpenGL shader lifecycle: loading source (from a file or the
+ * classpath), compiling vertex and fragment shaders, linking them into a
+ * program, and reporting compile/link errors. Once linked it manages a map of
+ * named uniform locations and offers typed {@code setUniform} overloads for
+ * the common types (ints, floats, vectors, matrices).</p>
+ *
+ * <p>Concrete shaders such as the block shader and
+ * {@link de.heger.voxelengine.renderer.ui.UIShader} extend this and add their
+ * own uniform names and convenience setters.</p>
+ */
 public class ShaderProgram {
 
     private static final LoggerFacade logger = LoggerFacade.get(ShaderProgram.class);

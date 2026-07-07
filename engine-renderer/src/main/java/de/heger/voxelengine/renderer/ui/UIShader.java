@@ -8,6 +8,16 @@ import static org.lwjgl.opengl.GL20.glBindAttribLocation;
 
 import java.io.IOException;
 
+/**
+ * The shader program used to draw all 2D user-interface geometry.
+ *
+ * <p>It loads the {@code ui.vert}/{@code ui.frag} GLSL pair and exposes typed
+ * setters for the handful of uniforms the UI needs: an orthographic projection
+ * matrix, a per-element model matrix, a flat colour, an alpha for fading, and a
+ * toggle plus sampler for optionally texturing an element (text glyphs and image
+ * panels). Vertex attributes for position and texture coordinates are bound to
+ * fixed locations before linking so every UI element can share the same layout.</p>
+ */
 public class UIShader extends ShaderProgram {
     private static final LoggerFacade LOGGER = LoggerFacade.get(UIShader.class);
 

@@ -6,6 +6,21 @@ import org.joml.Vector3f;
 
 import static org.lwjgl.glfw.GLFW.*;
 
+/**
+ * A first-person, free-flying camera.
+ *
+ * <p>The camera keeps a world {@code position} plus a look direction expressed
+ * as {@code yaw} (turning left/right) and {@code pitch} (looking up/down); roll
+ * is omitted, as is typical for FPS-style cameras. From those it derives the
+ * {@code front}, {@code right}, and {@code up} basis vectors and, in turn, the
+ * view matrix. It also owns the perspective projection, so field of view,
+ * aspect ratio, and view distance all live here.</p>
+ *
+ * <p>Input is fed in each frame: {@link #processKeyboard(InputManager, float)}
+ * moves the camera (with a sprint modifier), and
+ * {@link #processMouseMovement(double, double)} rotates it while clamping pitch
+ * so it can never flip over the top.</p>
+ */
 public class Camera {
 
     private Vector3f position;

@@ -166,7 +166,7 @@ public class GenerationTaskQueue {
 
     /**
      * Returns the underlying {@link PriorityBlockingQueue} that backs this task queue.
-     * This is intended for use by systems like a {@link ThreadPoolExecutor} that need direct
+     * This is intended for use by systems like a {@link java.util.concurrent.ThreadPoolExecutor} that need direct
      * access to the blocking queue.
      *
      * @return The underlying PriorityBlockingQueue instance.

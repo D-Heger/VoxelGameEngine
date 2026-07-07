@@ -9,6 +9,17 @@ import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL30.glBindBufferBase;
 import static org.lwjgl.opengl.GL31.*;
 
+/**
+ * A wrapper around an OpenGL Uniform Buffer Object (UBO).
+ *
+ * <p>Some data is shared by many shaders and rarely changes within a frame, for
+ * example the camera's view/projection matrices or scene lighting parameters.
+ * Instead of setting those uniforms on every shader individually, they are
+ * packed once into a UBO and bound to a fixed binding point that shaders read
+ * from. This class owns that buffer: it allocates GPU storage of a given size,
+ * exposes the backing {@link java.nio.ByteBuffer} for filling in data, uploads
+ * it, and cleans up the GL resource when done.</p>
+ */
 public class UniformBuffer {
     private static final LoggerFacade logger = LoggerFacade.get(UniformBuffer.class);
 

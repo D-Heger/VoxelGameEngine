@@ -5,6 +5,13 @@ import de.heger.voxelengine.world.chunk.Chunk;
 import de.heger.voxelengine.world.chunk.ChunkManager;
 import de.heger.voxelengine.world.generation.tasks.ChunkGenerationTask;
 
+/**
+ * A {@link TaskResultHandler} that logs the outcome of each chunk generation
+ * task.
+ *
+ * <p>On success it notes the chunk that was produced, and on failure it logs
+ * the error. Often used as the innermost handler that other handlers wrap.</p>
+ */
 public class LoggingTaskResultHandler implements TaskResultHandler {
 
     private static final LoggerFacade LOGGER = LoggerFacade.get(LoggingTaskResultHandler.class);

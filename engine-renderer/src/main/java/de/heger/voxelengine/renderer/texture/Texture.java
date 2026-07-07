@@ -15,6 +15,16 @@ import static org.lwjgl.opengl.EXTTextureFilterAnisotropic.GL_MAX_TEXTURE_MAX_AN
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL; // Required for GL.getCapabilities()
 
+/**
+ * An OpenGL texture living on the GPU.
+ *
+ * <p>This takes CPU-side {@link de.heger.voxelengine.assets.texture.TextureData}
+ * (or raw parameters) and uploads it into a GL texture object, configuring
+ * how it is sampled: filtering, wrapping, mipmaps, and anisotropic filtering
+ * where the driver supports it. It exposes bind/unbind helpers for a chosen
+ * texture unit and frees the GL handle on cleanup. Block textures, the
+ * texture atlas, and font glyph sheets are all represented by this class.</p>
+ */
 public class Texture {
 
     private static final LoggerFacade LOGGER = LoggerFacade.get(Texture.class);

@@ -1,5 +1,14 @@
 package de.heger.voxelengine.renderer.ui.font;
 
+/**
+ * Layout and atlas information for a single character in a {@link Font}.
+ *
+ * <p>Everything needed to place and texture one glyph: how far to advance the
+ * pen afterwards ({@code xadvance}), the offset and size of the glyph's quad,
+ * and the {@code u0,v0}&ndash;{@code u1,v1} texture coordinates into the font
+ * atlas. The fields are public and final; this is a small immutable value read
+ * on hot text-layout paths.</p>
+ */
 public class GlyphInfo {
     public final float xadvance;
     public final float xoffset;

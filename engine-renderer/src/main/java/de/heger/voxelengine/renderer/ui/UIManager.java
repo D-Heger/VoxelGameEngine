@@ -11,6 +11,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Collections;
 
+/**
+ * The central hub of the UI toolkit.
+ *
+ * <p>The {@code UIManager} owns the flat list of top-level
+ * {@link UIElement}s that make up the interface, initialises the font and render
+ * subsystems, and drives them each frame. It is also the input router: it
+ * tracks which element the mouse is over, which is currently pressed, and which
+ * holds keyboard focus, dispatching events to the right widget and reporting
+ * whether the UI or the game world should consume the current input.</p>
+ *
+ * <p>To keep per-frame allocation low it caches a reversed view of its element
+ * list (so hit-testing can walk front-to-back) and only rebuilds that cache
+ * when the element order changes.</p>
+ */
 public class UIManager {
     private static final LoggerFacade LOGGER = LoggerFacade.get(UIManager.class);
 

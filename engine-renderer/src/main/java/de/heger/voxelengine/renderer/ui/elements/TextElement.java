@@ -25,6 +25,14 @@ import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.stb.STBTruetype.stbtt_GetBakedQuad;
 
+/**
+ * A UI element that draws a string of text using a baked bitmap font.
+ *
+ * <p>Given a {@link de.heger.voxelengine.renderer.ui.font.Font} and a string,
+ * it builds a mesh of one textured quad per glyph (positioned using the font's
+ * baked metrics) and renders it in screen space at a configurable scale and
+ * colour. It is used by labels, button captions, and the debug overlay.</p>
+ */
 public class TextElement extends UIElement {
     private static final LoggerFacade LOGGER = LoggerFacade.get(TextElement.class);
 

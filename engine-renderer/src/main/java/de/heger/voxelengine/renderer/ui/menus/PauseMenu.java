@@ -14,6 +14,14 @@ import org.joml.Vector4f;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * The screen shown when the game is paused.
+ *
+ * <p>It dims the world behind a translucent panel and presents choices
+ * (resume, open settings, quit) as {@link ButtonElement}s. Showing the menu
+ * also releases the mouse cursor so it can be clicked; hiding it hands control
+ * back to the game.</p>
+ */
 public class PauseMenu {
     private static final LoggerFacade LOGGER = LoggerFacade.get(PauseMenu.class);
 

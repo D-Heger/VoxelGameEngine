@@ -17,6 +17,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ * Loads image files into CPU-side {@link TextureData}.
+ *
+ * <p>Given a resource path, this looks the image up first on the classpath and
+ * then on the filesystem, decodes it with STB image, and returns the raw pixels
+ * together with their dimensions and channel count. It stops at the CPU
+ * boundary: uploading the result to an OpenGL texture is the renderer's job,
+ * which keeps asset loading independent of a live GL context and easy to
+ * test.</p>
+ */
 public class TextureLoader {
 
     private static final LoggerFacade LOGGER = LoggerFacade.get(TextureLoader.class);

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+<p>
+    Welcome to the API reference for <strong>VoxelGameEngine</strong> &mdash; a small,
+    modular voxel game engine written in Java 21 on top of LWJGL and OpenGL.
+    If you have ever wanted to see how a Minecraft-style world is loaded, meshed,
+    lit, and drawn without wading through a monolith, you are in the right place.
+</p>
+
+<h2>What this engine is</h2>
+<p>
+    The project is split into focused modules so that each concern can be read,
+    tested, and reasoned about on its own. Nothing here is magic: a world is a
+    grid of chunks, a chunk is a cube of blocks, and the renderer turns the
+    visible faces of those blocks into triangles on your screen. The interesting
+    parts are the details &mdash; greedy-ish meshing, frustum and occlusion
+    culling, cascaded shadow maps, threaded chunk generation, and a lightweight
+    physics/collision pass.
+</p>
+
+<h2>How the modules fit together</h2>
+<p>
+    Dependencies flow in one direction, from the concrete game down to the shared
+    core. This keeps the lower layers reusable and free of surprises.
+</p>
+<ul>
+    <li><b>engine-core</b> &mdash; the shared foundation: math types
+        ({@code Vec3i}, {@code Vec3f}, {@code AABB}), configuration, logging,
+        noise, and fast primitive collections. Everything depends on this;
+        it depends on nothing in the engine.</li>
+    <li><b>engine-platform</b> &mdash; the thin layer over GLFW that opens a
+        window and reads keyboard and mouse input.</li>
+    <li><b>engine-world</b> &mdash; the data model of the world: blocks, the
+        block registry, chunks, coordinate math, and terrain generation
+        (including the threaded generation pipeline).</li>
+    <li><b>engine-renderer</b> &mdash; everything OpenGL: shaders, textures,
+        chunk meshing, culling, lighting, and the immediate-mode-style UI toolkit
+        used for menus and the HUD.</li>
+    <li><b>engine-physics</b> &mdash; gravity, Euler integration, collision
+        resolution against the voxel grid, and raycasting (used for picking the
+        block you are looking at).</li>
+    <li><b>engine-assets</b> &mdash; loading image data off disk into a form the
+        renderer can upload to the GPU.</li>
+    <li><b>game</b> &mdash; gameplay glue: the player and the controller that
+        wires input, camera, physics, and world edits together.</li>
+    <li><b>launcher</b> &mdash; the entry point. It reads the config, builds the
+        {@code GameLoop}, and runs it.</li>
+</ul>
+
+<h2>Where to start reading</h2>
+<p>
+    If you are new to the codebase, a good tour is:
+</p>
+<ol>
+    <li>{@code de.heger.voxelengine.launcher.GameLoop} &mdash; the heartbeat that
+        ties input, world, physics, and rendering together each frame.</li>
+    <li>{@code de.heger.voxelengine.world.chunk.Chunk} and
+        {@code ChunkManager} &mdash; how the world is stored and streamed.</li>
+    <li>{@code de.heger.voxelengine.renderer.Renderer} and
+        {@code mesh.ChunkMeshBuilder} &mdash; how voxels become pixels.</li>
+    <li>{@code de.heger.voxelengine.core.math.Vec3i} &mdash; the humble integer
+        vector that block and chunk coordinates are built on.</li>
+</ol>
+
+<p>
+    Every package has its own short overview describing what lives there and why.
+    Follow the <em>Packages</em> list to dive in.
+</p>
+</body>
+</html>

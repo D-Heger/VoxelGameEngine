@@ -20,6 +20,20 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
+/**
+ * Owns the native application window and its OpenGL context.
+ *
+ * <p>This is the engine's point of contact with GLFW for windowing. It creates
+ * the window (windowed or fullscreen), sets up the OpenGL context and v-sync,
+ * loads the window icon, and exposes the operations the game loop needs:
+ * checking whether the user asked to close, polling events, swapping the front
+ * and back buffers, and querying the framebuffer size. When the game ends it
+ * frees the GLFW callbacks and destroys the window.</p>
+ *
+ * <p>Input callbacks are registered here but the interpreted state lives in
+ * {@link InputManager}; separating the two lets gameplay code poll input state
+ * without touching GLFW directly.</p>
+ */
 public class Window {
 
     private static final LoggerFacade LOGGER = LoggerFacade.get(Window.class);

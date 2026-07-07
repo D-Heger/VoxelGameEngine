@@ -19,6 +19,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * The settings screen, reached from the pause menu.
+ *
+ * <p>Lets the player adjust options such as field of view and view distance, then
+ * applies them live to the {@link Camera} and persists them through
+ * {@link ConfigManager} so they survive a restart. Like the pause menu it is built
+ * from reusable UI elements and toggled as a group.</p>
+ */
 public class SettingsMenu {
     private static final LoggerFacade LOGGER = LoggerFacade.get(SettingsMenu.class);
 

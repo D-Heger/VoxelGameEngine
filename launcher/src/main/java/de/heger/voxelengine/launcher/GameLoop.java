@@ -43,6 +43,21 @@ import static org.lwjgl.glfw.GLFW.GLFW_KEY_F3;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_F4;
 import static org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE;
 
+/**
+ * The running game's main loop, where every module meets.
+ *
+ * <p>{@code GameLoop} builds and wires up the whole engine: it opens the
+ * {@link Window}, sets up the {@link Renderer}, {@link Camera}, world
+ * ({@link ChunkManager} plus the threaded generation service), {@link Player}
+ * and physics, and the {@link UIManager} with its menus and HUD. It then runs
+ * the main loop until the player quits.</p>
+ *
+ * <p>Each iteration measures elapsed time, polls input, updates the world and
+ * player, streams chunks in and out around the camera, renders the scene,
+ * draws the UI, and swaps buffers. Debug toggles (wireframe, the debug
+ * overlay, culling options) and the pause/settings menus are handled here too.
+ * When the loop ends it tears everything down in reverse.</p>
+ */
 public class GameLoop {
 
     private static final LoggerFacade LOGGER = LoggerFacade.get(GameLoop.class);

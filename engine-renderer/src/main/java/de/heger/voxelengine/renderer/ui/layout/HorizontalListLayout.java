@@ -6,6 +6,13 @@ import org.joml.Vector2f;
 
 import java.util.List;
 
+/**
+ * Arranges a container's children in a single left-to-right row.
+ *
+ * <p>Children are placed one after another horizontally with configurable
+ * spacing and padding, and can be aligned vertically within the row (top,
+ * centre, or bottom). Used for toolbars and button rows.</p>
+ */
 public class HorizontalListLayout implements LayoutManager {
 
     public enum VerticalAlignment {

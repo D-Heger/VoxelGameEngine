@@ -12,6 +12,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * The developer overlay that reports live engine stats.
+ *
+ * <p>When toggled on, this draws a corner readout of the numbers useful while
+ * debugging: frame rate, the player's position and orientation, and how many
+ * chunks and draw calls the renderer is pushing. It builds its display from
+ * {@link TextElement}s over a backing {@link BoxElement} and refreshes the
+ * text each frame from the current stats.</p>
+ */
 public class DebugMenu {
 
     private final UIManager uiManager;

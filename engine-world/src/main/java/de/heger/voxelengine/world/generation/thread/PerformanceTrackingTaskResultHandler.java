@@ -6,6 +6,14 @@ import de.heger.voxelengine.world.generation.tasks.ChunkGenerationTask;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
+/**
+ * A {@link TaskResultHandler} that measures how long chunk generation takes.
+ *
+ * <p>It keeps a rolling window of the most recent generation times so the
+ * engine can report an average (for the debug overlay and tuning). It can wrap
+ * another handler, so timing can be layered on top of, for example, logging
+ * without either concern knowing about the other (a decorator pattern).</p>
+ */
 public class PerformanceTrackingTaskResultHandler implements TaskResultHandler {
 
     private static final int MAX_SAMPLES = 50; // Store last 50 samples for averaging

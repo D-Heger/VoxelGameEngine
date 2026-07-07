@@ -12,6 +12,15 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Loads fonts on demand and caches them so each is baked only once.
+ *
+ * <p>Baking a {@link Font} atlas is not free, and the same font is requested
+ * from many places, so this manager keeps a thread-safe cache keyed by font
+ * name/size and hands back the shared instance on subsequent requests. A lock
+ * guards the one-time creation so concurrent callers cannot bake the same
+ * font twice.</p>
+ */
 public class FontManager {
     private static final LoggerFacade LOGGER = LoggerFacade.get(FontManager.class);
     

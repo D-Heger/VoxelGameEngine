@@ -62,3 +62,28 @@ minutes. A game window will open; use the pause menu to quit.
 | Run tests       | `make test` / `./gradlew test`   |
 | Clean           | `make clean` / `./gradlew clean` |
 | Fat/runnable JAR| `make fat-jar` / `./gradlew :launcher:shadowJar` |
+| API docs        | `./gradlew aggregatedJavadoc`  |
+
+# Documentation
+
+The engine ships with full, browsable **Javadoc**-style API docs. Every module,
+package, and public class is documented, with a hand-written landing page and a
+short overview for each package explaining what lives there and why.
+
+## Reading the docs online
+
+The docs are published to **GitHub Pages** automatically on every push to
+`main` via the [`Publish Javadoc`](.github/workflows/javadoc.yml) workflow. 
+They live at:
+
+[d-heger.github.io/VoxelGameEnginePriv/](https://d-heger.github.io/VoxelGameEnginePriv/)
+
+## Building the docs locally
+
+```sh
+./gradlew aggregatedJavadoc
+```
+
+The generated site lands in `build/docs/aggregated-javadoc/`; open
+`index.html` in a browser. Each module also has a standard per-module task
+(e.g. `./gradlew :engine-core:javadoc`) if you only want one module.

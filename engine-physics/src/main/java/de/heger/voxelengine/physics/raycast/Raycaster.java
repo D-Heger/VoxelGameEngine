@@ -11,7 +11,7 @@ import de.heger.voxelengine.world.chunk.Direction;
 
 /**
  * Utility class containing a 3-D Digital Differential Analyzer (DDA) ray-casting
- * implementation (a.k.a Amanatides & Woo) for traversing the discrete block
+ * implementation (a.k.a Amanatides &amp; Woo) for traversing the discrete block
  * grid. The algorithm returns the first solid block hit along the ray or
  * {@code null} if none is found within the specified max distance.
  *
