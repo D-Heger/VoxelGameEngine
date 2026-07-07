@@ -16,8 +16,8 @@ subprojects {
             useJUnitPlatform()
         }
 
-        // Give every module a well-behaved Javadoc task. We deliberately keep
-        // this lenient: the codebase is documented incrementally, so a single
+        // Give every module a well-behaved Javadoc task. Kept lenient on
+        // purpose: the codebase is documented incrementally, so a single
         // missing comment should never fail the whole build.
         tasks.withType<Javadoc>().configureEach {
             (options as StandardJavadocDocletOptions).apply {
@@ -27,6 +27,12 @@ subprojects {
                 links("https://docs.oracle.com/en/java/javase/21/docs/api/")
                 addStringOption("Xdoclint:none", "-quiet")
                 addBooleanOption("html5", true)
+                // Apply the Catppuccin Mocha stylesheet when it exists.
+                val css = rootProject.layout.projectDirectory
+                    .file("docs/javadoc.css").asFile
+                if (css.exists()) {
+                    addFileOption("stylesheetfile", css)
+                }
             }
             isFailOnError = false
         }
@@ -34,15 +40,15 @@ subprojects {
 }
 
 /**
- * Aggregated, browser-friendly Javadoc for the whole engine.
+ * Aggregated Javadoc for the whole engine.
  *
- * Running `./gradlew aggregatedJavadoc` collects the public API of every
- * Java module into a single, cross-linked site under
- * `build/docs/aggregated-javadoc`. This is what gets published to GitHub Pages.
+ * `./gradlew aggregatedJavadoc` collects the public API of every Java module
+ * into a single, cross-linked site under `build/docs/aggregated-javadoc`,
+ * which is what gets published to GitHub Pages.
  */
 val aggregatedJavadoc = tasks.register<Javadoc>("aggregatedJavadoc") {
     group = "documentation"
-    description = "Generates a single, browsable Javadoc site for every engine module."
+    description = "Generates a Javadoc site spanning every engine module."
 
     setDestinationDir(layout.buildDirectory.dir("docs/aggregated-javadoc").get().asFile)
     title = "VoxelGameEngine API"
@@ -58,9 +64,13 @@ val aggregatedJavadoc = tasks.register<Javadoc>("aggregatedJavadoc") {
         links("https://docs.oracle.com/en/java/javase/21/docs/api/")
         addStringOption("Xdoclint:none", "-quiet")
         addBooleanOption("html5", true)
-        // A hand-written landing page that greets people arriving at the docs.
+        addFileOption(
+            "stylesheetfile",
+            layout.projectDirectory.file("docs/javadoc.css").asFile
+        )
+        // A landing page for people arriving at the docs.
         overview = layout.projectDirectory.file("docs/overview.html").asFile.absolutePath
-        // Group the packages into human-friendly buckets in the left sidebar.
+        // Group the packages into buckets in the left sidebar.
         group("Core & Math", "de.heger.voxelengine.core*")
         group("Platform & Windowing", "de.heger.voxelengine.platform*")
         group("Rendering", "de.heger.voxelengine.renderer*")

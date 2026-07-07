@@ -1,0 +1,421 @@
+/* Catppuccin Mocha + Fira Code stylesheet for the standard Javadoc doclet.
+ * Replaces the default light theme; targets the classes the Java 21 doclet
+ * emits in its generated CSS so the dark palette and font apply site-wide.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+    --ctp-crust: #11111b;
+    --ctp-mantle: #181825;
+    --ctp-base: #1e1e2e;
+    --ctp-surface0: #313244;
+    --ctp-surface1: #45475a;
+    --ctp-surface2: #585b70;
+    --ctp-overlay0: #6c7086;
+    --ctp-overlay1: #7f849c;
+    --ctp-overlay2: #9399b2;
+    --ctp-subtext0: #a6adc8;
+    --ctp-subtext1: #bac2de;
+    --ctp-text: #cdd6f4;
+    --ctp-blue: #89b4fa;
+    --ctp-lavender: #b4befe;
+    --ctp-sapphire: #74c7ec;
+    --ctp-sky: #89dceb;
+    --ctp-teal: #94e2d5;
+    --ctp-green: #a6e3a1;
+    --ctp-yellow: #f9e2af;
+    --ctp-peach: #fab387;
+    --ctp-maroon: #eba0ac;
+    --ctp-red: #f38ba8;
+    --ctp-mauve: #cba6f7;
+    --ctp-pink: #f5c2e7;
+    --ctp-flamingo: #f2cdcd;
+    --accent: var(--ctp-mauve);
+    --accent-link: var(--ctp-blue);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--ctp-base);
+    color: var(--ctp-text);
+    font-family: "Inter", "Fira Code", system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+body {
+    /* Soft gradient + subtle blur gives the "mocha blur" feel: layers behind
+       translucent surfaces read like frosted glass. */
+    background:
+        radial-gradient(900px circle at 12% -10%, rgba(203,166,247,0.10), transparent 55%),
+        radial-gradient(700px circle at 92% 8%, rgba(137,180,250,0.10), transparent 60%),
+        var(--ctp-base);
+}
+
+a {
+    color: var(--accent-link);
+    text-decoration: none;
+    transition: color 120ms ease;
+}
+a:hover, a:focus {
+    color: var(--ctp-sky);
+    text-decoration: underline;
+}
+a[name] {
+    color: inherit;
+}
+
+code, pre, pre code {
+    font-family: "Fira Code", "JetBrains Mono", ui-monospace, SFMono-Regular,
+        Menlo, Consolas, monospace;
+}
+
+code {
+    background: var(--ctp-surface0);
+    color: var(--ctp-peach);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.88em;
+    border: 1px solid rgba(205,214,244,0.06);
+}
+
+pre {
+    background: var(--ctp-mantle);
+    border: 1px solid var(--ctp-surface0);
+    border-radius: 8px;
+    padding: 0.9em 1em;
+    overflow-x: auto;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+pre code {
+    background: transparent;
+    color: var(--ctp-text);
+    padding: 0;
+    border: 0;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--ctp-text);
+    font-family: "Inter", sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+h1 { font-size: 1.9em; margin: 0.6em 0 0.4em; }
+h2 { font-size: 1.45em; margin: 1.1em 0 0.5em; color: var(--ctp-lavender); }
+h3 { font-size: 1.18em; margin: 1em 0 0.45em; color: var(--ctp-blue); }
+h4 { font-size: 1.02em; margin: 0.8em 0 0.4em; color: var(--ctp-mauve); }
+
+hr {
+    border: none;
+    border-top: 1px solid var(--ctp-surface0);
+    margin: 1.6em 0;
+}
+
+strong { color: var(--ctp-text); }
+em { color: var(--ctp-subtext1); font-style: normal; }
+
+/* Top frame / header */
+header, .header, .topNav, .bottomNav, .subNav, .bar, .navList {
+    background: rgba(24, 24, 37, 0.78);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    border-bottom: 1px solid var(--ctp-surface0);
+    color: var(--ctp-text);
+}
+
+header a, .topNav a, .bottomNav a, .subNav a, .navList a, .bar a {
+    color: var(--ctp-subtext1);
+}
+header a:hover, .topNav a:hover, .bottomNav a:hover,
+.subNav a:hover, .navList a:hover, .bar a:hover {
+    color: var(--ctp-text);
+}
+
+nav ul.navList li, .navList li, ul.navList li {
+    list-style: none;
+}
+
+/* The "active" cell in the top bar */
+.navBarCell1Rev, .navBarCell1Rev a {
+    background: var(--ctp-mauve);
+    color: var(--ctp-base) !important;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+/* Main column */
+.mainContainer, .contentContainer {
+    background: transparent;
+}
+
+/* Javadoc "block" - the inline summary box on each class page */
+.block {
+    background: rgba(30, 30, 46, 0.6);
+    border: 1px solid var(--ctp-surface0);
+    border-radius: 8px;
+    padding: 0.8em 1em;
+    margin: 0.6em 0 0.9em;
+    backdrop-filter: blur(10px) saturate(135%);
+    -webkit-backdrop-filter: blur(10px) saturate(135%);
+}
+
+/* Block quote used inside block descriptions */
+blockquote {
+    border-left: 3px solid var(--ctp-mauve);
+    margin: 0.6em 0;
+    padding: 0.1em 1em;
+    color: var(--ctp-subtext1);
+    background: transparent;
+}
+
+/* Tables (overview/member summaries) */
+table, table.overviewSummary, table.memberSummary,
+table.typeSummary, table.useSummary, table.constantsSummary,
+table.detailsSummary, table.constructorSummary, table.methodSummary,
+table.fieldSummary, table.propertySummary {
+    background: rgba(24, 24, 37, 0.55);
+    border-collapse: collapse;
+    width: 100%;
+    border: 1px solid var(--ctp-surface0);
+    border-radius: 8px;
+    overflow: hidden;
+    backdrop-filter: blur(12px) saturate(135%);
+    -webkit-backdrop-filter: blur(12px) saturate(135%);
+}
+
+caption {
+    caption-side: top;
+    color: var(--ctp-subtext1);
+    font-style: normal;
+    font-weight: 600;
+    padding: 0.4em 0;
+    text-align: left;
+}
+
+th, td, .overviewSummary th, .overviewSummary td,
+.memberSummary th, .memberSummary td,
+.colFirst, .colOne, .colLast,
+th.colFirst, th.colOne, th.colLast,
+td.colFirst, td.colOne, td.colLast {
+    border-bottom: 1px solid var(--ctp-surface0);
+    color: var(--ctp-text);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+th, th.colFirst, th.colOne, th.colLast,
+.overviewSummary th, .memberSummary th {
+    background: var(--ctp-surface0);
+    color: var(--ctp-text);
+    font-weight: 600;
+}
+
+tr:hover td, tr:hover .colFirst, tr:hover .colOne, tr:hover .colLast {
+    background: var(--ctp-surface1);
+}
+
+/* Zebra stripe rows */
+tr:nth-child(even) td,
+tr:nth-child(even) .colFirst,
+tr:nth-child(even) .colOne,
+tr:nth-child(even) .colLast {
+    background: rgba(49, 50, 68, 0.35);
+}
+
+table col.altColor,
+table td.altColor,
+table tr.altColor td {
+    background: rgba(49, 50, 68, 0.40);
+}
+
+table col.rowColor,
+table td.rowColor,
+table tr.rowColor td {
+    background: transparent;
+}
+
+/* Member summary first column (return type) */
+.memberSummary td.colFirst, .methodSummary td.colFirst,
+.constructorSummary td.colFirst, .fieldSummary td.colFirst {
+    font-family: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.9em;
+    color: var(--ctp-teal);
+}
+
+/* Member name column */
+td.colOne, td.colLast, th.colOne, th.colLast {
+    font-family: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.9em;
+}
+
+/* Class heading + signature */
+.title, .header h1.title {
+    color: var(--ctp-pink);
+    font-family: "Inter", sans-serif;
+}
+h2.title, h3.title {
+    color: var(--ctp-mauve);
+    border-bottom: 1px solid var(--ctp-surface0);
+    padding-bottom: 0.3em;
+}
+
+/* Type signature block */
+.signature, .type-signature {
+    font-family: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    color: var(--ctp-green);
+}
+
+/* Class page subtitle */
+.deprecatedLabel, .descargs, .paramDesc {
+    color: var(--ctp-overlay1);
+}
+
+.deprecation {
+    color: var(--ctp-red);
+    background: rgba(243, 139, 168, 0.10);
+    border-left: 3px solid var(--ctp-red);
+    padding: 0.5em 1em;
+    margin: 0.5em 0;
+    border-radius: 4px;
+}
+
+/* Inline tags like @param, @return */
+dl.notes > dt {
+    color: var(--ctp-peach);
+    font-family: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    font-weight: 500;
+    font-size: 0.9em;
+    margin-top: 0.5em;
+}
+dl.notes > dd {
+    margin-left: 0;
+    color: var(--ctp-subtext1);
+}
+dl {
+    margin: 0.4em 0;
+}
+
+/* Search bar */
+#search-input {
+    background: var(--ctp-surface1);
+    color: var(--ctp-text);
+    border: 1px solid var(--ctp-surface2);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.9em;
+    outline: none;
+}
+#search-input::placeholder {
+    color: var(--ctp-overlay0);
+}
+#search-input:focus {
+    border-color: var(--ctp-mauve);
+}
+
+/* List of results box */
+.ui-autocomplete {
+    background: var(--ctp-surface0);
+    border: 1px solid var(--ctp-surface2);
+    color: var(--ctp-text);
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+.ui-autocomplete li {
+    color: var(--ctp-text);
+}
+.ui-autocomplete li.ui-state-active {
+    background: var(--ctp-surface1);
+    color: var(--ctp-text);
+    border: none;
+}
+
+/* Frameset / iframe backgrounds */
+frame, frameset, frameset frame {
+    background: var(--ctp-base);
+    color: var(--ctp-text);
+}
+iframe {
+    background: var(--ctp-base);
+    border: none;
+}
+
+/* Side panel nav */
+nav.contentContainer {
+    background: rgba(24, 24, 37, 0.4);
+    border-right: 1px solid var(--ctp-surface0);
+}
+ul.navList, div.navList {
+    padding: 0.4em 0.8em;
+}
+
+/* "Packages" overview side list */
+.overviewSummary a, .overviewSummary th a {
+    color: var(--ctp-blue);
+}
+
+/* Class/Package description block */
+div.description, pre.description {
+    color: var(--ctp-text);
+}
+
+/* Skip-link */
+.skipNav {
+    color: var(--ctp-overlay1);
+}
+
+/* Override link inside code blocks */
+pre a {
+    color: var(--ctp-sky);
+}
+
+/* Version label / page footer */
+.footer, header .title-row, #all-packages-table {
+    color: var(--ctp-overlay1);
+}
+
+/* Make the iframe-based overview page readable (it has no nav) */
+body[onresize] {
+    padding: 1.5em;
+}
+
+/* Misc */
+ul {
+    color: var(--ctp-text);
+}
+li {
+    margin: 0.25em 0;
+}
+
+/* Scrollbar to match */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: var(--ctp-mantle);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--ctp-surface1);
+    border-radius: 5px;
+    border: 2px solid var(--ctp-mantle);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--ctp-surface2);
+}
+
+::selection {
+    background: rgba(203, 166, 247, 0.30);
+    color: var(--ctp-text);
+}
